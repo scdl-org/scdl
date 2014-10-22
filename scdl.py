@@ -4,6 +4,7 @@
 Usage:
 	scdl.py -l <track_url> [--hidewarnings]
 	scdl.py --me [--hidewarnings]
+	scdl.py --myprofile [--hidewarnings]
 	scdl.py -h | --help
 	scdl.py --version
 
@@ -24,6 +25,7 @@ import sys
 
 import soundcloud
 import wget
+import urllib2
 
 token = ''
 client = soundcloud.Client(client_id='9dbef61eb005cb526480279a0cc868c4')
@@ -46,7 +48,10 @@ def main():
 	if arguments["-l"]:
 		parse_url(arguments["<track_url>"])
 	elif arguments["--me"]:
-		mystream()
+		my_stream()
+	elif arguments["--myprofile"]:
+		my_profile()
+
 
 def get_config():
 	"""
@@ -59,14 +64,21 @@ def get_config():
 	path = config['scdl']['path']
 	os.chdir(path)
 
-def mystream():
+def my_stream():
 	client = soundcloud.Client(access_token=token)
 	# make an authenticated call
 	current_user = client.get('/me')
 	print('Hello',current_user.username, '!')
-	activities = client.get('/me/activities')
-	print(activities.type)
+	response = urllib2.urlopen("https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=%s" % (current_user.id, offset, ))
+	html = response.read()
 
+def my_profile():
+	client = soundcloud.Client(access_token=token)
+	# make an authenticated call
+	current_user = client.get('/me')
+	print('Hello',current_user.username, '!')
+	activities = client.get('/me/sounds')
+	print(activities.type)
 
 def settags(track):
 	"""
