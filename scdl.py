@@ -4,6 +4,8 @@
 Usage:
 	scdl.py -l <track_url> [--hidewarnings]
 	scdl.py --me [--hidewarnings]
+	scdl.py --myprofile [--hidewarnings]
+	scdl.py --allmytrack [--hidewarnings]
 	scdl.py -h | --help
 	scdl.py --version
 
@@ -26,7 +28,9 @@ import soundcloud
 import wget
 
 token = ''
-client = soundcloud.Client(client_id='b45b1aa10f1ac2941910a7f0d10f8e28')
+scdl_client_id = 'b45b1aa10f1ac2941910a7f0d10f8e28'
+client = soundcloud.Client(client_id=scdl_client_id)
+
 filename = ''
 
 def main():
@@ -42,11 +46,17 @@ def main():
 
 	if arguments["--hidewarnings"]:
 		warnings.filterwarnings("ignore")
+		print("no warnings!")
 
 	if arguments["-l"]:
 		parse_url(arguments["<track_url>"])
 	elif arguments["--me"]:
-		mystream()
+		my_stream()
+	elif arguments["--myprofile"]:
+		my_profile()
+	elif arguments["--allmytrack"]:
+			allmytrack()
+
 
 def get_config():
 	"""
@@ -59,14 +69,21 @@ def get_config():
 	path = config['scdl']['path']
 	os.chdir(path)
 
-def mystream():
+def allmytrack():
+	offset=0
+	client = soundcloud.Client(access_token=token)
+	# make an authenticated call
+	user_id = client.get('/me').id
+	response = wget.download("https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset))
+	print(response)
+
+def my_stream():
 	client = soundcloud.Client(access_token=token)
 	# make an authenticated call
 	current_user = client.get('/me')
 	print('Hello',current_user.username, '!')
-	activities = client.get('/me/activities')
+	activities = client.get('/me/sounds')
 	print(activities.type)
-
 
 def settags(track):
 	"""
@@ -102,14 +119,12 @@ def parse_url(track_url):
 	item = get_item(track_url)
 	if not item:
 		return
-	if item.kind == 'track':
+	elif item.kind == 'track':
 		print("Found a track")
 		download_track(item)
-
-	if item.kind == 'user':
+	elif item.kind == 'user':
 		print("Found an user profile")
 		download_user(item)
-
 	elif item.kind == "playlist":
 		print("Found a playlist")
 		for track_raw in item.tracks:
@@ -145,7 +160,7 @@ def download_track(track):
 
 	stream_url = client.get(track.stream_url, allow_redirects=False)
 	url = stream_url.location
-
+	print(url)
 	title = track.title
 	print("Downloading " + title)
 
@@ -153,7 +168,13 @@ def download_track(track):
 	filename = title +'.mp3'
 
 	if not os.path.isfile(filename):
-		wget.download(url, filename)
+		if track.downloadable:
+			print('Downloading the orginal file.')
+			url = track.download_url + '?client_id=' + scdl_client_id
+			print(url)
+			wget.download(url, filename)
+		elif track.streamable:
+			wget.download(url, filename)
 	else:
 		print("Music already exists ! (exiting)")
 		sys.exit(0)
