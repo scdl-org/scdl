@@ -3,7 +3,7 @@
 
 Usage:
 	scdl.py -l <track_url> [-a | -f | -t | -p][--hidewarnings]
-	scdl.py me [-s | -a | -f | -t | -p][--hidewarnings]
+	scdl.py me (-s | -a | -f | -t | -p)[--hidewarnings]
 	scdl.py -h | --help
 	scdl.py --version
 
@@ -46,7 +46,6 @@ def main():
 	print("Soundcloud Downloader")
 
 	arguments = docopt(__doc__, version='0.1')
-	print(arguments)
 
 	get_config()
 
@@ -77,7 +76,11 @@ def get_config():
 	config.read('scdl.cfg')
 	token = config['scdl']['auth_token']
 	path = config['scdl']['path']
-	os.chdir(path)
+	if os.path.exists(path):
+		os.chdir(path)
+	else:
+		print('Invalid path...')
+		sys.exit()
 
 def get_item(track_url):
 	"""
@@ -114,6 +117,8 @@ def parse_url(track_url):
 			download_all_user_tracks(item)
 		elif arguments["-p"]:
 			download_user_playlists(item)
+		else:
+			print('Please provide a download type...')
 	else:
 		print("Unknown item type")
 
