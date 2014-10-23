@@ -4,7 +4,7 @@
 Usage:
 	scdl.py -l <track_url> [--hidewarnings]
 	scdl.py --me [--hidewarnings]
-	scdl.py --myprofile [--hidewarnings]
+	scdl.py --mystream [--hidewarnings]
 	scdl.py --allmytrack [--hidewarnings]
 	scdl.py -h | --help
 	scdl.py --version
@@ -50,11 +50,11 @@ def main():
 	if arguments["-l"]:
 		parse_url(arguments["<track_url>"])
 	elif arguments["--me"]:
-		my_stream()
-	elif arguments["--myprofile"]:
-		my_profile()
+		who_am_i()
+	elif arguments["--mystream"]:
+		download_my_stream()
 	elif arguments["--allmytrack"]:
-			allmytrack()
+		download_all_profile_track()
 
 
 def get_config():
@@ -68,7 +68,24 @@ def get_config():
 	path = config['scdl']['path']
 	os.chdir(path)
 
-def allmytrack():
+def who_am_i():
+	"""
+	display to who the current token correspond, check if the token is valid
+	"""
+	client = soundcloud.Client(access_token=token)
+
+	# make an authenticated call
+	try:
+		current_user = client.get('/me')
+	except:
+		print('Invalid token...')
+		sys.exit(0)
+	print('Hello',current_user.username, '!')
+
+def download_all_profile_track():
+	"""
+	Download artist track &/or repost
+	"""
 	offset=0
 	client = soundcloud.Client(access_token=token)
 	# make an authenticated call
@@ -76,26 +93,16 @@ def allmytrack():
 	response = wget.download("https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset))
 	print(response)
 
-def my_stream():
+def download_my_stream():
+	"""
+	Download the stream of the current user
+
+	"""
 	client = soundcloud.Client(access_token=token)
 	# make an authenticated call
 	current_user = client.get('/me')
-	print('Hello',current_user.username, '!')
-	activities = client.get('/me/sounds')
+	activities = client.get('/me/activities')
 	print(activities.type)
-
-def settags(track):
-	"""
-	Set the tags to the mp3
-	"""
-	print("Settings tags...")
-	user = client.get('/users/' + str(track.user_id), allow_redirects=False)
-	audiofile = my_eyed3.load(filename)
-	audiofile.tag.artist = user.username
-	audiofile.tag.album = track.title
-	audiofile.tag.title = track.title
-
-	audiofile.tag.save()
 
 def get_item(track_url):
 	"""
@@ -123,19 +130,14 @@ def parse_url(track_url):
 		download_track(item)
 	elif item.kind == 'user':
 		print("Found an user profile")
-		download_user(item)
+		download_user_favorites(item)
 	elif item.kind == "playlist":
 		print("Found a playlist")
-		for track_raw in item.tracks:
-			mp3_url = get_item(track_raw["permalink_url"])
-			if item:
-				download_track(mp3_url)
-			else:
-				print("Could not find track " + track_raw["title"])
+		download_playlist(item)
 	else:
 		print("Unknown item type")
 
-def download_user(user):
+def download_user_favorites(user):
 	"""
 	Fetch users data
 	"""
@@ -151,6 +153,17 @@ def download_user(user):
 				print("End of favorites")
 				end_of_tracks =True
 		offset += 10
+
+def download_playlist(playlist):
+	"""
+	Download a playlist
+	"""
+	for track_raw in playlist.tracks:
+		mp3_url = get_item(track_raw["permalink_url"])
+		if item:
+			download_track(mp3_url)
+		else:
+			print("Could not find track " + track_raw["title"])
 
 def download_track(track):
 	"""
@@ -181,6 +194,19 @@ def download_track(track):
 
 	print('')
 	print(title + ' Downloaded.')
+
+def settags(track):
+	"""
+	Set the tags to the mp3
+	"""
+	print("Settings tags...")
+	user = client.get('/users/' + str(track.user_id), allow_redirects=False)
+	audiofile = my_eyed3.load(filename)
+	audiofile.tag.artist = user.username
+	audiofile.tag.album = track.title
+	audiofile.tag.title = track.title
+
+	audiofile.tag.save()
 
 def signal_handler(signal, frame):
 	"""
