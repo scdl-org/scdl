@@ -2,19 +2,22 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-	scdl.py -l <track_url> [-f] [--hidewarnings]
-	scdl.py --me [--hidewarnings]
-	scdl.py --mystream [--hidewarnings]
-	scdl.py --allmytrack [--hidewarnings]
+	scdl.py -l <track_url> [-a | -f | -t | -p][--hidewarnings]
+	scdl.py me [-s | -a | -f | -t | -p][--hidewarnings]
 	scdl.py -h | --help
 	scdl.py --version
 
 
 Options:
-	-h --help		Show this screen.
-	--version		Show version.
-	-l [url]		Necessary. URL is the url of the soundcloud's page.
-	--hidewarnings	Hide Warnings.
+	-h --help          Show this screen.
+	--version          Show version.
+	-l [url]           URL can be track/playlist/user.
+	-s                 Download the stream of an user (token needed)
+	-a                 Download all track of an user (including repost)
+	-t                 Download all upload of an user
+	-f                 Download all favorite of an user
+	-p                 Download all playlist of an user
+	--hidewarnings     Hide Warnings. (use with precaution)
 """
 from docopt import docopt
 import configparser
@@ -32,9 +35,9 @@ import urllib.request
 import json
 
 token = ''
+filename = ''
 scdl_client_id = '9dbef61eb005cb526480279a0cc868c4'
 client = soundcloud.Client(client_id=scdl_client_id)
-filename = ''
 
 def main():
 	"""
@@ -51,14 +54,19 @@ def main():
 		warnings.filterwarnings("ignore")
 		print("no warnings!")
 
+	print('')
 	if arguments["-l"]:
 		parse_url(arguments["<track_url>"])
-	elif arguments["--me"]:
-		who_am_i()
-	elif arguments["--mystream"]:
-		download_my_stream()
-	elif arguments["--allmytrack"]:
-		download_all_profile_track()
+	elif arguments["me"]:
+		if arguments["-a"]:
+			download_all_user_tracks(who_am_i())
+		elif arguments["-f"]:
+			download_user_favorites(who_am_i())
+		elif arguments["-t"]:
+			download_user_tracks(who_am_i())
+		elif arguments["-p"]:
+			download_user_playlists(who_am_i())
+
 
 def get_config():
 	"""
@@ -80,8 +88,7 @@ def get_item(track_url):
 		item = client.get('/resolve', url=track_url)
 	except Exception as e:
 		print("Could not resolve url " + track_url)
-		print(e, exc_info=True)
-		return False
+		sys.exit(0)
 	return item
 
 def parse_url(track_url):
@@ -94,15 +101,19 @@ def parse_url(track_url):
 	elif item.kind == 'track':
 		print("Found a track")
 		download_track(item)
+	elif item.kind == "playlist":
+		print("Found a playlist")
+		download_playlist(item)
 	elif item.kind == 'user':
 		print("Found an user profile")
 		if arguments["-f"]:
 			download_user_favorites(item)
-		else:
+		elif arguments["-t"]:
 			download_user_tracks(item)
-	elif item.kind == "playlist":
-		print("Found a playlist")
-		download_playlist(item)
+		elif arguments["-a"]:
+			download_all_user_tracks(item)
+		elif arguments["-p"]:
+			download_user_playlists(item)
 	else:
 		print("Unknown item type")
 
@@ -110,7 +121,8 @@ def who_am_i():
 	"""
 	display to who the current token correspond, check if the token is valid
 	"""
-	client = soundcloud.Client(access_token=token)
+	global client
+	client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
 
 	try:
 		current_user = client.get('/me')
@@ -118,15 +130,16 @@ def who_am_i():
 		print('Invalid token...')
 		sys.exit(0)
 	print('Hello',current_user.username, '!')
+	print('')
+	return current_user
 
-def download_all_profile_track():
+def download_all_user_tracks(user):
 	"""
-	Download artist track &/or repost
+	Find track & repost of the user
 	"""
-	offset=4
-	client = soundcloud.Client(access_token=token)
+	offset=23
+	user_id = user.id
 
-	user_id = client.get('/me').id
 	url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
 	response = urllib.request.urlopen(url)
 	data = response.read()
@@ -140,26 +153,34 @@ def download_all_profile_track():
 			this_url = json_data[0]['playlist']['uri']
 		print('Track n°%d' % (offset))
 		parse_url(this_url)
+
 		url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
 		response = urllib.request.urlopen(url)
 		data = response.read()
 		text = data.decode('utf-8')
 		json_data = json.loads(text)
 
-def download_my_stream():
-	"""
-	Download the stream of the current user
-
-	"""
-	client = soundcloud.Client(access_token=token)
-
-	current_user = client.get('/me')
-	activities = client.get('/me/activities')
-	print(activities.type)
-
 def download_user_tracks(user):
 	"""
-	Find track in user track (upload --> no repost)
+	Find track in user upload --> no repost
+	"""
+	offset = 0
+	end_of_tracks = False
+	songs = client.get('/users/' + str(user.id) + '/tracks', limit = 10, offset = offset)
+	while not end_of_tracks:
+		for track in songs:
+			if track.kind == 'track':
+				print("")
+				download_track(track)
+			else:
+				print("End of favorites")
+				end_of_tracks =True
+		offset += 10
+
+
+def download_user_playlists(user):
+	"""
+	Find playlists of the user
 	"""
 	offset = 0
 	end_of_tracks = False
@@ -176,7 +197,7 @@ def download_user_tracks(user):
 
 def download_user_favorites(user):
 	"""
-	Find track in user favorites
+	Find tracks in user favorites
 	"""
 	offset = 0
 	end_of_tracks = False
@@ -191,6 +212,17 @@ def download_user_favorites(user):
 				end_of_tracks =True
 		offset += 10
 
+def download_my_stream():
+	"""
+	DONT WORK FOR NOW
+	Download the stream of the current user
+	"""
+	client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
+
+	current_user = client.get('/me')
+	activities = client.get('/me/activities')
+	print(activities)
+
 def download_playlist(playlist):
 	"""
 	Download a playlist
@@ -203,8 +235,12 @@ def download_track(track):
 	"""
 	Downloads a track
 	"""
-
-	stream_url = client.get(track.stream_url, allow_redirects=False)
+	if track.streamable:
+		stream_url = client.get(track.stream_url, allow_redirects=False)
+	else:
+		print('This track is not streamable...')
+		print('')
+		return
 	url = stream_url.location
 	title = track.title
 	print("Downloading " + title)
@@ -222,12 +258,13 @@ def download_track(track):
 		elif track.streamable:
 			wget.download(url, filename)
 	else:
+		print('')
 		print("Music already exists ! (exiting)")
 		sys.exit(0)
 	#settags(track)
 
 	print('')
-	print(title + ' Downloaded.')
+	print(filename + ' Downloaded.')
 	print('')
 
 def settags(track):
