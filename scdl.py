@@ -23,9 +23,13 @@ import warnings
 import os
 import signal
 import sys
+import string
 
+import time
 import soundcloud
 import wget
+import urllib.request
+import json
 
 token = ''
 scdl_client_id = '9dbef61eb005cb526480279a0cc868c4'
@@ -74,7 +78,6 @@ def who_am_i():
 	"""
 	client = soundcloud.Client(access_token=token)
 
-	# make an authenticated call
 	try:
 		current_user = client.get('/me')
 	except:
@@ -86,12 +89,28 @@ def download_all_profile_track():
 	"""
 	Download artist track &/or repost
 	"""
-	offset=0
+	offset=4
 	client = soundcloud.Client(access_token=token)
-	# make an authenticated call
+
 	user_id = client.get('/me').id
-	response = wget.download("https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset))
-	print(response)
+	url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
+	response = urllib.request.urlopen(url)
+	data = response.read()
+	text = data.decode('utf-8')
+	json_data = json.loads(text)
+	while json_data != '[]':
+		offset += 1
+		try:
+			this_url = json_data[0]['track']['uri']
+		except:
+			this_url = json_data[0]['playlist']['uri']
+		print('Track n°%d' % (offset))
+		parse_url(this_url)
+		url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
+		response = urllib.request.urlopen(url)
+		data = response.read()
+		text = data.decode('utf-8')
+		json_data = json.loads(text)
 
 def download_my_stream():
 	"""
@@ -99,7 +118,7 @@ def download_my_stream():
 
 	"""
 	client = soundcloud.Client(access_token=token)
-	# make an authenticated call
+
 	current_user = client.get('/me')
 	activities = client.get('/me/activities')
 	print(activities.type)
@@ -108,7 +127,7 @@ def get_item(track_url):
 	"""
 	Fetches metadata for an track or playlist
 	"""
-	# Fetches metadata from soundcloud
+
 	try:
 		item = client.get('/resolve', url=track_url)
 	except Exception as e:
@@ -160,10 +179,7 @@ def download_playlist(playlist):
 	"""
 	for track_raw in playlist.tracks:
 		mp3_url = get_item(track_raw["permalink_url"])
-		if item:
-			download_track(mp3_url)
-		else:
-			print("Could not find track " + track_raw["title"])
+		download_track(mp3_url)
 
 def download_track(track):
 	"""
@@ -172,18 +188,18 @@ def download_track(track):
 
 	stream_url = client.get(track.stream_url, allow_redirects=False)
 	url = stream_url.location
-	print(url)
 	title = track.title
 	print("Downloading " + title)
 
+	valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
 	global filename
 	filename = title +'.mp3'
+	filename = ''.join(c for c in filename if c in valid_chars)
 
 	if not os.path.isfile(filename):
 		if track.downloadable:
 			print('Downloading the orginal file.')
 			url = track.download_url + '?client_id=' + scdl_client_id
-			print(url)
 			wget.download(url, filename)
 		elif track.streamable:
 			wget.download(url, filename)
@@ -194,6 +210,7 @@ def download_track(track):
 
 	print('')
 	print(title + ' Downloaded.')
+	print('')
 
 def settags(track):
 	"""
@@ -212,6 +229,7 @@ def signal_handler(signal, frame):
 	"""
 	handle keyboardinterrupt
 	"""
+	time.sleep(2)
 	files = os.listdir()
 	for f in files:
 		if not os.path.isdir(f) and ".tmp" in f:
