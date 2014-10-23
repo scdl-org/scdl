@@ -186,17 +186,17 @@ def download_user_tracks(user):
 	Find track in user upload --> no repost
 	"""
 	global offset
-	end_of_tracks = False
-	songs = client.get('/users/' + str(user.id) + '/tracks', limit = 10, offset = offset)
-	while not end_of_tracks:
-		for track in songs:
-			if track.kind == 'track':
-				print("")
-				download_track(track)
-			else:
-				print("End of favorites")
-				end_of_tracks =True
+	count=0
+	tracks = client.get('/users/' + str(user.id) + '/tracks', limit = 10, offset = offset)
+	for track in tracks:
+		for track in tracks:
+			count +=1
+			print("")
+			print('Track n°%d' % (count))
+			download_track(track)
 		offset += 10
+		tracks = client.get('/users/' + str(user.id) + '/tracks', limit = 10, offset = offset)
+	print('All users track downloaded!')
 
 
 def download_user_playlists(user):
@@ -204,34 +204,35 @@ def download_user_playlists(user):
 	Find playlists of the user
 	"""
 	global offset
-	end_of_tracks = False
-	songs = client.get('/users/' + str(user.id) + '/tracks', limit = 10, offset = offset)
-	while not end_of_tracks:
-		for track in songs:
-			if track.kind == 'track':
-				print("")
-				download_track(track)
-			else:
-				print("End of favorites")
-				end_of_tracks =True
+	count=0
+	playlists = client.get('/users/' + str(user.id) + '/playlists', limit = 10, offset = offset)
+	for playlist in playlists:
+		for playlist in playlists:
+			count +=1
+			print("")
+			print('Playlist n°%d' % (count))
+			download_playlist(playlist)
 		offset += 10
+		playlists = client.get('/users/' + str(user.id) + '/playlists', limit = 10, offset = offset)
+	print('All users playlists downloaded!')
+
 
 def download_user_favorites(user):
 	"""
 	Find tracks in user favorites
 	"""
 	global offset
-	end_of_tracks = False
-	songs = client.get('/users/' + str(user.id) + '/favorites', limit = 10, offset = offset)
-	while not end_of_tracks:
-		for track in songs:
-			if track.kind == 'track':
-				print("")
-				download_track(track)
-			else:
-				print("End of favorites")
-				end_of_tracks =True
+	count=0
+	favorites = client.get('/users/' + str(user.id) + '/favorites', limit = 10, offset = offset)
+	for track in favorites:
+		for track in favorites:
+			count +=1
+			print("")
+			print('Favorite n°%d' % (count))
+			download_track(track)
 		offset += 10
+		favorites = client.get('/users/' + str(user.id) + '/favorites', limit = 10, offset = offset)
+	print('All users favorites downloaded!')
 
 def download_my_stream():
 	"""
@@ -248,8 +249,11 @@ def download_playlist(playlist):
 	"""
 	Download a playlist
 	"""
+	count=0
 	for track_raw in playlist.tracks:
+		count +=1
 		mp3_url = get_item(track_raw["permalink_url"])
+		print('Track n°%d' % (count))
 		download_track(mp3_url)
 
 def download_track(track):
@@ -271,7 +275,7 @@ def download_track(track):
 	filename = title +'.mp3'
 	filename = ''.join(c for c in filename if c in valid_chars)
 
-	if not os.path.isfile(filename) or i_continue:
+	if not os.path.isfile(filename):
 		if track.downloadable:
 			print('Downloading the orginal file.')
 			url = track.download_url + '?client_id=' + scdl_client_id
@@ -279,9 +283,14 @@ def download_track(track):
 		elif track.streamable:
 			wget.download(url, filename)
 	else:
-		print('')
-		print("Music already exists ! (exiting)")
-		sys.exit(0)
+		if i_continue:
+			print(title + " already Downloaded")
+			print('')
+			return
+		else:
+			print('')
+			print("Music already exists ! (exiting)")
+			sys.exit(0)
 	#settags(track)
 
 	print('')
