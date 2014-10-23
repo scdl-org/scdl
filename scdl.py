@@ -2,8 +2,8 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-	scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings]
-	scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings]
+	scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--addtofile]
+	scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--addtofile]
 	scdl.py -h | --help
 	scdl.py --version
 
@@ -37,7 +37,6 @@ import urllib.request
 import json
 
 token = ''
-i_continue = False
 offset=0
 filename = ''
 scdl_client_id = '9dbef61eb005cb526480279a0cc868c4'
@@ -49,8 +48,11 @@ def main():
 	"""
 	print("Soundcloud Downloader")
 	global offset
-	global i_continue
 
+	# import conf file
+	get_config()
+
+	# Parse argument
 	arguments = docopt(__doc__, version='0.1')
 	print(arguments)
 	if arguments["<offset>"] is not None:
@@ -59,10 +61,6 @@ def main():
 		except:
 			print('Offset should be an Integer...')
 			sys.exit()
-	i_continue = arguments["-c"]
-
-
-	get_config()
 
 	if arguments["--hidewarnings"]:
 		warnings.filterwarnings("ignore")
@@ -260,6 +258,9 @@ def download_track(track):
 	"""
 	Downloads a track
 	"""
+	global filename
+	arguments = docopt(__doc__, version='0.1')
+
 	if track.streamable:
 		stream_url = client.get(track.stream_url, allow_redirects=False)
 	else:
@@ -270,20 +271,23 @@ def download_track(track):
 	title = track.title
 	print("Downloading " + title)
 
+	# validate title
 	invalid_chars = '\/:*?|<>'
-	global filename
+	if track.user['username'] not in title and arguments["--addtofile"]:
+		title = track.user['username'] + ' - ' + title
 	title = ''.join(c for c in title if c not in invalid_chars)
 	filename = title +'.mp3'
 
+	# Download
 	if not os.path.isfile(filename):
 		if track.downloadable:
 			print('Downloading the orginal file.')
 			url = track.download_url + '?client_id=' + scdl_client_id
 			wget.download(url, filename)
-		elif track.streamable:
+		else:
 			wget.download(url, filename)
 	else:
-		if i_continue:
+		if arguments["-c"]:
 			print(title + " already Downloaded")
 			print('')
 			return
