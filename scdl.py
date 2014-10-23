@@ -2,7 +2,7 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-	scdl.py -l <track_url> [--hidewarnings]
+	scdl.py -l <track_url> [-f] [--hidewarnings]
 	scdl.py --me [--hidewarnings]
 	scdl.py --mystream [--hidewarnings]
 	scdl.py --allmytrack [--hidewarnings]
@@ -60,7 +60,6 @@ def main():
 	elif arguments["--allmytrack"]:
 		download_all_profile_track()
 
-
 def get_config():
 	"""
 	read the path where to store music
@@ -71,6 +70,41 @@ def get_config():
 	token = config['scdl']['auth_token']
 	path = config['scdl']['path']
 	os.chdir(path)
+
+def get_item(track_url):
+	"""
+	Fetches metadata for an track or playlist
+	"""
+
+	try:
+		item = client.get('/resolve', url=track_url)
+	except Exception as e:
+		print("Could not resolve url " + track_url)
+		print(e, exc_info=True)
+		return False
+	return item
+
+def parse_url(track_url):
+	"""
+	Detects if the URL is a track or playlists, and parses the track(s) to the track downloader
+	"""
+	item = get_item(track_url)
+	if not item:
+		return
+	elif item.kind == 'track':
+		print("Found a track")
+		download_track(item)
+	elif item.kind == 'user':
+		print("Found an user profile")
+		if arguments["-f"]:
+			download_user_favorites(item)
+		else:
+			download_user_tracks(item)
+	elif item.kind == "playlist":
+		print("Found a playlist")
+		download_playlist(item)
+	else:
+		print("Unknown item type")
 
 def who_am_i():
 	"""
@@ -123,42 +157,26 @@ def download_my_stream():
 	activities = client.get('/me/activities')
 	print(activities.type)
 
-def get_item(track_url):
+def download_user_tracks(user):
 	"""
-	Fetches metadata for an track or playlist
+	Find track in user track (upload --> no repost)
 	"""
-
-	try:
-		item = client.get('/resolve', url=track_url)
-	except Exception as e:
-		print("Could not resolve url " + track_url)
-		print(e, exc_info=True)
-		return False
-	return item
-
-def parse_url(track_url):
-	"""
-	Detects if the URL is a track or playlists, and parses the track(s) to the track downloader
-	"""
-
-	item = get_item(track_url)
-	if not item:
-		return
-	elif item.kind == 'track':
-		print("Found a track")
-		download_track(item)
-	elif item.kind == 'user':
-		print("Found an user profile")
-		download_user_favorites(item)
-	elif item.kind == "playlist":
-		print("Found a playlist")
-		download_playlist(item)
-	else:
-		print("Unknown item type")
+	offset = 0
+	end_of_tracks = False
+	songs = client.get('/users/' + str(user.id) + '/tracks', limit = 10, offset = offset)
+	while not end_of_tracks:
+		for track in songs:
+			if track.kind == 'track':
+				print("")
+				download_track(track)
+			else:
+				print("End of favorites")
+				end_of_tracks =True
+		offset += 10
 
 def download_user_favorites(user):
 	"""
-	Fetch users data
+	Find track in user favorites
 	"""
 	offset = 0
 	end_of_tracks = False
