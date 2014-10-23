@@ -2,8 +2,8 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-	scdl.py -l <track_url> [-a | -f | -t | -p][--hidewarnings]
-	scdl.py me [-s | -a | -f | -t | -p][--hidewarnings]
+	scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings]
+	scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings]
 	scdl.py -h | --help
 	scdl.py --version
 
@@ -17,6 +17,8 @@ Options:
 	-t                 Download all upload of an user
 	-f                 Download all favorite of an user
 	-p                 Download all playlist of an user
+	-c                 Continue if a music already exist
+	-o [offset]        Begin with a custom offset.
 	--hidewarnings     Hide Warnings. (use with precaution)
 """
 from docopt import docopt
@@ -36,6 +38,9 @@ import json
 
 token = ''
 
+i_continue = False
+offset=0
+
 filename = ''
 scdl_client_id = 'b45b1aa10f1ac2941910a7f0d10f8e28'
 client = soundcloud.Client(client_id=scdl_client_id)
@@ -46,9 +51,19 @@ def main():
 	Main function, call parse_url
 	"""
 	print("Soundcloud Downloader")
+	global offset
+	global i_continue
 
 	arguments = docopt(__doc__, version='0.1')
 	print(arguments)
+	if arguments["<offset>"] is not None:
+		try:
+			offset=int(arguments["<offset>"])
+		except:
+			print('Offset should be an Integer...')
+			sys.exit()
+	i_continue = arguments["-c"]
+
 
 	get_config()
 
@@ -79,7 +94,11 @@ def get_config():
 	config.read('scdl.cfg')
 	token = config['scdl']['auth_token']
 	path = config['scdl']['path']
-	os.chdir(path)
+	if os.path.exists(path):
+		os.chdir(path)
+	else:
+		print('Invalid path...')
+		sys.exit()
 
 def get_item(track_url):
 	"""
@@ -97,6 +116,7 @@ def parse_url(track_url):
 	"""
 	Detects if the URL is a track or playlists, and parses the track(s) to the track downloader
 	"""
+	arguments = docopt(__doc__, version='0.1')
 	item = get_item(track_url)
 	if not item:
 		return
@@ -116,6 +136,8 @@ def parse_url(track_url):
 			download_all_user_tracks(item)
 		elif arguments["-p"]:
 			download_user_playlists(item)
+		else:
+			print('Please provide a download type...')
 	else:
 		print("Unknown item type")
 
@@ -139,7 +161,7 @@ def download_all_user_tracks(user):
 	"""
 	Find track & repost of the user
 	"""
-	offset=23
+	global offset
 	user_id = user.id
 
 	url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
@@ -166,7 +188,7 @@ def download_user_tracks(user):
 	"""
 	Find track in user upload --> no repost
 	"""
-	offset = 0
+	global offset
 	end_of_tracks = False
 	songs = client.get('/users/' + str(user.id) + '/tracks', limit = 10, offset = offset)
 	while not end_of_tracks:
@@ -184,7 +206,7 @@ def download_user_playlists(user):
 	"""
 	Find playlists of the user
 	"""
-	offset = 0
+	global offset
 	end_of_tracks = False
 	songs = client.get('/users/' + str(user.id) + '/tracks', limit = 10, offset = offset)
 	while not end_of_tracks:
@@ -201,7 +223,7 @@ def download_user_favorites(user):
 	"""
 	Find tracks in user favorites
 	"""
-	offset = 0
+	global offset
 	end_of_tracks = False
 	songs = client.get('/users/' + str(user.id) + '/favorites', limit = 10, offset = offset)
 	while not end_of_tracks:
@@ -252,7 +274,7 @@ def download_track(track):
 	filename = title +'.mp3'
 	filename = ''.join(c for c in filename if c in valid_chars)
 
-	if not os.path.isfile(filename):
+	if not os.path.isfile(filename) or i_continue:
 		if track.downloadable:
 			print('Downloading the orginal file.')
 			url = track.download_url + '?client_id=' + scdl_client_id
@@ -286,7 +308,7 @@ def signal_handler(signal, frame):
 	"""
 	handle keyboardinterrupt
 	"""
-	time.sleep(2)
+	time.sleep(1)
 	files = os.listdir()
 	for f in files:
 		if not os.path.isdir(f) and ".tmp" in f:
