@@ -263,17 +263,17 @@ def download_track(track):
 	if track.streamable:
 		stream_url = client.get(track.stream_url, allow_redirects=False)
 	else:
-		print('This track is not streamable...')
+		print('%s is not streamable...' % (track.title))
 		print('')
 		return
 	url = stream_url.location
 	title = track.title
 	print("Downloading " + title)
 
-	valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+	invalid_chars = '\/:*?|<>'
 	global filename
+	title = ''.join(c for c in title if c not in invalid_chars)
 	filename = title +'.mp3'
-	filename = ''.join(c for c in filename if c in valid_chars)
 
 	if not os.path.isfile(filename):
 		if track.downloadable:
