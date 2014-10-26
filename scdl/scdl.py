@@ -46,6 +46,7 @@ def main():
 	"""
 	Main function, call parse_url
 	"""
+	signal.signal(signal.SIGINT, signal_handler)
 	print("Soundcloud Downloader")
 	global offset
 
@@ -86,7 +87,7 @@ def get_config():
 	"""
 	global token
 	config = configparser.ConfigParser()
-	config.read('scdl.cfg')
+	config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
 	token = config['scdl']['auth_token']
 	path = config['scdl']['path']
 	if os.path.exists(path):
@@ -329,5 +330,4 @@ def signal_handler(signal, frame):
 	sys.exit(0)
 
 if __name__ == "__main__":
-	signal.signal(signal.SIGINT, signal_handler)
 	main()
