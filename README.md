@@ -3,7 +3,7 @@
 </p>
 # Souncloud Music Downloader
 ## WIP
- * Current state : https://github.com/lukapusic/soundcloud-dl/issues/102#issuecomment-60156162
+ * Current state : https://github.com/flyingrub/scdl/issues/2
 
 ## Description
 
