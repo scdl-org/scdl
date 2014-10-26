@@ -15,12 +15,14 @@ It should work with OS X, Linux, Windows.
 * Python3
 
 ## Instructions
-### i will provide a easy install script soon
- * soon
- * You can use this script now by donwloading the repo
- * Set up your path (mandatory) & your auth_token (if you want)
+### Installation
+___
+1. Install scdl `pip3 install scdl`
+2. Setup your path &/or your auth_token in `$HOME/.config/scdl/scdl.cfg`
 
-### Auth_token
+
+### Auth_token :
+___
 * This permitt scdl to access to your user profile data.
 * scdl use it only to use 'scdl.py me' instead of scdl.py [url]
 * (soon) scdl will download an user's stream thanks to this
