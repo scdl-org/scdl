@@ -7,7 +7,7 @@
 
 ## Description
 
-This shell script is able to download music from http://www.soundcloud.com.
+This script is able to download music from http://www.soundcloud.com.
 It should work with OS X, Linux, Windows.
 
 ## System requirements
@@ -23,10 +23,11 @@ ___
 
 ### Auth_token :
 ___
-* This permitt scdl to access to your user profile data.
-* scdl use it only to use 'scdl.py me' instead of scdl.py [url]
-* (soon) scdl will download an user's stream thanks to this
 > get your auth token here : http://flyingrub.tk/soundcloud/
+
+* This permitt scdl to access to your user profile data.
+* For now scdl use it only to use 'scdl.py me' instead of scdl.py [url]
+* (soon) scdl will download an user's stream thanks to this
 
 ## Help
 ### Usage:
@@ -41,6 +42,7 @@ ___
 ```
   -h --help          Show this screen.
   --version          Show version.
+  me                 Download from the user in auth_token
   -l [url]           URL can be track/playlist/user.
   -s                 Download the stream of an user (token needed)
   -a                 Download all track of an user (including repost)
@@ -58,9 +60,9 @@ ___
 * Download all song of an user
 * Download all song & repost of an user
 * Download all song of one playlist
-* Download all song of an user's all playlist
+* Download all song of all playlist of an user
 * Download all song of an user's favorites
-* Set tags with eyeD3 (soon)
+* Set tags with eyeD3 (soon)(the soft need to be updated to work with python3 by the owner)
 
 
 ## Old version
