@@ -11,6 +11,7 @@ Usage:
 Options:
 	-h --help          Show this screen.
 	--version          Show version.
+	me                 Use the user profile from the auth_token
 	-l [url]           URL can be track/playlist/user.
 	-s                 Download the stream of an user (token needed)
 	-a                 Download all track of an user (including repost)
@@ -20,6 +21,7 @@ Options:
 	-c                 Continue if a music already exist
 	-o [offset]        Begin with a custom offset.
 	--hidewarnings     Hide Warnings. (use with precaution)
+	--addtofile        Add the artist name to the filename if it isn't in the filename already
 """
 from docopt import docopt
 import configparser
@@ -35,6 +37,7 @@ import soundcloud
 import wget
 import urllib.request
 import json
+#import eyed3
 
 token = ''
 
@@ -315,7 +318,9 @@ def settags(track):
 	"""
 	print("Settings tags...")
 	user = client.get('/users/' + str(track.user_id), allow_redirects=False)
-	audiofile = my_eyed3.load(filename)
+	audiofile = eyed3.load(filename)
+
+	audiofile.initTag()
 	audiofile.tag.artist = user.username
 	audiofile.tag.album = track.title
 	audiofile.tag.title = track.title
