@@ -42,7 +42,7 @@ ___
 ```
   -h --help          Show this screen.
   --version          Show version.
-  me                 Download from the user in auth_token
+  me                 Use the user profile from the auth_token
   -l [url]           URL can be track/playlist/user.
   -s                 Download the stream of an user (token needed)
   -a                 Download all track of an user (including repost)
@@ -52,6 +52,7 @@ ___
   -c                 Continue if a music already exist
   -o [offset]        Begin with a custom offset.
   --hidewarnings     Hide Warnings. (use with precaution)
+  --addtofile        Add the artist name to the filename if
 ```
 
 
