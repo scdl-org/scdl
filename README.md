@@ -2,8 +2,8 @@
   <img src="http://soundcloud-dl.com/soundcloud-download-logo.png" alt="Logo"/>
 </p>
 # Souncloud Music Downloader
-## WIP
- * Current state : https://github.com/flyingrub/scdl/issues/2
+## Changelog
+Current state : [Here](https://github.com/flyingrub/scdl/issues/2)
 
 ## Description
 
@@ -13,6 +13,13 @@ It should work with OS X, Linux, Windows.
 ## System requirements
 
 * Python3
+* Install eyed3 from source
+```
+wget https://bitbucket.org/nicfit/eyed3/get/py3.zip
+unzip py3.zip
+cd nicfit-eyed3-a95f6ccd6388/
+python3 setup.py install
+```
 
 ## Instructions
 ### Installation
@@ -26,7 +33,7 @@ ___
 > get your auth token here : http://flyingrub.tk/soundcloud/
 
 * This permitt scdl to access to your user profile data.
-* For now scdl use it only to use 'scdl.py me' instead of scdl.py [url]
+* For now scdl use it only to use `scdl.py me [OPTIONS]` instead of `scdl.py -l [url] [OPTIONS]`
 * (soon) scdl will download an user's stream thanks to this
 
 ## Help

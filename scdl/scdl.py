@@ -37,7 +37,7 @@ import soundcloud
 import wget
 import urllib.request
 import json
-#import eyed3
+import eyed3
 
 token = ''
 offset=0
@@ -303,7 +303,7 @@ def download_track(track):
 			print('')
 			print("Music already exists ! (exiting)")
 			sys.exit(0)
-	#settags(track)
+	settags(track)
 
 	print('')
 	print(filename + ' Downloaded.')
@@ -314,12 +314,17 @@ def settags(track):
 	Set the tags to the mp3
 	"""
 	print("Settings tags...")
+
+	#artwork_url = track.artwork_url
+	#artwork_url = string.replace(artwork_url, 'large', 't500x500')
+	#wget.download(artwork_url, /tmp/scdl.jpg)
+
 	user = client.get('/users/' + str(track.user_id), allow_redirects=False)
 	audiofile = eyed3.load(filename)
 
 	audiofile.initTag()
 	audiofile.tag.artist = user.username
-	audiofile.tag.album = track.title
+	audiofile.tag.album = 'Soundcloud'
 	audiofile.tag.title = track.title
 
 	audiofile.tag.save()
