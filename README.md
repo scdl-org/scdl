@@ -13,6 +13,7 @@ It should work with OS X, Linux, Windows.
 ## System requirements
 
 * Python3
+* You need this lib to install it with pip correctly `python3-dev`
 * Install eyed3 from source
 ```
 wget https://bitbucket.org/nicfit/eyed3/get/py3.zip
