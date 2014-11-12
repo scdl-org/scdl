@@ -26,6 +26,7 @@ setup(
         'soundcloud',
         'wget',
         'configparser',
+        'mutagen'
     ],
 
     data_files=[

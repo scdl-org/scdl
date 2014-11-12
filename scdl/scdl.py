@@ -37,7 +37,9 @@ import soundcloud
 import wget
 import urllib.request
 import json
-import eyed3
+
+from mutagen.mp3 import MP3
+from mutagen.id3 import ID3, TIT2, TALB, TPE1, TPE2, COMM, USLT, TCOM, TCON, TDRC, APIC
 
 token = ''
 offset=0
@@ -58,7 +60,7 @@ def main():
 
 	# Parse argument
 	arguments = docopt(__doc__, version='0.1')
-	print(arguments)
+	#print(arguments)
 	if arguments["<offset>"] is not None:
 		try:
 			offset=int(arguments["<offset>"])
@@ -294,6 +296,7 @@ def download_track(track):
 			wget.download(url, filename)
 		else:
 			wget.download(url, filename)
+		print('')
 	else:
 		if arguments["-c"]:
 			print(title + " already Downloaded")
@@ -315,19 +318,25 @@ def settags(track):
 	"""
 	print("Settings tags...")
 
-	#artwork_url = track.artwork_url
-	#artwork_url = string.replace(artwork_url, 'large', 't500x500')
-	#wget.download(artwork_url, /tmp/scdl.jpg)
+	artwork_url = track.artwork_url
+	artwork_url = artwork_url.replace('large', 't500x500')
+	urllib.request.urlretrieve(artwork_url, '/tmp/scdl.jpg')
 
 	user = client.get('/users/' + str(track.user_id), allow_redirects=False)
-	audiofile = eyed3.load(filename)
 
-	audiofile.initTag()
-	audiofile.tag.artist = user.username
-	audiofile.tag.album = 'Soundcloud'
-	audiofile.tag.title = track.title
-
-	audiofile.tag.save()
+	tags = MP3(filename)
+	tags["TIT2"] = TIT2(encoding=3, text=track.title)
+	tags["TALB"] = TALB(encoding=3, text='Soundcloud')
+	tags["TPE1"] = TPE1(encoding=3, text=user.username)
+	tags["TCON"] = TCON(encoding=3, text=track.genre)
+	tags["APIC"] = APIC(
+           encoding=3, 
+           mime='image/jpeg', 
+           type=3, 
+           desc='Cover',
+           data=open('/tmp/scdl.jpg', 'rb').read()
+           )
+	tags.save()
 
 def signal_handler(signal, frame):
 	"""
