@@ -1,3 +1,3 @@
 """Python Soundcloud Music Downloader."""
 
-__version__ = 'v0.9.1'
+__version__ = 'v1.0.0'
