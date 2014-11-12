@@ -14,13 +14,6 @@ It should work with OS X, Linux, Windows.
 
 * Python3
 * You need this lib to install it with pip correctly `python3-dev`
-* Install eyed3 from source
-```
-wget https://bitbucket.org/nicfit/eyed3/get/py3.zip
-unzip py3.zip
-cd nicfit-eyed3-a95f6ccd6388/
-python3 setup.py install
-```
 
 ## Instructions
 ### Installation
@@ -60,7 +53,7 @@ ___
   -c                 Continue if a music already exist
   -o [offset]        Begin with a custom offset.
   --hidewarnings     Hide Warnings. (use with precaution)
-  --addtofile        Add the artist name to the filename if
+  --addtofile        Add the artist name to the filename if it isn't in the filename already
 ```
 
 
@@ -71,7 +64,7 @@ ___
 * Download all song of one playlist
 * Download all song of all playlist of an user
 * Download all song of an user's favorites
-* Set tags with eyeD3 (soon)(the soft need to be updated to work with python3 by the owner)
+* Set the tags with mutagen (title / Arstist name / album = 'Soundcloud' / Artwork)
 
 
 ## Old version
