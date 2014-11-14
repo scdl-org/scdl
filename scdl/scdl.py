@@ -317,25 +317,27 @@ def settags(track):
 	Set the tags to the mp3
 	"""
 	print("Settings tags...")
+	user = client.get('/users/' + str(track.user_id), allow_redirects=False)
 
 	artwork_url = track.artwork_url
+	if artwork_url is None:
+		artwork_url = user.avatar_url
 	artwork_url = artwork_url.replace('large', 't500x500')
 	urllib.request.urlretrieve(artwork_url, '/tmp/scdl.jpg')
-
-	user = client.get('/users/' + str(track.user_id), allow_redirects=False)
 
 	tags = MP3(filename)
 	tags["TIT2"] = TIT2(encoding=3, text=track.title)
 	tags["TALB"] = TALB(encoding=3, text='Soundcloud')
 	tags["TPE1"] = TPE1(encoding=3, text=user.username)
 	tags["TCON"] = TCON(encoding=3, text=track.genre)
-	tags["APIC"] = APIC(
-           encoding=3, 
-           mime='image/jpeg', 
-           type=3, 
-           desc='Cover',
-           data=open('/tmp/scdl.jpg', 'rb').read()
-           )
+	if artwork_url is not None:
+		tags["APIC"] = APIC(
+	           encoding=3, 
+	           mime='image/jpeg', 
+	           type=3, 
+	           desc='Cover',
+	           data=open('/tmp/scdl.jpg', 'rb').read()
+	           )
 	tags.save()
 
 def signal_handler(signal, frame):
