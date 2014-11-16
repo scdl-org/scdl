@@ -38,8 +38,7 @@ import wget
 import urllib.request
 import json
 
-from mutagen.mp3 import MP3
-from mutagen.id3 import ID3, TIT2, TALB, TPE1, TPE2, COMM, USLT, TCOM, TCON, TDRC, APIC
+import mutagen
 
 token = ''
 
@@ -63,7 +62,7 @@ def main():
 
 	# Parse argument
 	arguments = docopt(__doc__, version='0.1')
-	#print(arguments)
+	print(arguments)
 	if arguments["<offset>"] is not None:
 		try:
 			offset=int(arguments["<offset>"])
@@ -280,26 +279,36 @@ def download_track(track):
 		print('%s is not streamable...' % (track.title))
 		print('')
 		return
-	url = stream_url.location
 	title = track.title
 	print("Downloading " + title)
 
-	# validate title
-	invalid_chars = '\/:*?|<>'
-	if track.user['username'] not in title and arguments["--addtofile"]:
-		title = track.user['username'] + ' - ' + title
-	title = ''.join(c for c in title if c not in invalid_chars)
-	filename = title +'.mp3'
+	#filename
+	if track.downloadable:
+		print('Downloading the orginal file.')
+		url = track.download_url + '?client_id=' + scdl_client_id
+
+		filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
+		if filename[0] == '"' or filename[0] == "'":
+			filename = filename[1:-1]
+	else:
+		url = stream_url.location
+		invalid_chars = '\/:*?|<>'
+		if track.user['username'] not in title and arguments["--addtofile"]:
+			title = track.user['username'] + ' - ' + title
+		title = ''.join(c for c in title if c not in invalid_chars)
+		filename = title +'.mp3'
 
 	# Download
 	if not os.path.isfile(filename):
-		if track.downloadable:
-			print('Downloading the orginal file.')
-			url = track.download_url + '?client_id=' + scdl_client_id
-			wget.download(url, filename)
-		else:
-			wget.download(url, filename)
+		wget.download(url, filename)
 		print('')
+		if '.mp3' in filename:
+			try:
+				settags(track)
+			except:
+				print('Error trying to set the tags...')
+		else:
+			print('This type of audio don\'t support tag...')
 	else:
 		if arguments["-c"]:
 			print(title + " already Downloaded")
@@ -309,7 +318,6 @@ def download_track(track):
 			print('')
 			print("Music already exists ! (exiting)")
 			sys.exit(0)
-	settags(track)
 
 	print('')
 	print(filename + ' Downloaded.')
@@ -328,20 +336,16 @@ def settags(track):
 	artwork_url = artwork_url.replace('large', 't500x500')
 	urllib.request.urlretrieve(artwork_url, '/tmp/scdl.jpg')
 
-	tags = MP3(filename)
-	tags["TIT2"] = TIT2(encoding=3, text=track.title)
-	tags["TALB"] = TALB(encoding=3, text='Soundcloud')
-	tags["TPE1"] = TPE1(encoding=3, text=user.username)
-	tags["TCON"] = TCON(encoding=3, text=track.genre)
+	audio = mutagen.File(filename)
+	audio["TIT2"] = mutagen.id3.TIT2(encoding=3, text=track.title)
+	audio["TALB"] = mutagen.id3.TALB(encoding=3, text='Soundcloud')
+	audio["TPE1"] = mutagen.id3.TPE1(encoding=3, text=user.username)
+	audio["TCON"] = mutagen.id3.TCON(encoding=3, text=track.genre)
 	if artwork_url is not None:
-		tags["APIC"] = APIC(
-	           encoding=3, 
-	           mime='image/jpeg', 
-	           type=3, 
-	           desc='Cover',
-	           data=open('/tmp/scdl.jpg', 'rb').read()
-	           )
-	tags.save()
+		audio["APIC"] = mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc='Cover', data=open('/tmp/scdl.jpg', 'rb').read())
+	else:
+		print("Artwork can not be set.")
+	audio.save()
 
 def signal_handler(signal, frame):
 	"""

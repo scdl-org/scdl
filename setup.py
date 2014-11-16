@@ -30,7 +30,7 @@ setup(
     ],
 
     data_files=[
-        (os.path.join(os.path.expanduser('~'), '.config/scdl'), ['config/scdl.cfg'])
+        (os.path.join(os.path.expanduser('~'), '.config/scdl/sample_scdl.cfg'), ['config/scdl.cfg'])
         ],
 
     include_package_data=True,
