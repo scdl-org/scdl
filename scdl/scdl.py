@@ -59,7 +59,7 @@ def main():
 
 	# Parse argument
 	arguments = docopt(__doc__, version='0.1')
-	print(arguments)
+	#print(arguments)
 	if arguments["<offset>"] is not None:
 		try:
 			offset=int(arguments["<offset>"])
