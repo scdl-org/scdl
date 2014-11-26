@@ -2,24 +2,25 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--addtofile]
-    scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--addtofile]
+    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
+    scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
     scdl.py -h | --help
     scdl.py --version
 
 
 Options:
-    -h --help          Show this screen.
-    --version          Show version.
+    -h --help          Show this screen
+    --version          Show version
     me                 Use the user profile from the auth_token
-    -l [url]           URL can be track/playlist/user.
+    -l [url]           URL can be track/playlist/user
     -s                 Download the stream of an user (token needed)
     -a                 Download all track of an user (including repost)
     -t                 Download all upload of an user
     -f                 Download all favorite of an user
     -p                 Download all playlist of an user
     -c                 Continue if a music already exist
-    -o [offset]        Begin with a custom offset.
+    -o [offset]        Begin with a custom offset
+    --path [path]      Use a custom path for this time
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
 """
@@ -59,10 +60,11 @@ def main():
 
     # Parse argument
     arguments = docopt(__doc__, version='0.1')
-    #print(arguments)
-    if arguments["<offset>"] is not None:
+    print(arguments)
+
+    if arguments["-o"] is not None:
         try:
-            offset = int(arguments["<offset>"])
+            offset = int(arguments["-o"])
         except:
             print('Offset should be an Integer...')
             sys.exit()
@@ -70,6 +72,13 @@ def main():
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
         print("no warnings!")
+
+    if arguments["--path"] is not None:
+        if os.path.exists(arguments["--path"]):
+            os.chdir(arguments["--path"])
+    else:
+        print('Invalid path...')
+        sys.exit()
 
     print('')
     if arguments["-l"]:
