@@ -124,8 +124,14 @@ def get_item(track_url):
     try:
         item = client.get('/resolve', url=track_url)
     except Exception:
-        print("Could not resolve url " + track_url)
-        sys.exit(0)
+        print('Error resolving url, retrying...')
+        time.sleep(5)
+        try:
+            item = client.get('/resolve', url=track_url)
+        except Exception as e:
+            print("Could not resolve url " + track_url)
+            print(e.message, e.args)
+            sys.exit(0)
     return item
 
 
