@@ -1,7 +1,7 @@
 <p align="center">
   <img src="http://soundcloud-dl.com/soundcloud-download-logo.png" alt="Logo"/>
 </p>
-# Souncloud Music Downloader
+# Soundcloud Music Downloader
 ## Changelog
 Current state : [Here](https://github.com/flyingrub/scdl/issues/2)
 
@@ -27,16 +27,16 @@ ___
 > get your auth token here : http://flyingrub.tk/soundcloud/
 
 * This permitt scdl to access to your user profile data.
-* For now scdl use it only to use `scdl.py me [OPTIONS]` instead of `scdl.py -l [url] [OPTIONS]`
+* For now scdl use it only to use `scdl me [OPTIONS]` instead of `scdl -l [url] [OPTIONS]`
 * (soon) scdl will download an user's stream thanks to this
 
 ## Help
 ### Usage:
 ```
-  scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--addtofile]
-  scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--addtofile]
-  scdl.py -h | --help
-  scdl.py --version
+  scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--addtofile]
+  scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--addtofile]
+  scdl -h | --help
+  scdl --version
 ```
 
 ### Options:
@@ -54,6 +54,7 @@ ___
   -o [offset]        Begin with a custom offset.
   --hidewarnings     Hide Warnings. (use with precaution)
   --addtofile        Add the artist name to the filename if it isn't in the filename already
+  --path             Path to download directory, can be set in the config. If none of this is set, it uses the current working directory
 ```
 
 
