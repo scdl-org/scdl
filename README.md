@@ -1,7 +1,7 @@
 <p align="center">
   <img src="http://soundcloud-dl.com/soundcloud-download-logo.png" alt="Logo"/>
 </p>
-# Souncloud Music Downloader
+# Soundcloud Music Downloader
 ## Changelog
 Current state : [Here](https://github.com/flyingrub/scdl/issues/2)
 
