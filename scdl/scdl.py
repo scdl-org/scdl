@@ -62,7 +62,7 @@ def main():
 
     # Parse argument
     arguments = docopt(__doc__, version='0.1')
-    print(arguments)
+    #print(arguments)
 
     if arguments["-o"] is not None:
         try:
@@ -73,18 +73,15 @@ def main():
 
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
-        # print("no warnings!") # Warn about no warnings...?
 
     if arguments["--path"] is not None:
         if os.path.exists(arguments["--path"]):
-            print('Downloading to '+arguments["--path"]+'...')
             os.chdir(arguments["--path"])
-    else:
-        if path is not None:
-            print('Downloading to '+path+'...')
-            os.chdir(path)
         else:
-            print('Downloading to current directory...')
+            print('Invalid path in option...')
+            sys.exit()
+
+    print('Downloading to '+os.getcwd()+'...')
 
     print('')
     if arguments["-l"]:
@@ -105,7 +102,6 @@ def get_config():
     read the path where to store music
     """
     global token
-    global path
     config = configparser.ConfigParser()
     config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
     try:
@@ -117,7 +113,7 @@ def get_config():
     if os.path.exists(path):
         os.chdir(path)
     else:
-        print('Invalid path...')
+        print('Invalid path in scdl.cfg...')
         sys.exit()
 
 
