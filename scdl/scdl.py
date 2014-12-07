@@ -41,6 +41,7 @@ import json
 import mutagen
 
 token = ''
+path = ''
 offset = 0
 filename = ''
 scdl_client_id = '9dbef61eb005cb526480279a0cc868c4'
@@ -71,18 +72,22 @@ def main():
 
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
-        print("no warnings!")
+        # print("no warnings!") # Warn about no warnings...?
 
     if arguments["--path"] is not None:
         if os.path.exists(arguments["--path"]):
+            print('Downloading to '+arguments["--path"]+'...')
             os.chdir(arguments["--path"])
     else:
-        print('Invalid path...')
-        sys.exit()
+        if path is not None:
+            print('Downloading to '+path+'...')
+            os.chdir(path)
+        else:
+            print('Downloading to current directory...')
 
     print('')
     if arguments["-l"]:
-        parse_url(arguments["<track_url>"])
+        parse_url(arguments["-l"])
     elif arguments["me"]:
         if arguments["-a"]:
             download_all_user_tracks(who_am_i())
@@ -99,6 +104,7 @@ def get_config():
     read the path where to store music
     """
     global token
+    global path
     config = configparser.ConfigParser()
     config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
     try:
