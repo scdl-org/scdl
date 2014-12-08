@@ -2,8 +2,8 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
-    scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
+    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--path <path>][--addtofile][--silent]
+    scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--path <path>][--addtofile][--silent]
     scdl.py -h | --help
     scdl.py --version
 
@@ -23,6 +23,7 @@ Options:
     --path [path]      Use a custom path for this time
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
+    --silent           Disable all output. Useful for scripters
 """
 from docopt import docopt
 import configparser
@@ -44,6 +45,7 @@ token = ''
 path = ''
 offset = 0
 filename = ''
+silent = False
 scdl_client_id = '9dbef61eb005cb526480279a0cc868c4'
 client = soundcloud.Client(client_id=scdl_client_id)
 
@@ -53,21 +55,28 @@ def main():
     Main function, call parse_url
     """
     signal.signal(signal.SIGINT, signal_handler)
-    print("Soundcloud Downloader")
     global offset
-
-    # import conf file
-    get_config()
+    global silent
 
     # Parse argument
     arguments = docopt(__doc__, version='0.1')
-    #print(arguments)
+    # print(arguments)
+
+    if arguments["--silent"]:
+        silent = True
+        warnings.filterwarnings("ignore")
+    else:
+        print("Soundcloud Downloader")
+
+    # import conf file
+    get_config()
 
     if arguments["-o"] is not None:
         try:
             offset = int(arguments["-o"])
         except:
-            print('Offset should be an Integer...')
+            if not silent:
+                print('Offset should be an Integer...')
             sys.exit()
 
     if arguments["--hidewarnings"]:
@@ -77,12 +86,14 @@ def main():
         if os.path.exists(arguments["--path"]):
             os.chdir(arguments["--path"])
         else:
-            print('Invalid path in option...')
+            if not silent:
+                print('Invalid path in option...')
             sys.exit()
 
-    print('Downloading to '+os.getcwd()+'...')
+    if not silent:
+        print('Downloading to '+os.getcwd()+'...')
+        print('')
 
-    print('')
     if arguments["-l"]:
         parse_url(arguments["-l"])
     elif arguments["me"]:
@@ -102,18 +113,26 @@ def get_config():
     """
     global token
     config = configparser.ConfigParser()
-    config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
-    try:
-        token = config['scdl']['auth_token']
-        path = config['scdl']['path']
-    except:
-        print('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?')
-        sys.exit()
-    if os.path.exists(path):
-        os.chdir(path)
+    if os.path.exists(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg')): # Check the presence of the config file
+        try:
+            config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
+            if 'auth_token' in config['scdl']:
+                token = config['scdl']['auth_token']
+            if 'path' in config['scdl']:
+                path = config['scdl']['path']
+                if os.path.exists(path):
+                    os.chdir(path)
+                else:
+                    if not silent:
+                        print('Invalid path in scdl.cfg...')
+                    sys.exit()
+        except:
+            if not silent:
+                print("Does you config file start with [scdl]?")
+
     else:
-        print('Invalid path in scdl.cfg...')
-        sys.exit()
+        if not silent:
+            print("Config file not found")
 
 
 def get_item(track_url):
@@ -124,13 +143,15 @@ def get_item(track_url):
     try:
         item = client.get('/resolve', url=track_url)
     except Exception:
-        print('Error resolving url, retrying...')
+        if not silent:
+            print('Error resolving url, retrying...')
         time.sleep(5)
         try:
             item = client.get('/resolve', url=track_url)
         except Exception as e:
-            print("Could not resolve url " + track_url)
-            print(e.message, e.args)
+            if not silent:
+                print("Could not resolve url " + track_url)
+                print(e.message, e.args)
             sys.exit(0)
     return item
 
@@ -144,13 +165,16 @@ def parse_url(track_url):
     if not item:
         return
     elif item.kind == 'track':
-        print("Found a track")
+        if not silent:
+            print("Found a track")
         download_track(item)
     elif item.kind == "playlist":
-        print("Found a playlist")
+        if not silent:
+            print("Found a playlist")
         download_playlist(item)
     elif item.kind == 'user':
-        print("Found an user profile")
+        if not silent:
+            print("Found an user profile")
         if arguments["-f"]:
             download_user_favorites(item)
         elif arguments["-t"]:
@@ -160,26 +184,34 @@ def parse_url(track_url):
         elif arguments["-p"]:
             download_user_playlists(item)
         else:
-            print('Please provide a download type...')
+            if not silent:
+                print('Please provide a download type...')
     else:
-        print("Unknown item type")
+        if not silent:
+            print("Unknown item type")
 
 
 def who_am_i():
     """
     display to who the current token correspond, check if the token is valid
     """
-    global client
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
+    if token is not None:
+        global client
+        client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
 
-    try:
-        current_user = client.get('/me')
-    except:
-        print('Invalid token...')
-        sys.exit(0)
-    print('Hello', current_user.username, '!')
-    print('')
-    return current_user
+        try:
+            current_user = client.get('/me')
+        except:
+            if not silent:
+                print('Invalid token...')
+            sys.exit(0)
+        if not silent:
+            print('Hello', current_user.username, '!')
+            print('')
+        return current_user
+    else:
+        if not silent:
+            print("Token not set. Place your token in your config file, you can get the token at http://flyingrub.tk/soundcloud/")
 
 
 def download_all_user_tracks(user):
@@ -200,7 +232,8 @@ def download_all_user_tracks(user):
             this_url = json_data[0]['track']['uri']
         except:
             this_url = json_data[0]['playlist']['uri']
-        print('Track n°%d' % (offset))
+        if not silent:
+            print('Track n°%d' % (offset))
         parse_url(this_url)
 
         url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
@@ -220,12 +253,14 @@ def download_user_tracks(user):
     for track in tracks:
         for track in tracks:
             count += 1
-            print("")
-            print('Track n°%d' % (count))
+            if not silent:
+                print("")
+                print('Track n°%d' % (count))
             download_track(track)
         offset += 10
         tracks = client.get('/users/' + str(user.id) + '/tracks', limit=10, offset=offset)
-    print('All users track downloaded!')
+    if not silent:
+        print('All users track downloaded!')
 
 
 def download_user_playlists(user):
@@ -238,12 +273,14 @@ def download_user_playlists(user):
     for playlist in playlists:
         for playlist in playlists:
             count += 1
-            print("")
-            print('Playlist n°%d' % (count))
+            if not silent:
+                print("")
+                print('Playlist n°%d' % (count))
             download_playlist(playlist)
         offset += 10
         playlists = client.get('/users/' + str(user.id) + '/playlists', limit=10, offset=offset)
-    print('All users playlists downloaded!')
+    if not silent:
+        print('All users playlists downloaded!')
 
 
 def download_user_favorites(user):
@@ -256,12 +293,14 @@ def download_user_favorites(user):
     for track in favorites:
         for track in favorites:
             count += 1
-            print("")
-            print('Favorite n°%d' % (count))
+            if not silent:
+                print("")
+                print('Favorite n°%d' % (count))
             download_track(track)
         offset += 10
         client.get('/users/' + str(user.id) + '/favorites', limit=10, offset=offset)
-    print('All users favorites downloaded!')
+    if not silent:
+        print('All users favorites downloaded!')
 
 
 def download_my_stream():
@@ -269,9 +308,14 @@ def download_my_stream():
     DONT WORK FOR NOW
     Download the stream of the current user
     """
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
-    activities = client.get('/me/activities')
-    print(activities)
+    if token is not None:
+        client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
+        activities = client.get('/me/activities')
+        if not silent:
+            print(activities)
+    else:
+        if not silent:
+            print("Token not set. Place your token in your config file, you can get the token at http://flyingrub.tk/soundcloud/")
 
 
 def download_playlist(playlist):
@@ -282,7 +326,8 @@ def download_playlist(playlist):
     for track_raw in playlist.tracks:
         count += 1
         mp3_url = get_item(track_raw["permalink_url"])
-        print('Track n°%d' % (count))
+        if not silent:
+            print('Track n°%d' % (count))
         download_track(mp3_url)
 
 
@@ -296,15 +341,18 @@ def download_track(track):
     if track.streamable:
         stream_url = client.get(track.stream_url, allow_redirects=False)
     else:
-        print('%s is not streamable...' % (track.title))
-        print('')
+        if not silent:
+            print('%s is not streamable...' % (track.title))
+            print('')
         return
     title = track.title
-    print("Downloading " + title)
+    if not silent:
+        print("Downloading " + title)
 
     #filename
     if track.downloadable:
-        print('Downloading the orginal file.')
+        if not silent:
+            print('Downloading the orginal file.')
         url = track.download_url + '?client_id=' + scdl_client_id
 
         filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
@@ -320,35 +368,44 @@ def download_track(track):
 
     # Download
     if not os.path.isfile(filename):
-        wget.download(url, filename)
-        print('')
+        if not silent:
+            wget.download(url, filename)
+            print('')
+        else:
+            wget.download(url, filename, None)
         if '.mp3' in filename:
             try:
                 settags(track)
             except:
-                print('Error trying to set the tags...')
+                if not silent:
+                    print('Error trying to set the tags...')
         else:
-            print('This type of audio don\'t support tag...')
+            if not silent:
+                print('This type of audio don\'t support tag...')
     else:
         if arguments["-c"]:
-            print(title + " already Downloaded")
-            print('')
+            if not silent:
+                print(title + " already Downloaded")
+                print('')
             return
         else:
-            print('')
-            print("Music already exists ! (exiting)")
+            if not silent:
+                print('')
+                print("Music already exists ! (exiting)")
             sys.exit(0)
 
-    print('')
-    print(filename + ' Downloaded.')
-    print('')
+    if not silent:
+        print('')
+        print(filename + ' Downloaded.')
+        print('')
 
 
 def settags(track):
     """
     Set the tags to the mp3
     """
-    print("Settings tags...")
+    if not silent:
+        print("Settings tags...")
     user = client.get('/users/' + str(track.user_id), allow_redirects=False)
 
     artwork_url = track.artwork_url
@@ -365,7 +422,8 @@ def settags(track):
     if artwork_url is not None:
         audio["APIC"] = mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc='Cover', data=open('/tmp/scdl.jpg', 'rb').read())
     else:
-        print("Artwork can not be set.")
+        if not silent:
+            print("Artwork can not be set.")
     audio.save()
 
 
@@ -379,8 +437,9 @@ def signal_handler(signal, frame):
         if not os.path.isdir(f) and ".tmp" in f:
             os.remove(f)
 
-    print('')
-    print('Good bye!')
+    if not silent:
+        print('')
+        print('Good bye!')
     sys.exit(0)
 
 if __name__ == "__main__":
