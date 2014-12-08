@@ -13,28 +13,28 @@ It should work with OS X, Linux, Windows.
 ## System requirements
 
 * Python3
-* You need this lib to install it with pip correctly `python3-dev`
+* python3-dev (Required to install with pip correctly)
 
 ## Instructions
 ### Installation
 ___
 1. Install scdl `pip3 install scdl`
-2. Setup your path &/or your auth_token in `$HOME/.config/scdl/scdl.cfg`
+2. Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
 
 
-### Auth_token :
+### Authentication:
 ___
-> get your auth token here : http://flyingrub.tk/soundcloud/
+> Get your auth token here: [Token](http://flyingrub.tk/soundcloud/)
 
-* This permitt scdl to access to your user profile data.
-* For now scdl use it only to use `scdl me [OPTIONS]` instead of `scdl -l [url] [OPTIONS]`
-* (soon) scdl will download an user's stream thanks to this
+* This allows scdl to access to your user profile data.
+* You need to have this set to be able to use the `me` option
+* Soon scdl will be able to download a user's stream
 
 ## Help
 ### Usage:
 ```
-  scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--addtofile]
-  scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--addtofile]
+  scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--addtofile][--silent]
+  scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--addtofile][--silent]
   scdl -h | --help
   scdl --version
 ```
@@ -43,33 +43,34 @@ ___
 ```
   -h --help          Show this screen.
   --version          Show version.
-  me                 Use the user profile from the auth_token
-  -l [url]           URL can be track/playlist/user.
-  -s                 Download the stream of an user (token needed)
-  -a                 Download all track of an user (including repost)
-  -t                 Download all upload of an user
-  -f                 Download all favorite of an user
-  -p                 Download all playlist of an user
+  me                 Uses the auth_token specified in the config to get access to the user's profile
+  -l [url]           URL can be a track, playlist or a user.
+  -s                 Download the stream of a user (token needed)
+  -a                 Download all of a user's tracks, including reposts
+  -t                 Download all of a user's uploads
+  -f                 Download all of a user's favorites
+  -p                 Download all of a user's playlists
   -c                 Continue if a music already exist
-  -o [offset]        Begin with a custom offset.
-  --hidewarnings     Hide Warnings. (use with precaution)
+  -o [offset]        Start on a custom offset.
+  --hidewarnings     Hide Warnings. Use with precaution
   --addtofile        Add the artist name to the filename if it isn't in the filename already
   --path             Path to download directory, can be set in the config. If none of this is set, it uses the current working directory
+  --silent           Disables output, useful for scripters
 ```
 
 
 ## Features
-* Automatically detect which kind of Soundcloud's link you have provided
-* Download all song of an user
-* Download all song & repost of an user
-* Download all song of one playlist
-* Download all song of all playlist of an user
-* Download all song of an user's favorites
-* Set the tags with mutagen (title / Arstist name / album = 'Soundcloud' / Artwork)
+* Automatically detect the type of link provided
+* Download all songs from a user
+* Download all songs and reposts from a user
+* Download all songs from one playlist
+* Download all songs from all playlists from a user
+* Download all songs from a user's favorites
+* Set the tags with mutagen (Title / Artist / Album = 'Soundcloud' / Artwork)
 
 
 ## Old version
- * This will be the new python version of : https://github.com/lukapusic/soundcloud-dl
+ * This will be the new python version of: https://github.com/lukapusic/soundcloud-dl
 
 ## License
 
