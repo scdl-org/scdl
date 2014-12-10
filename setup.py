@@ -18,7 +18,6 @@ setup(
         'docopt',
         'soundcloud',
         'wget',
-        'configparser',
         'mutagen'
     ],
     data_files=[
