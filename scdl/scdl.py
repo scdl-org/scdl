@@ -2,8 +2,8 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
-    scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
+    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--path <path>][--addtofile][--silent]
+    scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--path <path>][--addtofile][--silent]
     scdl.py -h | --help
     scdl.py --version
 
@@ -23,6 +23,7 @@ Options:
     --path [path]      Use a custom path for this time
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
+    --silent           Disable all output. Useful for scripters
 """
 from docopt import docopt
 import configparser
@@ -44,6 +45,7 @@ token = ''
 path = ''
 offset = 0
 filename = ''
+silent = False
 scdl_client_id = '9dbef61eb005cb526480279a0cc868c4'
 client = soundcloud.Client(client_id=scdl_client_id)
 
@@ -53,15 +55,22 @@ def main():
     Main function, call parse_url
     """
     signal.signal(signal.SIGINT, signal_handler)
-    print("Soundcloud Downloader")
     global offset
-
-    # import conf file
-    get_config()
+    global silent
 
     # Parse argument
     arguments = docopt(__doc__, version='0.1')
-    #print(arguments)
+    # print(arguments)
+
+    if arguments["--silent"]:
+        silent = True
+        f = open(os.devnull, 'w')
+        sys.stdout = f
+
+    print("Soundcloud Downloader")
+
+    # import conf file
+    get_config()
 
     if arguments["-o"] is not None:
         try:
@@ -81,8 +90,8 @@ def main():
             sys.exit()
 
     print('Downloading to '+os.getcwd()+'...')
-
     print('')
+
     if arguments["-l"]:
         parse_url(arguments["-l"])
     elif arguments["me"]:
@@ -102,18 +111,23 @@ def get_config():
     """
     global token
     config = configparser.ConfigParser()
-    config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
-    try:
-        token = config['scdl']['auth_token']
-        path = config['scdl']['path']
-    except:
-        print('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?')
-        sys.exit()
-    if os.path.exists(path):
-        os.chdir(path)
+    if os.path.exists(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg')): # Check the presence of the config file
+        try:
+            config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
+            if 'auth_token' in config['scdl']:
+                token = config['scdl']['auth_token']
+            if 'path' in config['scdl']:
+                path = config['scdl']['path']
+                if os.path.exists(path):
+                    os.chdir(path)
+                else:
+                    print('Invalid path in scdl.cfg...')
+                    sys.exit()
+        except:
+            print("Does you config file start with [scdl]?")
+
     else:
-        print('Invalid path in scdl.cfg...')
-        sys.exit()
+        print("Config file not found")
 
 
 def get_item(track_url):
@@ -169,17 +183,20 @@ def who_am_i():
     """
     display to who the current token correspond, check if the token is valid
     """
-    global client
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
+    if token is not None:
+        global client
+        client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
 
-    try:
-        current_user = client.get('/me')
-    except:
-        print('Invalid token...')
-        sys.exit(0)
-    print('Hello', current_user.username, '!')
-    print('')
-    return current_user
+        try:
+            current_user = client.get('/me')
+        except:
+            print('Invalid token...')
+            sys.exit(0)
+        print('Hello', current_user.username, '!')
+        print('')
+        return current_user
+    else:
+        print("Token not set. Place your token in your config file, you can get the token at http://flyingrub.tk/soundcloud/")
 
 
 def download_all_user_tracks(user):
@@ -269,9 +286,12 @@ def download_my_stream():
     DONT WORK FOR NOW
     Download the stream of the current user
     """
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
-    activities = client.get('/me/activities')
-    print(activities)
+    if token is not None:
+        client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
+        activities = client.get('/me/activities')
+        print(activities)
+    else:
+        print("Token not set. Place your token in your config file, you can get the token at http://flyingrub.tk/soundcloud/")
 
 
 def download_playlist(playlist):
@@ -321,7 +341,6 @@ def download_track(track):
     # Download
     if not os.path.isfile(filename):
         wget.download(url, filename)
-        print('')
         if '.mp3' in filename:
             try:
                 settags(track)
