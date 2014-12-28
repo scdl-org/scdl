@@ -2,18 +2,16 @@
   <img src="http://soundcloud-dl.com/soundcloud-download-logo.png" alt="Logo"/>
 </p>
 # Soundcloud Music Downloader
-## Changelog
-Current state : [Here](https://github.com/flyingrub/scdl/issues/2)
-
 ## Description
 
-This script is able to download music from http://www.soundcloud.com.
+This script is able to download music from http://www.soundcloud.com and set id3tag to the downloaded music.
 It should work with OS X, Linux, Windows.
+
 
 ## System requirements
 
 * Python3
-* python3-dev (Required to install with pip correctly)
+
 
 ## Instructions
 ### Installation
@@ -29,6 +27,7 @@ ___
 * This allows scdl to access to your user profile data.
 * You need to have this set to be able to use the `me` option
 * Soon scdl will be able to download a user's stream
+
 
 ## Help
 ### Usage:
@@ -68,9 +67,6 @@ ___
 * Download all songs from a user's favorites
 * Set the tags with mutagen (Title / Artist / Album = 'Soundcloud' / Artwork)
 
-
-## Old version
- * This will be the new python version of: https://github.com/lukapusic/soundcloud-dl
 
 ## License
 
