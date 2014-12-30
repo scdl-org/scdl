@@ -299,8 +299,8 @@ def download_track(track):
         print('%s is not streamable...' % (track.title))
         print('')
         return
-    invalid_chars = '\u2013'
-    title = ''.join(c for c in track.title if c not in invalid_chars)
+    title = track.title.replace("–", "-") # replace utf-8 symbol (ndash) to ascii (-)
+    my_string = my_string
     if (c for c in title if c not in invalid_chars)
     print("Downloading " + title)
 
