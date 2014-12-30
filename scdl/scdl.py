@@ -299,10 +299,12 @@ def download_track(track):
         print('%s is not streamable...' % (track.title))
         print('')
         return
-    title = track.title
+    invalid_chars = '\u2013'
+    title = ''.join(c for c in track.title if c not in invalid_chars)
+    if (c for c in title if c not in invalid_chars)
     print("Downloading " + title)
 
-    #filename
+    #filename 
     if track.downloadable:
         print('Downloading the orginal file.')
         url = track.download_url + '?client_id=' + scdl_client_id
@@ -312,7 +314,7 @@ def download_track(track):
             filename = filename[1:-1]
     else:
         url = stream_url.location
-        invalid_chars = '\/:*?|<>'
+        invalid_chars = '\/:*?|<>"'
         if track.user['username'] not in title and arguments["--addtofile"]:
             title = track.user['username'] + ' - ' + title
         title = ''.join(c for c in title if c not in invalid_chars)
