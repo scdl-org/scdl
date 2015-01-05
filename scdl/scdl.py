@@ -2,7 +2,7 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
+    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][-n <filename>][--hidewarnings][--path <path>][--addtofile]
     scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
     scdl.py -h | --help
     scdl.py --version
@@ -21,6 +21,7 @@ Options:
     -c                 Continue if a music already exist
     -o [offset]        Begin with a custom offset
     --path [path]      Use a custom path for this time
+    -n [filename]      Use a custom filename
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
 """
@@ -302,21 +303,27 @@ def download_track(track):
     title = track.title
     print("Downloading " + title)
 
-    #filename
+    #optional filename
+    if arguments["-n"] is not None:
+        filename = arguments["-n"]
+
+    #filename/url
     if track.downloadable:
         print('Downloading the orginal file.')
         url = track.download_url + '?client_id=' + scdl_client_id
-
-        filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
-        if filename[0] == '"' or filename[0] == "'":
-            filename = filename[1:-1]
+        if not filename:
+            filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
+            if filename[0] == '"' or filename[0] == "'":
+                filename = filename[1:-1]
     else:
         url = stream_url.location
-        invalid_chars = '\/:*?|<>'
-        if track.user['username'] not in title and arguments["--addtofile"]:
-            title = track.user['username'] + ' - ' + title
-        title = ''.join(c for c in title if c not in invalid_chars)
-        filename = title + '.mp3'
+        if not filename:
+            invalid_chars = '\/:*?|<>'
+            if track.user['username'] not in title and arguments["--addtofile"]:
+                title = track.user['username'] + ' - ' + title
+            title = ''.join(c for c in title if c not in invalid_chars)
+            filename = title + '.mp3'
+    
 
     # Download
     if not os.path.isfile(filename):
