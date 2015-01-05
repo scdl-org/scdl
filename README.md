@@ -17,7 +17,7 @@ It should work with OS X, Linux, Windows.
 ### Installation
 ___
 1. Install scdl `pip3 install scdl`
-2. Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
+2. (Optional) Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
 
 
 ### Authentication:
