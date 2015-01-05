@@ -299,10 +299,12 @@ def download_track(track):
         print('%s is not streamable...' % (track.title))
         print('')
         return
-    title = track.title
+    title = track.title.replace("–", "-") # replace utf-8 symbol (ndash) to ascii (-)
+    my_string = my_string
+    if (c for c in title if c not in invalid_chars)
     print("Downloading " + title)
 
-    #filename
+    #filename 
     if track.downloadable:
         print('Downloading the orginal file.')
         url = track.download_url + '?client_id=' + scdl_client_id
