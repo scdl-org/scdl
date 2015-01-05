@@ -131,7 +131,7 @@ def get_item(track_url):
             item = client.get('/resolve', url=track_url)
         except Exception as e:
             print("Could not resolve url " + track_url)
-            print(e.message, e.args)
+            print(e)
             sys.exit(0)
     return item
 
@@ -142,8 +142,11 @@ def parse_url(track_url):
     """
     arguments = docopt(__doc__, version='0.1')
     item = get_item(track_url)
+
     if not item:
         return
+    elif isinstance(item, soundcloud.resource.ResourceList):
+        download_all(item)
     elif item.kind == 'track':
         print("Found a track")
         download_track(item)
@@ -285,6 +288,21 @@ def download_playlist(playlist):
         mp3_url = get_item(track_raw["permalink_url"])
         print('Track n°%d' % (count))
         download_track(mp3_url)
+
+
+def download_all(tracks):
+    """
+    Download all song of a page
+    Not recommended
+    """
+    print("NOTE: This will only download the songs of the page.(49 max)")
+    print("I recommend you to provide an user link and a download type.")
+    count = 0
+    for track in tracks:
+        count += 1
+        print("")
+        print('Track n°%d' % (count))
+        download_track(track)
 
 
 def download_track(track):

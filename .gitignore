@@ -3,3 +3,4 @@ dist/
 *.pyc
 *.egg-info/
 __pycache__/
+*.mp3
