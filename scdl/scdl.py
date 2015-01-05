@@ -260,7 +260,7 @@ def download_user_favorites(user):
             print('Favorite n°%d' % (count))
             download_track(track)
         offset += 10
-        client.get('/users/' + str(user.id) + '/favorites', limit=10, offset=offset)
+        favorites = client.get('/users/' + str(user.id) + '/favorites', limit=10, offset=offset)
     print('All users favorites downloaded!')
 
 
