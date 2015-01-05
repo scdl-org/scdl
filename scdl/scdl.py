@@ -313,11 +313,13 @@ def download_track(track):
             filename = filename[1:-1]
     else:
         url = stream_url.location
-        invalid_chars = '\/:*?|<>'
+        invalid_chars = '\/:*?|<>"'
         if track.user['username'] not in title and arguments["--addtofile"]:
             title = track.user['username'] + ' - ' + title
         title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
+
+    title = title.replace("–", "-")
 
     # Download
     if not os.path.isfile(filename):
