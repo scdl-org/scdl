@@ -318,6 +318,7 @@ def download_track(track):
         print('')
         return
     title = track.title
+    title = title.replace("–", "-")
     print("Downloading " + title)
 
     #filename
@@ -336,7 +337,7 @@ def download_track(track):
         title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
 
-    title = title.replace("–", "-")
+    
 
     # Download
     if not os.path.isfile(filename):
