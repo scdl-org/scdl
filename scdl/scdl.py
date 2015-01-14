@@ -2,10 +2,14 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-    scdl.py -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
-    scdl.py me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--path <path>][--addtofile]
-    scdl.py -h | --help
-    scdl.py --version
+    scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
+[--hidewarnings][--debug | --error][--path <path>][--addtofile]
+
+    scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
+[--hidewarnings][--debug | --error][--path <path>][--addtofile]
+
+    scdl -h | --help
+    scdl --version
 
 
 Options:
@@ -24,6 +28,7 @@ Options:
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
 """
+import __init__
 from docopt import docopt
 import configparser
 
@@ -40,6 +45,8 @@ import json
 
 import mutagen
 
+log_verbosity = 1  # (0 = Error ; 1 = Error && Info ; 2 = Debug && Error && Info)
+arguments = None
 token = ''
 path = ''
 offset = 0
@@ -49,26 +56,40 @@ scdl_client_id = 'b45b1aa10f1ac2941910a7f0d10f8e28'
 client = soundcloud.Client(client_id=scdl_client_id)
 
 
+def log(str, strverbosity=1):  # strverbosity (0 = Error ; 1 = Info ; 2 = Debug)
+    global log_verbosity
+    if log_verbosity >= strverbosity:  # Error
+        print(str)
+
+
 def main():
     """
     Main function, call parse_url
     """
     signal.signal(signal.SIGINT, signal_handler)
-    print("Soundcloud Downloader")
     global offset
+    global log_verbosity
+    global arguments
 
     # import conf file
     get_config()
 
     # Parse argument
-    arguments = docopt(__doc__, version='0.1')
-    #print(arguments)
+    arguments = docopt(__doc__, version=__init__.__version__)
+
+    if arguments["--debug"]:
+        log_verbosity = 2
+    elif arguments["--error"]:
+        log_verbosity = 0
+
+    log("Soundcloud Downloader", strverbosity=1)
+    log(arguments, strverbosity=2)
 
     if arguments["-o"] is not None:
         try:
             offset = int(arguments["-o"])
         except:
-            print('Offset should be an Integer...')
+            log('Offset should be an Integer...', strverbosity=0)
             sys.exit()
 
     if arguments["--hidewarnings"]:
@@ -78,12 +99,11 @@ def main():
         if os.path.exists(arguments["--path"]):
             os.chdir(arguments["--path"])
         else:
-            print('Invalid path in option...')
+            log('Invalid path in arguments...', strverbosity=0)
             sys.exit()
+    log('Downloading to '+os.getcwd()+'...', strverbosity=2)
 
-    print('Downloading to '+os.getcwd()+'...')
-
-    print('')
+    log('', strverbosity=1)
     if arguments["-l"]:
         parse_url(arguments["-l"])
     elif arguments["me"]:
@@ -108,12 +128,12 @@ def get_config():
         token = config['scdl']['auth_token']
         path = config['scdl']['path']
     except:
-        print('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?')
+        log('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?', strverbosity=0)
         sys.exit()
     if os.path.exists(path):
         os.chdir(path)
     else:
-        print('Invalid path in scdl.cfg...')
+        log('Invalid path in scdl.cfg...', strverbosity=0)
         sys.exit()
 
 
@@ -125,13 +145,13 @@ def get_item(track_url):
     try:
         item = client.get('/resolve', url=track_url)
     except Exception:
-        print('Error resolving url, retrying...')
+        log('Error resolving url, retrying...', strverbosity=0)
         time.sleep(5)
         try:
             item = client.get('/resolve', url=track_url)
         except Exception as e:
-            print("Could not resolve url " + track_url)
-            print(e)
+            log("Could not resolve url " + track_url, strverbosity=0)
+            log(e, strverbosity=0)
             sys.exit(0)
     return item
 
@@ -140,7 +160,7 @@ def parse_url(track_url):
     """
     Detects if the URL is a track or playlists, and parses the track(s) to the track downloader
     """
-    arguments = docopt(__doc__, version='0.1')
+    global arguments
     item = get_item(track_url)
 
     if not item:
@@ -148,13 +168,13 @@ def parse_url(track_url):
     elif isinstance(item, soundcloud.resource.ResourceList):
         download_all(item)
     elif item.kind == 'track':
-        print("Found a track")
+        log("Found a track", strverbosity=1)
         download_track(item)
     elif item.kind == "playlist":
-        print("Found a playlist")
+        log("Found a playlist", strverbosity=1)
         download_playlist(item)
     elif item.kind == 'user':
-        print("Found an user profile")
+        log("Found an user profile", strverbosity=1)
         if arguments["-f"]:
             download_user_favorites(item)
         elif arguments["-t"]:
@@ -164,9 +184,9 @@ def parse_url(track_url):
         elif arguments["-p"]:
             download_user_playlists(item)
         else:
-            print('Please provide a download type...')
+            log('Please provide a download type...', strverbosity=0)
     else:
-        print("Unknown item type")
+        log("Unknown item type", strverbosity=0)
 
 
 def who_am_i():
@@ -179,10 +199,10 @@ def who_am_i():
     try:
         current_user = client.get('/me')
     except:
-        print('Invalid token...')
+        log('Invalid token...', strverbosity=0)
         sys.exit(0)
-    print('Hello', current_user.username, '!')
-    print('')
+    log('Hello', current_user.username, '!', strverbosity=1)
+    log('', strverbosity=1)
     return current_user
 
 
@@ -204,7 +224,7 @@ def download_all_user_tracks(user):
             this_url = json_data[0]['track']['uri']
         except:
             this_url = json_data[0]['playlist']['uri']
-        print('Track n°%d' % (offset))
+        log('Track n°%d' % (offset))
         parse_url(this_url)
 
         url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
@@ -224,12 +244,12 @@ def download_user_tracks(user):
     for track in tracks:
         for track in tracks:
             count += 1
-            print("")
-            print('Track n°%d' % (count))
+            log("", strverbosity=1)
+            log('Track n°%d' % (count), strverbosity=1)
             download_track(track)
         offset += 10
         tracks = client.get('/users/' + str(user.id) + '/tracks', limit=10, offset=offset)
-    print('All users track downloaded!')
+    log('All users track downloaded!', strverbosity=1)
 
 
 def download_user_playlists(user):
@@ -242,12 +262,12 @@ def download_user_playlists(user):
     for playlist in playlists:
         for playlist in playlists:
             count += 1
-            print("")
-            print('Playlist n°%d' % (count))
+            log("", strverbosity=1)
+            log('Playlist n°%d' % (count), strverbosity=1)
             download_playlist(playlist)
         offset += 10
         playlists = client.get('/users/' + str(user.id) + '/playlists', limit=10, offset=offset)
-    print('All users playlists downloaded!')
+    log('All users playlists downloaded!', strverbosity=1)
 
 
 def download_user_favorites(user):
@@ -260,12 +280,12 @@ def download_user_favorites(user):
     for track in favorites:
         for track in favorites:
             count += 1
-            print("")
-            print('Favorite n°%d' % (count))
+            log("", strverbosity=1)
+            log('Favorite n°%d' % (count), strverbosity=1)
             download_track(track)
         offset += 10
         favorites = client.get('/users/' + str(user.id) + '/favorites', limit=10, offset=offset)
-    print('All users favorites downloaded!')
+    log('All users favorites downloaded!', strverbosity=1)
 
 
 def download_my_stream():
@@ -275,7 +295,7 @@ def download_my_stream():
     """
     client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
     activities = client.get('/me/activities')
-    print(activities)
+    log(activities, strverbosity=3)
 
 
 def download_playlist(playlist):
@@ -286,7 +306,7 @@ def download_playlist(playlist):
     for track_raw in playlist.tracks:
         count += 1
         mp3_url = get_item(track_raw["permalink_url"])
-        print('Track n°%d' % (count))
+        log('Track n°%d' % (count), strverbosity=1)
         download_track(mp3_url)
 
 
@@ -295,13 +315,13 @@ def download_all(tracks):
     Download all song of a page
     Not recommended
     """
-    print("NOTE: This will only download the songs of the page.(49 max)")
-    print("I recommend you to provide an user link and a download type.")
+    log("NOTE: This will only download the songs of the page.(49 max)", strverbosity=0)
+    log("I recommend you to provide an user link and a download type.", strverbosity=0)
     count = 0
     for track in tracks:
         count += 1
-        print("")
-        print('Track n°%d' % (count))
+        log("", strverbosity=1)
+        log('Track n°%d' % (count), strverbosity=1)
         download_track(track)
 
 
@@ -310,21 +330,21 @@ def download_track(track):
     Downloads a track
     """
     global filename
-    arguments = docopt(__doc__, version='0.1')
+    global arguments
 
     if track.streamable:
         stream_url = client.get(track.stream_url, allow_redirects=False)
     else:
-        print('%s is not streamable...' % (track.title))
-        print('')
+        log('%s is not streamable...' % (track.title), strverbosity=0)
+        log('', strverbosity=1)
         return
     title = track.title
     title = title.replace("–", "-")
-    print("Downloading " + title)
+    log("Downloading " + title, strverbosity=1)
 
     #filename
     if track.downloadable:
-        print('Downloading the orginal file.')
+        log('Downloading the orginal file.', strverbosity=1)
         url = track.download_url + '?client_id=' + scdl_client_id
 
         filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
@@ -338,39 +358,37 @@ def download_track(track):
         title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
 
-    
-
     # Download
     if not os.path.isfile(filename):
         wget.download(url, filename)
-        print('')
+        log('', strverbosity=1)
         if '.mp3' in filename:
             try:
                 settags(track)
             except:
-                print('Error trying to set the tags...')
+                log('Error trying to set the tags...', strverbosity=0)
         else:
-            print('This type of audio don\'t support tag...')
+            log('This type of audio don\'t support tag...', strverbosity=0)
     else:
         if arguments["-c"]:
-            print(title + " already Downloaded")
-            print('')
+            log(title + " already Downloaded", strverbosity=1)
+            log('', strverbosity=1)
             return
         else:
-            print('')
-            print("Music already exists ! (exiting)")
+            log('', strverbosity=1)
+            log("Music already exists ! (exiting)", strverbosity=0)
             sys.exit(0)
 
-    print('')
-    print(filename + ' Downloaded.')
-    print('')
+    log('', strverbosity=1)
+    log(filename + ' Downloaded.', strverbosity=1)
+    log('', strverbosity=1)
 
 
 def settags(track):
     """
     Set the tags to the mp3
     """
-    print("Settings tags...")
+    log("Settings tags...", strverbosity=1)
     user = client.get('/users/' + str(track.user_id), allow_redirects=False)
 
     artwork_url = track.artwork_url
@@ -387,7 +405,7 @@ def settags(track):
     if artwork_url is not None:
         audio["APIC"] = mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc='Cover', data=open('/tmp/scdl.jpg', 'rb').read())
     else:
-        print("Artwork can not be set.")
+        log("Artwork can not be set.", strverbosity=0)
     audio.save()
 
 
@@ -401,8 +419,8 @@ def signal_handler(signal, frame):
         if not os.path.isdir(f) and ".tmp" in f:
             os.remove(f)
 
-    print('')
-    print('Good bye!')
+    log('')
+    log('Good bye!')
     sys.exit(0)
 
 if __name__ == "__main__":
