@@ -24,6 +24,7 @@ Options:
     -p                 Download all playlist of an user
     -c                 Continue if a music already exist
     -o [offset]        Begin with a custom offset
+    --stream           Forces stream quality download
     --path [path]      Use a custom path for this time
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
@@ -69,6 +70,8 @@ def main():
     global offset
     global log_verbosity
     global arguments
+    global force_stream
+    
 
     # import conf file
     get_config()
@@ -103,6 +106,10 @@ def main():
     log('Downloading to '+os.getcwd()+'...', strverbosity=2)
 
     log('', strverbosity=1)
+    if arguments["--stream"]:
+        force_stream = True
+    else:
+        force_stream = False
     if arguments["-l"]:
         parse_url(arguments["-l"])
     elif arguments["me"]:
@@ -330,7 +337,8 @@ def download_track(track):
     """
     global filename
     global arguments
-
+    global force_stream
+    
     if track.streamable:
         stream_url = client.get(track.stream_url, allow_redirects=False)
     else:
@@ -342,10 +350,9 @@ def download_track(track):
     log("Downloading " + title, strverbosity=1)
 
     #filename
-    if track.downloadable:
+    if track.downloadable and not force_stream:
         log('Downloading the orginal file.', strverbosity=1)
         url = track.download_url + '?client_id=' + scdl_client_id
-
         filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
         if filename[0] == '"' or filename[0] == "'":
             filename = filename[1:-1]
