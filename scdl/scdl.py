@@ -70,8 +70,7 @@ def main():
     global offset
     global log_verbosity
     global arguments
-    global force_stream
-    
+
 
     # import conf file
     get_config()
@@ -106,10 +105,6 @@ def main():
     log('Downloading to '+os.getcwd()+'...', strverbosity=2)
 
     log('', strverbosity=1)
-    if arguments["--stream"]:
-        force_stream = True
-    else:
-        force_stream = False
     if arguments["-l"]:
         parse_url(arguments["-l"])
     elif arguments["me"]:
@@ -350,7 +345,7 @@ def download_track(track):
     log("Downloading " + title, strverbosity=1)
 
     #filename
-    if track.downloadable and not force_stream:
+    if track.downloadable and not arguments["--stream"]:
         log('Downloading the orginal file.', strverbosity=1)
         url = track.download_url + '?client_id=' + scdl_client_id
         filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
