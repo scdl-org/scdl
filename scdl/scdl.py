@@ -3,10 +3,12 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile]\
+[--stream]
 
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile]\
+[--stream]
 
     scdl -h | --help
     scdl --version
