@@ -4,10 +4,8 @@
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
-
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
-
     scdl -h | --help
     scdl --version
 
@@ -27,10 +25,14 @@ Options:
     --path [path]      Use a custom path for this time
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
+    --onlymp3          Download only the mp3 file even if the track is Downloadable
+    --error            Only print debug information (Error/Warning)
+    --debug            Print every information and
 """
-import __init__
 from docopt import docopt
+from termcolor import colored
 import configparser
+from scdl import __version__
 
 import warnings
 import os
@@ -58,8 +60,13 @@ client = soundcloud.Client(client_id=scdl_client_id)
 
 def log(str, strverbosity=1):  # strverbosity (0 = Error ; 1 = Info ; 2 = Debug)
     global log_verbosity
-    if log_verbosity >= strverbosity:  # Error
-        print(str)
+    if log_verbosity >= strverbosity:
+        if strverbosity == 0:
+            print(colored(str, 'red'))
+        elif strverbosity == 1:
+            print(colored(str, 'white'))
+        elif strverbosity == 2:
+            print(colored(str, 'yellow'))
 
 
 def main():
@@ -75,7 +82,7 @@ def main():
     get_config()
 
     # Parse argument
-    arguments = docopt(__doc__, version=__init__.__version__)
+    arguments = docopt(__doc__, version=__version__)
 
     if arguments["--debug"]:
         log_verbosity = 2
@@ -201,7 +208,7 @@ def who_am_i():
     except:
         log('Invalid token...', strverbosity=0)
         sys.exit(0)
-    log('Hello', current_user.username, '!', strverbosity=1)
+    log('Hello' + current_user.username + '!', strverbosity=1)
     log('', strverbosity=1)
     return current_user
 
@@ -339,7 +346,7 @@ def download_track(track):
         log('', strverbosity=1)
         return
     title = track.title
-    title = title.encode('utf-8', 'ignore')
+    title = title.encode('utf-8', 'ignore').decode('utf-8')
     log("Downloading " + title, strverbosity=1)
 
     #filename
