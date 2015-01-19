@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
-import os
 
 import scdl
 
@@ -21,10 +20,6 @@ setup(
         'mutagen',
         'termcolor'
     ],
-    data_files=[
-        (os.path.join(os.path.expanduser('~'), '.config/scdl'), ['config/scdl.cfg'])
-    ],
-    include_package_data=True,
     url='https://github.com/flyingrub/scdl',
     classifiers=[
         "Programming Language :: Python",
