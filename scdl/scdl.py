@@ -338,7 +338,7 @@ def download_track(track):
         log('', strverbosity=1)
         return
     title = track.title
-    title = title.replace("–", "-")
+    title = title.encode('utf-8', 'ignore')
     log("Downloading " + title, strverbosity=1)
 
     #filename
