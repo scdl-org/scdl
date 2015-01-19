@@ -18,7 +18,8 @@ setup(
         'docopt',
         'soundcloud',
         'wget',
-        'mutagen'
+        'mutagen',
+        'termcolor'
     ],
     data_files=[
         (os.path.join(os.path.expanduser('~'), '.config/scdl'), ['config/scdl.cfg'])

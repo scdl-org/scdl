@@ -32,8 +32,8 @@ ___
 ## Help
 ### Usage:
 ```
-  scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--addtofile]
-  scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--addtofile]
+  scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+  scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
   scdl -h | --help
   scdl --version
 ```
