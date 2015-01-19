@@ -3,10 +3,10 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
 
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
 
     scdl -h | --help
     scdl --version
@@ -342,7 +342,7 @@ def download_track(track):
     log("Downloading " + title, strverbosity=1)
 
     #filename
-    if track.downloadable:
+    if track.downloadable and not arguments["--onlymp3"]:
         log('Downloading the orginal file.', strverbosity=1)
         url = track.download_url + '?client_id=' + scdl_client_id
 
