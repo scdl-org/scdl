@@ -38,8 +38,8 @@ import warnings
 import os
 import signal
 import sys
-
 import time
+
 import soundcloud
 import wget
 import urllib.request
@@ -52,7 +52,6 @@ arguments = None
 token = ''
 path = ''
 offset = 0
-filename = ''
 scdl_client_id = '9dbef61eb005cb526480279a0cc868c4'
 client = soundcloud.Client(client_id=scdl_client_id)
 
@@ -309,11 +308,22 @@ def download_playlist(playlist):
     Download a playlist
     """
     count = 0
+    invalid_chars = '\/:*?|<>"'
+
+    playlist_name = playlist.title.encode('utf-8', 'ignore').decode('utf-8')
+    playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
+
+    if not os.path.exists(playlist_name):
+        os.makedirs(playlist_name)
+    os.chdir(playlist_name)
+
     for track_raw in playlist.tracks:
         count += 1
         mp3_url = get_item(track_raw["permalink_url"])
         log('Track n°%d' % (count), strverbosity=1)
-        download_track(mp3_url)
+        download_track(mp3_url, playlist.title)
+
+    os.chdir('..')
 
 
 def download_all(tracks):
@@ -331,11 +341,10 @@ def download_all(tracks):
         download_track(track)
 
 
-def download_track(track):
+def download_track(track, playlist_name=None):
     """
     Downloads a track
     """
-    global filename
     global arguments
 
     if track.streamable:
@@ -370,7 +379,10 @@ def download_track(track):
         log('', strverbosity=1)
         if '.mp3' in filename:
             try:
-                settags(track)
+                if playlist_name is None:
+                    settags(track, filename)
+                else:
+                    settags(track, filename, playlist_name)
             except:
                 log('Error trying to set the tags...', strverbosity=0)
         else:
@@ -390,7 +402,7 @@ def download_track(track):
     log('', strverbosity=1)
 
 
-def settags(track):
+def settags(track, filename, album='Soundcloud'):
     """
     Set the tags to the mp3
     """
@@ -405,7 +417,7 @@ def settags(track):
 
     audio = mutagen.File(filename)
     audio["TIT2"] = mutagen.id3.TIT2(encoding=3, text=track.title)
-    audio["TALB"] = mutagen.id3.TALB(encoding=3, text='Soundcloud')
+    audio["TALB"] = mutagen.id3.TALB(encoding=3, text=album)
     audio["TPE1"] = mutagen.id3.TPE1(encoding=3, text=user.username)
     audio["TCON"] = mutagen.id3.TCON(encoding=3, text=track.genre)
     if artwork_url is not None:
