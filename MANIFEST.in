@@ -1,3 +1,2 @@
 include *.md
 include LICENSE
-include config/scdl.cfg

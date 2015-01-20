@@ -12,7 +12,7 @@ setup(
     author="FlyinGrub",
     author_email="flyinggrub@gmail.com",
     description="Download Music from Souncloud",
-    long_description=open('README.md').read(),
+    long_description="Please check the README on Github : https://github.com/flyingrub/scdl/blob/master/README.md",
     install_requires=[
         'docopt',
         'soundcloud',
