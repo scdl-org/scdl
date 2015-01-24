@@ -387,7 +387,7 @@ def download_track(track, playlist_name=None):
             except:
                 log('Error trying to set the tags...', strverbosity=0)
         else:
-            log('This type of audio don\'t support tag...', strverbosity=0)
+            log('This type of audio doesn\'t support tagging...', strverbosity=0)
     else:
         if arguments["-c"]:
             log(title + " already Downloaded", strverbosity=1)
