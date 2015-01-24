@@ -33,6 +33,7 @@ from docopt import docopt
 from termcolor import colored
 import configparser
 from scdl import __version__
+from requests.exceptions import HTTPError
 
 import warnings
 import os
@@ -348,7 +349,11 @@ def download_track(track, playlist_name=None):
     global arguments
 
     if track.streamable:
-        stream_url = client.get(track.stream_url, allow_redirects=False)
+        try:
+            stream_url = client.get(track.stream_url, allow_redirects=False)
+        except HTTPError:
+            log('%s track not found...' % (track.title), strverbosity=0)
+            return
     else:
         log('%s is not streamable...' % (track.title), strverbosity=0)
         log('', strverbosity=1)
