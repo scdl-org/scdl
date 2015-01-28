@@ -355,7 +355,7 @@ def download_track(track, playlist_name=None):
         log('', strverbosity=1)
         return
     title = track.title
-    title = title.encode('utf-8', 'ignore').decode('utf-8')
+    title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
     log("Downloading " + title, strverbosity=1)
 
     #filename
