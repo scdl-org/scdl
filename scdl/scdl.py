@@ -120,6 +120,8 @@ def main():
             download_user_tracks(who_am_i())
         elif arguments["-p"]:
             download_user_playlists(who_am_i())
+        elif arguments["-s"]:
+            download_my_stream()
 
 
 def get_config():
@@ -295,13 +297,31 @@ def download_user_favorites(user):
 
 def download_my_stream():
     """
-    DONT WORK FOR NOW
     Download the stream of the current user
     """
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
-    activities = client.get('/me/activities')
-    log(activities, strverbosity=3)
-
+    count = 0
+    url = "https://api.soundcloud.com/me/activities?client_id=%s&oauth_token=%s" % (scdl_client_id, token)
+    response = urllib.request.urlopen(url)
+    data = response.read()
+    text = data.decode('utf-8')
+    json_data = json.loads(text)
+    while str(json_data) != '[]':
+        coll = json_data['collection']
+        for track in coll:
+            count += 1
+            log("", strverbosity=1)
+            log('Stream track n°%d' % (count), strverbosity=1)
+            origin = track['origin']
+            track_url = origin['permalink_url']
+            parse_url(track_url)
+            
+        next_href = json_data['next_href']
+        next_ten = next_href + "&client_id=%s&oauth_token=%s" % (scdl_client_id, token)
+        response = urllib.request.urlopen(next_ten)
+        data = response.read()
+        text = data.decode('utf-8')
+        json_data = json.loads(text)
+    log('All stream tracks downloaded!', strverbosity=1)
 
 def download_playlist(playlist):
     """
