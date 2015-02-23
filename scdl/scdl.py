@@ -33,6 +33,7 @@ from docopt import docopt
 from termcolor import colored
 import configparser
 from scdl import __version__
+from requests.exceptions import HTTPError
 
 import warnings
 import os
@@ -120,6 +121,8 @@ def main():
             download_user_tracks(who_am_i())
         elif arguments["-p"]:
             download_user_playlists(who_am_i())
+        elif arguments["-s"]:
+            download_my_stream()
 
 
 def get_config():
@@ -295,12 +298,32 @@ def download_user_favorites(user):
 
 def download_my_stream():
     """
-    DONT WORK FOR NOW
     Download the stream of the current user
     """
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
-    activities = client.get('/me/activities')
-    log(activities, strverbosity=3)
+    count = 0
+    url = "https://api.soundcloud.com/me/activities?client_id=%s&oauth_token=%s" % (scdl_client_id, token)
+    response = urllib.request.urlopen(url)
+    data = response.read()
+    text = data.decode('utf-8')
+    json_data = json.loads(text)
+    while str(json_data) != '[]':
+        coll = json_data['collection']
+        for track in coll:
+            count += 1
+            log("", strverbosity=1)
+            log('Stream track n°%d' % (count), strverbosity=1)
+            origin = track['origin']
+            track_url = origin['permalink_url']
+            parse_url(track_url)
+            
+        next_href = json_data['next_href']
+        next_ten = next_href + "&client_id=%s&oauth_token=%s" % (scdl_client_id, token)
+        response = urllib.request.urlopen(next_ten)
+        data = response.read()
+        text = data.decode('utf-8')
+        json_data = json.loads(text)
+    log('All stream tracks downloaded!', strverbosity=1)
+
 
 
 def download_playlist(playlist):
@@ -348,13 +371,17 @@ def download_track(track, playlist_name=None):
     global arguments
 
     if track.streamable:
-        stream_url = client.get(track.stream_url, allow_redirects=False)
+        try:
+            stream_url = client.get(track.stream_url, allow_redirects=False)
+        except HTTPError:
+            log('%s track not found...' % (track.title), strverbosity=0)
+            return
     else:
         log('%s is not streamable...' % (track.title), strverbosity=0)
         log('', strverbosity=1)
         return
     title = track.title
-    title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
+    title = title.encode('utf-8', 'ignore').decode('utf-8')
     log("Downloading " + title, strverbosity=1)
 
     #filename
@@ -386,7 +413,7 @@ def download_track(track, playlist_name=None):
             except:
                 log('Error trying to set the tags...', strverbosity=0)
         else:
-            log('This type of audio doesn\'t support tagging...', strverbosity=0)
+            log('This type of audio don\'t support tag...', strverbosity=0)
     else:
         if arguments["-c"]:
             log(title + " already Downloaded", strverbosity=1)
