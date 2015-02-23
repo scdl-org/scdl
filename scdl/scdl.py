@@ -33,6 +33,7 @@ from docopt import docopt
 from termcolor import colored
 import configparser
 from scdl import __version__
+from requests.exceptions import HTTPError
 
 import warnings
 import os
@@ -323,6 +324,8 @@ def download_my_stream():
         json_data = json.loads(text)
     log('All stream tracks downloaded!', strverbosity=1)
 
+
+
 def download_playlist(playlist):
     """
     Download a playlist
@@ -368,13 +371,17 @@ def download_track(track, playlist_name=None):
     global arguments
 
     if track.streamable:
-        stream_url = client.get(track.stream_url, allow_redirects=False)
+        try:
+            stream_url = client.get(track.stream_url, allow_redirects=False)
+        except HTTPError:
+            log('%s track not found...' % (track.title), strverbosity=0)
+            return
     else:
         log('%s is not streamable...' % (track.title), strverbosity=0)
         log('', strverbosity=1)
         return
     title = track.title
-    title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
+    title = title.encode('utf-8', 'ignore').decode('utf-8')
     log("Downloading " + title, strverbosity=1)
 
     #filename
@@ -406,7 +413,7 @@ def download_track(track, playlist_name=None):
             except:
                 log('Error trying to set the tags...', strverbosity=0)
         else:
-            log('This type of audio doesn\'t support tagging...', strverbosity=0)
+            log('This type of audio don\'t support tag...', strverbosity=0)
     else:
         if arguments["-c"]:
             log(title + " already Downloaded", strverbosity=1)
