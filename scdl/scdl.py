@@ -208,7 +208,7 @@ def who_am_i():
     except:
         log('Invalid token...', strverbosity=0)
         sys.exit(0)
-    log('Hello' + current_user.username + '!', strverbosity=1)
+    log('Hello ' + current_user.username + '!', strverbosity=1)
     log('', strverbosity=1)
     return current_user
 
@@ -344,6 +344,7 @@ def download_all(tracks):
 
 
 def alternative_download(track):
+    log('alternative_download used', strverbosity=2)
     track_id = str(track.id)
     url = 'http://api.soundcloud.com/i1/tracks/' + track_id + '/streams?client_id=a3e059563d7fd3372b49b37f00a00bcf'
     res = urllib.request.urlopen(url)
