@@ -1,0 +1,85 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scdl</title>
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="css/soundcloud.css">
+</head>
+
+<body>
+<div class="banner banner-sm bg-dark">
+  <div class="shadow">
+    <div class="container">
+      <div class="row">
+        <div class="col-sm-20">
+        <h1>
+          This allow you to Authenticate scdl with music services.
+        </h1>
+        <p class="lead">
+          Some services require you to get authentication tokens for
+          scdl so that it can connect to your service accounts. This
+          page helps you on the way.
+        </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="feature" id="soundcloud">
+<div class="container">
+<div class="row">
+<div class="col-sm-3">
+  <img src="soundcloud.png" alt="SoundCloud" class="img-responsive">
+</div>
+<div class="col-sm-9">
+  <h2>SoundCloud</h2>
+  <script src="https://connect.soundcloud.com/sdk.js"></script>
+  <script>
+            SC.initialize({
+              client_id: "9dbef61eb005cb526480279a0cc868c4",
+              redirect_uri: "http://flyingrub.tk/soundcloud/callback"
+            });
+            function auth_soundcloud () {
+              SC.connect(function() {
+                SC.get("/me", function(user, error) {
+                  if (error) {
+                    alert("Error: " + error.message);
+                  } else {
+                    $(".token").text(SC.accessToken());
+                  }
+                });
+              });
+            }
+  </script>
+  <p>
+    If you want to use scdl, you must first
+    authenticate to access your SoundCloud
+    account.
+  </p>
+  <ol>
+    <li>
+      <p><a href="#" class="img" onclick="javascript:auth_soundcloud()">
+      <img src="http://connect.soundcloud.com/2/btn-connect-sc-l.png" alt="Connect with SoundCloud"></a></p>
+      <p>it's fully javascript, no information shared with this site.</p>
+    </li>
+    <li>
+      <p>Add the token to the config value in your <code>scdl.conf</code> file:</p>
+      <pre>
+        auth_token = <span class="token">...token goes here...</span></pre>
+    </li>
+  </ol>
+  <p>For more information see the <a href="https://github.com/flyingrub/scdl">scdl docs</a>.</p>
+</div>
+</div>
+</div>
+</div>
+
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+</body>
+</html>
