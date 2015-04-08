@@ -44,6 +44,7 @@ import soundcloud
 import wget
 import urllib.request
 import json
+from requests.exceptions import HTTPError
 
 import mutagen
 
@@ -342,6 +343,20 @@ def download_all(tracks):
         download_track(track)
 
 
+def alternative_download(track):
+    track_id = str(track.id)
+    url = 'http://api.soundcloud.com/i1/tracks/' + track_id + '/streams?client_id=a3e059563d7fd3372b49b37f00a00bcf'
+    res = urllib.request.urlopen(url)
+    data = res.read().decode('utf-8')
+    json_data = json.loads(data)
+    try:
+        mp3_url = json_data['http_mp3_128_url']
+    except KeyError:
+        log('http_mp3_128_url not found in json response, report to developer.',    strverbosity=0)
+        mp3_url = None
+    return mp3_url
+
+
 def download_track(track, playlist_name=None):
     """
     Downloads a track
@@ -349,7 +364,11 @@ def download_track(track, playlist_name=None):
     global arguments
 
     if track.streamable:
-        stream_url = client.get(track.stream_url, allow_redirects=False)
+        try:
+            stream_url = client.get(track.stream_url, allow_redirects=False)
+            url = stream_url.location
+        except HTTPError:
+            url = alternative_download(track)
     else:
         log('%s is not streamable...' % (track.title), strverbosity=0)
         log('', strverbosity=1)
@@ -367,7 +386,6 @@ def download_track(track, playlist_name=None):
         if filename[0] == '"' or filename[0] == "'":
             filename = filename[1:-1]
     else:
-        url = stream_url.location
         invalid_chars = '\/:*?|<>"'
         if track.user['username'] not in title and arguments["--addtofile"]:
             title = track.user['username'] + ' - ' + title
