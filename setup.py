@@ -23,8 +23,8 @@ setup(
     url='https://github.com/flyingrub/scdl',
     classifiers=[
         "Programming Language :: Python",
-        "Development Status :: 4 - BETA",
-        "License :: GPLv2",
+        "Development Status :: 5 - Production/Stable",
+        "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.4",
         'Topic :: Internet',
