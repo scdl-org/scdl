@@ -220,7 +220,7 @@ def download_all_user_tracks(user):
     global offset
     user_id = user.id
 
-    url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
+    url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=%d" % (user_id, offset, scdl_client_id)
     response = urllib.request.urlopen(url)
     data = response.read()
     text = data.decode('utf-8')
@@ -234,7 +234,7 @@ def download_all_user_tracks(user):
         log('Track n°%d' % (offset))
         parse_url(this_url)
 
-        url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=9dbef61eb005cb526480279a0cc868c4" % (user_id, offset)
+        url = "https://api.sndcdn.com/e1/users/%s/sounds.json?limit=1&offset=%d&client_id=%d" % (user_id, offset, scdl_client_id)
         response = urllib.request.urlopen(url)
         data = response.read()
         text = data.decode('utf-8')
