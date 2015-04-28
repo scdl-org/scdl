@@ -53,7 +53,7 @@ arguments = None
 token = ''
 path = ''
 offset = 0
-scdl_client_id = 'b45b1aa10f1ac2941910a7f0d10f8e28'
+scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
 
 client = soundcloud.Client(client_id=scdl_client_id)
 
