@@ -4,10 +4,10 @@
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]\
-[--playlist <filename>]
+[--playlist <filename>][--keepdir]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]\
-[--playlist <filename>]
+[--playlist <filename>][--keepdir]
     scdl -h | --help
     scdl --version
 
@@ -31,6 +31,7 @@ Options:
     --error            Only print debug information (Error/Warning)
     --debug            Print every information and
     --playlist [file]  Add the files to a M3U playlist file
+    --keepdir          Don't create a playlist folder
 """
 from docopt import docopt
 from termcolor import colored
@@ -59,6 +60,7 @@ path = ''
 offset = 0
 scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
 playlist_file = None
+stayinpath = False
 
 client = soundcloud.Client(client_id=scdl_client_id)
 
@@ -83,6 +85,7 @@ def main():
     global log_verbosity
     global arguments
     global playlist_file
+    global stayinpath
     
     playlist = None
 
@@ -115,7 +118,10 @@ def main():
         #Maybe implement this and set a playlist path? Now you can do ../playlist.m3u 
         #invalid_chars = '\/:*?|<>"'
         #playlist = ''.join(c for c in playlist if c not in invalid_chars)
-        
+  
+    if arguments["--keepdir"]:
+        stayinpath = True
+    
     if arguments["--path"] is not None:
         if os.path.exists(arguments["--path"]):
             os.chdir(arguments["--path"])
@@ -329,15 +335,19 @@ def download_playlist(playlist):
     """
     Download a playlist
     """
+    global stayinpath
+    
     count = 0
     invalid_chars = '\/:*?|<>"'
 
     playlist_name = playlist.title.encode('utf-8', 'ignore').decode('utf-8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
 
-    if not os.path.exists(playlist_name):
-        os.makedirs(playlist_name)
-    os.chdir(playlist_name)
+    #TODO: Extend playlist feature to automatically create M3U files for playlists
+    if not stayinpath:
+        if not os.path.exists(playlist_name):
+            os.makedirs(playlist_name)
+        os.chdir(playlist_name)
 
     for track_raw in playlist.tracks:
         count += 1
@@ -418,7 +428,7 @@ def download_track(track, playlist_name=None):
         duration = math.floor(track.duration / 1000)
         playlist_file.write("#EXTINF" + ":" + str(duration) + "," + title + "\n")
         playlist_file.write(filename + "\n")
-		
+        
     # Download
     if not os.path.isfile(filename):
         wget.download(url, filename)
