@@ -417,7 +417,6 @@ def download_track(track, playlist_name=None):
     if playlist_file:
         duration = math.floor(track.duration / 1000)
         playlist_file.write("#EXTINF" + ":" + str(duration) + "," + title + "\n")
-        # write the fullpath
         playlist_file.write(filename + "\n")
 		
     # Download
