@@ -3,9 +3,11 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]\
+[--playlist <filename>][--keepdir]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]\
+[--playlist <filename>][--keepdir]
     scdl -h | --help
     scdl --version
 
@@ -28,6 +30,8 @@ Options:
     --onlymp3          Download only the mp3 file even if the track is Downloadable
     --error            Only print debug information (Error/Warning)
     --debug            Print every information and
+    --playlist [file]  Add the files to a M3U playlist file
+    --keepdir          Don't create a playlist folder
 """
 from docopt import docopt
 from termcolor import colored
@@ -39,6 +43,7 @@ import os
 import signal
 import sys
 import time
+import math
 
 import soundcloud
 import wget
@@ -54,6 +59,8 @@ token = ''
 path = ''
 offset = 0
 scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
+playlist_file = None
+stayinpath = False
 
 client = soundcloud.Client(client_id=scdl_client_id)
 
@@ -77,6 +84,10 @@ def main():
     global offset
     global log_verbosity
     global arguments
+    global playlist_file
+    global stayinpath
+    
+    playlist = None
 
     # import conf file
     get_config()
@@ -102,6 +113,15 @@ def main():
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
 
+    if arguments["--playlist"] is not None:
+        playlist = arguments["--playlist"]
+        #Maybe implement this and set a playlist path? Now you can do ../playlist.m3u 
+        #invalid_chars = '\/:*?|<>"'
+        #playlist = ''.join(c for c in playlist if c not in invalid_chars)
+  
+    if arguments["--keepdir"]:
+        stayinpath = True
+    
     if arguments["--path"] is not None:
         if os.path.exists(arguments["--path"]):
             os.chdir(arguments["--path"])
@@ -110,6 +130,10 @@ def main():
             sys.exit()
     log('Downloading to '+os.getcwd()+'...', strverbosity=2)
 
+    if playlist is not None:
+        playlist_file = open(playlist, "w")
+        playlist_file.write("#EXTM3U" + "\n")
+        
     log('', strverbosity=1)
     if arguments["-l"]:
         parse_url(arguments["-l"])
@@ -123,6 +147,8 @@ def main():
         elif arguments["-p"]:
             download_user_playlists(who_am_i())
 
+    if playlist_file:
+        playlist_file.close()
 
 def get_config():
     """
@@ -309,15 +335,19 @@ def download_playlist(playlist):
     """
     Download a playlist
     """
+    global stayinpath
+    
     count = 0
     invalid_chars = '\/:*?|<>"'
 
     playlist_name = playlist.title.encode('utf-8', 'ignore').decode('utf-8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
 
-    if not os.path.exists(playlist_name):
-        os.makedirs(playlist_name)
-    os.chdir(playlist_name)
+    #TODO: Extend playlist feature to automatically create M3U files for playlists
+    if not stayinpath:
+        if not os.path.exists(playlist_name):
+            os.makedirs(playlist_name)
+        os.chdir(playlist_name)
 
     for track_raw in playlist.tracks:
         count += 1
@@ -363,6 +393,7 @@ def download_track(track, playlist_name=None):
     Downloads a track
     """
     global arguments
+    global playlist_file
 
     if track.streamable:
         try:
@@ -393,6 +424,11 @@ def download_track(track, playlist_name=None):
         title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
 
+    if playlist_file:
+        duration = math.floor(track.duration / 1000)
+        playlist_file.write("#EXTINF" + ":" + str(duration) + "," + title + "\n")
+        playlist_file.write(filename + "\n")
+        
     # Download
     if not os.path.isfile(filename):
         wget.download(url, filename)
