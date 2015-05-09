@@ -229,7 +229,7 @@ def download_all_user_tracks(user):
             this_url = json_data[0]['track']['uri']
         except:
             this_url = json_data[0]['playlist']['uri']
-        logger.info('Track n°%d' % (offset))
+        logger.info('Track n°{0}'.format(offset))
         parse_url(this_url)
 
         url = 'https://api.sndcdn.com/e1/users/{0}/sounds.json?limit=1&offset={1}&client_id={2}'.format(user_id, offset, scdl_client_id)
