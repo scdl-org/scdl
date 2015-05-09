@@ -57,7 +57,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(name)-5s %(leve
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(ColorizeFilter())
-logger.newline = lambda: print
+logger.newline = print
 
 arguments = None
 token = ''
