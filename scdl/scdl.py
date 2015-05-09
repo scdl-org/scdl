@@ -34,23 +34,21 @@ Options:
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from docopt import docopt
-import configparser
-
+import json
 import logging
-import warnings
 import os
 import signal
 import sys
 import time
+import urllib.request
+import warnings
 
+import configparser
+import mutagen
 import soundcloud
 import wget
-import urllib.request
-import json
+from docopt import docopt
 from requests.exceptions import HTTPError
-
-import mutagen
 
 from scdl import __version__
 from scdl import utils
