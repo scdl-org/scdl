@@ -45,13 +45,12 @@ import warnings
 
 import configparser
 import mutagen
-import soundcloud
 import wget
 from docopt import docopt
 from requests.exceptions import HTTPError
 
 from scdl import __version__
-from scdl import utils
+from scdl import soundcloud, utils
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(name)-5s %(levelname)-8s %(message)s')
 logger = logging.getLogger(__name__)
@@ -277,20 +276,19 @@ def download_user_playlists(user):
 
 def download_user_favorites(user):
     """
-    Find tracks in user favorites
+    Download the favorite tracks of an user
     """
-    global offset
-    count = 0
-    favorites = client.get('/users/{0.id}/favorites'.format(user), limit=10, offset=offset)
-    for track in favorites:
-        for track in favorites:
-            count += 1
-            logger.newline()
-            logger.info('Favorite n°{0}'.format(count))
+    logger.info('Retrieving favorites of user {0.username}...'.format(user))
+    favorites = client.get_all('/users/{0.id}/favorites'.format(user))
+    logger.info('Retrieved {0} favorites'.format(len(favorites)))
+    for counter, track in enumerate(favorites, 1):
+        try:
+            # FIXME add msg_template argument to download_track to put this message into download_track's message
+            logger.info('Favorite n°{0}'.format(counter))
             download_track(track)
-        offset += 10
-        favorites = client.get('/users/{0.id}/favorites'.format(user), limit=10, offset=offset)
-    logger.info('All users favorites downloaded!')
+        except Exception as e:
+            logger.exception(e)
+    logger.info('Downloaded all favorites of user {0.username}!'.format(user))
 
 
 def download_my_stream():
