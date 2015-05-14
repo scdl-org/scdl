@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 """Python Soundcloud Music Downloader."""
 
 __version__ = 'v1.3.2'
