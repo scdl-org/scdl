@@ -46,17 +46,17 @@ import soundcloud
 import wget
 import urllib.request
 import json
-from pytoolbox.logging import ColorizeFilter
 from requests.exceptions import HTTPError
 
 import mutagen
 
 from scdl import __version__
+from scdl import utils
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)-15s %(name)-5s %(levelname)-8s %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addFilter(ColorizeFilter())
+logger.addFilter(utils.ColorizeFilter())
 logger.newline = print
 
 arguments = None
