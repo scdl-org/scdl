@@ -114,11 +114,11 @@ def main():
         if arguments['-a']:
             download_all_user_tracks(who_am_i())
         elif arguments['-f']:
-            download_user_favorites(who_am_i())
+            download_all_of_user(who_am_i(), 'favorite', download_track)
         elif arguments['-t']:
-            download_user_tracks(who_am_i())
+            download_all_of_user(who_am_i(), 'track', download_track)
         elif arguments['-p']:
-            download_user_playlists(who_am_i())
+            download_all_of_user(who_am_i(), 'playlist', download_playlist)
 
 
 def get_config():
@@ -180,13 +180,13 @@ def parse_url(track_url):
     elif item.kind == 'user':
         logger.info('Found an user profile')
         if arguments['-f']:
-            download_user_favorites(item)
+            download_all_of_user(item, 'favorite', download_track)
         elif arguments['-t']:
-            download_user_tracks(item)
+            download_all_of_user(item, 'track', download_track)
         elif arguments['-a']:
             download_all_user_tracks(item)
         elif arguments['-p']:
-            download_user_playlists(item)
+            download_all_of_user(item, 'playlist', download_playlist)
         else:
             logger.error('Please provide a download type...')
     else:
@@ -238,57 +238,20 @@ def download_all_user_tracks(user):
         json_data = json.loads(text)
 
 
-def download_user_tracks(user):
+def download_all_of_user(user, name, download_function):
     """
-    Find track in user upload --> no repost
+    Download all items of an user. Can be playlist or track, or whatever handled by the download function.
     """
-    global offset
-    count = 0
-    tracks = client.get('/users/{0.id}/tracks'.format(user), limit=10, offset=offset)
-    for track in tracks:
-        for track in tracks:
-            count += 1
-            logger.newline()
-            logger.info('Track n°{0}'.format(count))
-            download_track(track)
-        offset += 10
-        tracks = client.get('/users/{0.id}/tracks'.format(user), limit=10, offset=offset)
-    logger.info('All users track downloaded!')
-
-
-def download_user_playlists(user):
-    """
-    Find playlists of the user
-    """
-    global offset
-    count = 0
-    playlists = client.get('/users/{0.id}/playlists'.format(user), limit=10, offset=offset)
-    for playlist in playlists:
-        for playlist in playlists:
-            count += 1
-            logger.newline()
-            logger.info('Playlist n°{0}'.format(count))
-            download_playlist(playlist)
-        offset += 10
-        playlists = client.get('/users/{0.id}/playlists'.format(user), limit=10, offset=offset)
-    logger.info('All users playlists downloaded!')
-
-
-def download_user_favorites(user):
-    """
-    Download the favorite tracks of an user
-    """
-    logger.info('Retrieving favorites of user {0.username}...'.format(user))
-    favorites = client.get_all('/users/{0.id}/favorites'.format(user))
-    logger.info('Retrieved {0} favorites'.format(len(favorites)))
-    for counter, track in enumerate(favorites, 1):
+    logger.info('Retrieving {1}s of user {0.username}...'.format(user, name))
+    items = client.get_all('/users/{0.id}/{1}s'.format(user, name))
+    logger.info('Retrieved {0} {1}s'.format(len(items), name))
+    for counter, item in enumerate(items, 1):
         try:
-            # FIXME add msg_template argument to download_track to put this message into download_track's message
-            logger.info('Favorite n°{0}'.format(counter))
-            download_track(track)
+            logger.info('{1} n°{0}'.format(counter, name.capitalize()))
+            download_function(item)
         except Exception as e:
             logger.exception(e)
-    logger.info('Downloaded all favorites of user {0.username}!'.format(user))
+    logger.info('Downloaded all {1}s of user {0.username}!'.format(user, name))
 
 
 def download_my_stream():
