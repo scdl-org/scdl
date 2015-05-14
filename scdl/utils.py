@@ -7,6 +7,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import logging
 from termcolor import colored
 
+__all__ = ('ColorizeFilter', )
+
 
 class ColorizeFilter(logging.Filter):
 
