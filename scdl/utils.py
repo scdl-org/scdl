@@ -4,8 +4,6 @@
 Copied from https://github.com/davidfischer-ch/pytoolbox/blob/master/pytoolbox/logging.py
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import logging
 from termcolor import colored
 
