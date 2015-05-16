@@ -215,9 +215,8 @@ def download_all_user_tracks(user):
     Find track & repost of the user
     """
     global offset
-    user_id = user.id
 
-    url = 'https://api.sndcdn.com/e1/users/{0}/sounds.json?limit=1&offset={1}&client_id={2}'.format(user_id, offset, scdl_client_id)
+    url = 'https://api.sndcdn.com/e1/users/{0.id}/sounds.json?limit=1&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
     response = urllib.request.urlopen(url)
     data = response.read()
     text = data.decode('utf-8')
@@ -231,7 +230,7 @@ def download_all_user_tracks(user):
         logger.info('Track n°{0}'.format(offset))
         parse_url(this_url)
 
-        url = 'https://api.sndcdn.com/e1/users/{0}/sounds.json?limit=1&offset={1}&client_id={2}'.format(user_id, offset, scdl_client_id)
+        url = 'https://api.sndcdn.com/e1/users/{0.id}/sounds.json?limit=1&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
         response = urllib.request.urlopen(url)
         data = response.read()
         text = data.decode('utf-8')
@@ -299,8 +298,7 @@ def download_all(tracks):
 
 def alternative_download(track):
     logger.debug('alternative_download used')
-    track_id = str(track.id)
-    url = 'http://api.soundcloud.com/i1/tracks/{0}/streams?client_id=a3e059563d7fd3372b49b37f00a00bcf'.format(track_id)
+    url = 'http://api.soundcloud.com/i1/tracks/{0.id}/streams?client_id=a3e059563d7fd3372b49b37f00a00bcf'.format(track)
     res = urllib.request.urlopen(url)
     data = res.read().decode('utf-8')
     json_data = json.loads(data)
