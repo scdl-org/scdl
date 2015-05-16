@@ -268,9 +268,7 @@ def download_playlist(playlist):
     """
     Download a playlist
     """
-    count = 0
     invalid_chars = '\/:*?|<>"'
-
     playlist_name = playlist.title.encode('utf-8', 'ignore').decode('utf-8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
 
@@ -278,10 +276,9 @@ def download_playlist(playlist):
         os.makedirs(playlist_name)
     os.chdir(playlist_name)
 
-    for track_raw in playlist.tracks:
-        count += 1
+    for counter, track_raw in enumerate(playlist.tracks, 1):
         mp3_url = get_item(track_raw['permalink_url'])
-        logger.info('Track n°{0}'.format(count))
+        logger.info('Track n°{0}'.format(counter))
         download_track(mp3_url, playlist.title)
 
     os.chdir('..')
@@ -294,11 +291,9 @@ def download_all(tracks):
     """
     logger.error('NOTE: This will only download the songs of the page.(49 max)')
     logger.error('I recommend you to provide an user link and a download type.')
-    count = 0
-    for track in tracks:
-        count += 1
+    for counter, track in enumerate(tracks, 1):
         logger.newline()
-        logger.info('Track n°{0}'.format(count))
+        logger.info('Track n°{0}'.format(counter))
         download_track(track)
 
 
