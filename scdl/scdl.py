@@ -222,7 +222,7 @@ def download_all_user_tracks(user):
     data = response.read()
     text = data.decode('utf-8')
     json_data = json.loads(text)
-    while str(json_data) != '[]':
+    while json_data:
         offset += 1
         try:
             this_url = json_data[0]['track']['uri']
