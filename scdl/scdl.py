@@ -240,16 +240,18 @@ def download_all_of_user(user, name, download_function):
     """
     Download all items of an user. Can be playlist or track, or whatever handled by the download function.
     """
-    logger.info('Retrieving {1}s of user {0.username}...'.format(user, name))
+    logger.info('Retrieving the {1}s of user {0.username}...'.format(user, name))
     items = client.get_all('/users/{0.id}/{1}s'.format(user, name))
-    logger.info('Retrieved {0} {1}s'.format(len(items), name))
+    total = len(items)
+    s = '' if total == 1 else 's'
+    logger.info('Retrieved {2} {0}{1}'.format(name, s, total))
     for counter, item in enumerate(items, 1):
         try:
-            logger.info('{1} n°{0}'.format(counter, name.capitalize()))
+            logger.info('{0} n°{1} of {2}'.format(name.capitalize(), counter, total))
             download_function(item)
         except Exception as e:
             logger.exception(e)
-    logger.info('Downloaded all {1}s of user {0.username}!'.format(user, name))
+    logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(name, s, total, user))
 
 
 def download_my_stream():
