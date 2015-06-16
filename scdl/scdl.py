@@ -52,6 +52,9 @@ from requests.exceptions import HTTPError
 
 import mutagen
 
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context # quick fix for SSL issues
+
 from scdl import __version__
 from scdl import utils
 
