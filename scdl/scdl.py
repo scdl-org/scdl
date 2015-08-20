@@ -5,9 +5,9 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--tmux]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--tmux]
     scdl -h | --help
     scdl --version
 
@@ -30,6 +30,7 @@ Options:
     --onlymp3          Download only the mp3 file even if the track is Downloadable
     --error            Only print debug information (Error/Warning)
     --debug            Print every information and
+    --tmux             Hide the wget progress bar
 """
 
 import json
@@ -351,7 +352,10 @@ def download_track(track, playlist_name=None):
 
     # Download
     if not os.path.isfile(filename):
-        wget.download(url, filename)
+        if arguments['--tmux']:
+            wget.download(url, filename, bar=None)
+        else:
+            wget.download(url, filename)
         logger.newline()
         if '.mp3' in filename:
             try:
