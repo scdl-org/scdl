@@ -298,6 +298,9 @@ def download_all(tracks):
 
 
 def alternative_download(track):
+    """
+    Not sure if the url is sill correct...
+    """
     logger.debug('alternative_download used')
     url = 'http://api.soundcloud.com/i1/tracks/{0.id}/streams?client_id=a3e059563d7fd3372b49b37f00a00bcf'.format(track)
     res = urllib.request.urlopen(url)
