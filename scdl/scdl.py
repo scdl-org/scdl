@@ -51,7 +51,7 @@ from scdl import __version__
 from scdl import soundcloud, utils
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
-logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
+logging.getLogger("requests").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
@@ -215,7 +215,7 @@ def download_all_user_tracks(user):
     """
     global offset
 
-    url = 'https://api.sndcdn.com/e1/users/{0.id}/sounds.json?limit=1&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
+    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=1&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
     response = urllib.request.urlopen(url)
     data = response.read()
     text = data.decode('utf-8')
@@ -223,9 +223,9 @@ def download_all_user_tracks(user):
     while json_data:
         offset += 1
         try:
-            this_url = json_data[0]['track']['uri']
+            this_url = json_data['collection'][0]['track']['uri']
         except:
-            this_url = json_data[0]['playlist']['uri']
+            this_url = json_data['collection'][0]['playlist']['uri']
         logger.info('Track n°{0}'.format(offset))
         parse_url(this_url)
 

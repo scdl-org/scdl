@@ -2,7 +2,7 @@
 
 """Python Soundcloud Music Downloader."""
 
-__version__ = 'v1.3.2'
+__version__ = 'v1.3.3b1'
 
 
 import os
