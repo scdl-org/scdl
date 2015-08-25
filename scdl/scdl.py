@@ -91,10 +91,11 @@ def main():
 
     if arguments['-o'] is not None:
         try:
-            offset = int(arguments['-o'])
+            offset = int(arguments['-o']) - 1
         except:
-            logger.error('Offset should be an Integer...')
+            logger.error('Offset should be an integer...')
             sys.exit()
+        logger.debug('offset: %d', offset)
 
     if arguments['--hidewarnings']:
         warnings.filterwarnings('ignore')
@@ -215,26 +216,34 @@ def download_all_user_tracks(user):
     Find track & repost of the user
     """
     global offset
+    resources = list()
+    prev_offset, start_offset = None, offset
 
-    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=1&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
-    response = urllib.request.urlopen(url)
-    data = response.read()
-    text = data.decode('utf-8')
-    json_data = json.loads(text)
-    while json_data:
-        offset += 1
-        try:
-            this_url = json_data['collection'][0]['track']['uri']
-        except:
-            this_url = json_data['collection'][0]['playlist']['uri']
-        logger.info('Track n°{0}'.format(offset))
-        parse_url(this_url)
+    logger.info('Retrieving all the track of user {0.username}...'.format(user))
+    while offset != prev_offset:
+        url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
+        logger.debug('url: ' + url)
 
-        url = 'https://api.sndcdn.com/e1/users/{0.id}/sounds.json?limit=1&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
         response = urllib.request.urlopen(url)
         data = response.read()
         text = data.decode('utf-8')
-        json_data = json.loads(text)
+        json_data = json.loads(text)['collection']
+
+        resources.extend(json_data);
+        prev_offset, offset = offset, start_offset + len(resources)
+
+    total = len(resources)
+    s = '' if total == 1 else 's'
+    logger.info('Retrieved {0} track{1}'.format(total, s))
+    for counter, item in enumerate(resources, 1):
+        try:
+            name = 'track' if item['type'] == 'track-repost' else item['type']
+            logger.info('n°{1} of {2} is a {0}'.format(name, counter + start_offset, total))
+            logger.debug(item[name])
+            parse_url(item[name]['uri'])
+        except Exception as e:
+            logger.exception(e)
+    logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(name, s, total, user))
 
 
 def download_all_of_user(user, name, download_function):
@@ -242,13 +251,13 @@ def download_all_of_user(user, name, download_function):
     Download all items of an user. Can be playlist or track, or whatever handled by the download function.
     """
     logger.info('Retrieving the {1}s of user {0.username}...'.format(user, name))
-    items = client.get_all('/users/{0.id}/{1}s'.format(user, name))
+    items = client.get_all('/users/{0.id}/{1}s'.format(user, name), offset=offset)
     total = len(items)
     s = '' if total == 1 else 's'
     logger.info('Retrieved {2} {0}{1}'.format(name, s, total))
     for counter, item in enumerate(items, 1):
         try:
-            logger.info('{0} n°{1} of {2}'.format(name.capitalize(), counter, total))
+            logger.info('{0} n°{1} of {2}'.format(name.capitalize(), counter + offset, total))
             download_function(item)
         except Exception as e:
             logger.exception(e)
