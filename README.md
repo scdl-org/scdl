@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="http://soundcloud-dl.com/soundcloud-download-logo.png" alt="Logo"/>
-</p>
 [![PyPI version](https://img.shields.io/pypi/v/scdl.svg)](https://pypi.python.org/pypi/scdl/)
 [![PyPI version](https://img.shields.io/github/issues-raw/flyingrub/scdl.svg)](https://github.com/flyingrub/scdl/issues)
 [![PyPI version](https://img.shields.io/pypi/dm/scdl.svg)](https://pypi.python.org/pypi/scdl/)
