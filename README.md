@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="http://soundcloud-dl.com/soundcloud-download-logo.png" alt="Logo"/>
-</p>
 [![PyPI version](https://img.shields.io/pypi/v/scdl.svg)](https://pypi.python.org/pypi/scdl/)
 [![PyPI version](https://img.shields.io/github/issues-raw/flyingrub/scdl.svg)](https://github.com/flyingrub/scdl/issues)
 [![PyPI version](https://img.shields.io/pypi/dm/scdl.svg)](https://pypi.python.org/pypi/scdl/)
@@ -35,29 +32,32 @@ ___
 ## Help
 ### Usage:
 ```
-  scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
-  scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+  scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
+  scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
   scdl -h | --help
   scdl --version
 ```
 
 ### Options:
 ```
-  -h --help          Show this screen.
-  --version          Show version.
-  me                 Uses the auth_token specified in the config to get access to the user's profile
-  -l [url]           URL can be a track, playlist or a user.
-  -s                 Download the stream of a user (token needed)
-  -a                 Download all of a user's tracks, including reposts
-  -t                 Download all of a user's uploads
-  -f                 Download all of a user's favorites
-  -p                 Download all of a user's playlists
+  -h --help          Show this screen
+  --version          Show version
+  me                 Use the user profile from the auth_token
+  -l [url]           URL can be track/playlist/user
+  -s                 Download the stream of an user (token needed)
+  -a                 Download all track of an user (including repost)
+  -t                 Download all upload of an user
+  -f                 Download all favorite of an user
+  -p                 Download all playlist of an user
   -c                 Continue if a music already exist
-  -o [offset]        Start on a custom offset.
-  --hidewarnings     Hide Warnings. Use with precaution
+  -o [offset]        Begin with a custom offset
+  --path [path]      Use a custom path for this time
+  --hidewarnings     Hide Warnings. (use with precaution)
   --addtofile        Add the artist name to the filename if it isn't in the filename already
-  --path             Path to download directory, can be set in the config. If none of this is set, it uses the current working directory
-  --silent           Disables output, useful for scripters
+  --onlymp3          Download only the mp3 file even if the track is Downloadable
+  --error            Only print debug information (Error/Warning)
+  --debug            Print every information and
+  --hide-progress    Hide the wget progress bar
 ```
 
 

@@ -1,6 +1,8 @@
+# -*- encoding: utf-8 -*-
+
 """Python Soundcloud Music Downloader."""
 
-__version__ = 'v1.3.2'
+__version__ = 'v1.4.0b1'
 
 
 import os
