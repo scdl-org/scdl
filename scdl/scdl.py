@@ -41,6 +41,7 @@ import sys
 import time
 import urllib.request
 import warnings
+import math
 
 import configparser
 import mutagen
@@ -286,11 +287,15 @@ def download_playlist(playlist):
         os.makedirs(playlist_name)
     os.chdir(playlist_name)
 
+    playlist_file = open(playlist_name + ".m3u", "w+")
+    playlist_file.write("#EXTM3U\n")
+
     for counter, track_raw in enumerate(playlist.tracks, 1):
         mp3_url = get_item(track_raw['permalink_url'])
         logger.info('Track n°{0}'.format(counter))
-        download_track(mp3_url, playlist.title)
+        download_track(mp3_url, playlist.title, playlist_file)
 
+    playlist_file.close()
     os.chdir('..')
 
 
@@ -324,7 +329,7 @@ def alternative_download(track):
     return mp3_url
 
 
-def download_track(track, playlist_name=None):
+def download_track(track, playlist_name=None, playlist_file=None):
     """
     Downloads a track
     """
@@ -358,6 +363,12 @@ def download_track(track, playlist_name=None):
             title = '{0.user[username]} - {1}'.format(track, title)
         title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
+
+    # Add the track to the generated m3u playlist file
+    if playlist_file:
+        duration = math.floor(track.duration / 1000)
+        playlist_file.write("#EXTINF:" + str(duration) + "," + title + "\n")
+        playlist_file.write(filename + "\n")
 
     # Download
     if not os.path.isfile(filename):
