@@ -218,20 +218,20 @@ def download_all_user_tracks(user):
     """
     global offset
     resources = list()
-    prev_offset, start_offset = None, offset
+    start_offset = offset
 
     logger.info('Retrieving all the track of user {0.username}...'.format(user))
-    while offset != prev_offset:
-        url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
+    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
+    while not url is None:
         logger.debug('url: ' + url)
 
         response = urllib.request.urlopen(url)
         data = response.read()
         text = data.decode('utf-8')
-        json_data = json.loads(text)['collection']
+        json_data = json.loads(text)
 
-        resources.extend(json_data);
-        prev_offset, offset = offset, start_offset + len(resources)
+        resources.extend(json_data['collection']);
+        url = json_data['next_href']
 
     total = len(resources)
     s = '' if total == 1 else 's'
