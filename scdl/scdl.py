@@ -4,7 +4,7 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-    scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
+    scdl -l <track_url> [-a | -r | -f | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
@@ -17,6 +17,7 @@ Options:
     --version          Show version
     me                 Use the user profile from the auth_token
     -l [url]           URL can be track/playlist/user
+    -r                 Download all related tracks
     -s                 Download the stream of an user (token needed)
     -a                 Download all track of an user (including repost)
     -t                 Download all upload of an user
@@ -176,6 +177,8 @@ def parse_url(track_url):
     elif item.kind == 'track':
         logger.info('Found a track')
         download_track(item)
+        if arguments['-r']:
+            download_all_related_tracks(item)
     elif item.kind == 'playlist':
         logger.info('Found a playlist')
         download_playlist(item)
@@ -245,6 +248,40 @@ def download_all_user_tracks(user):
         except Exception as e:
             logger.exception(e)
     logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(name, s, total, user))
+
+def download_all_related_tracks(track):
+    """
+    Find related tracks of track
+    """
+    global offset
+    resources = list()
+    start_offset = offset
+
+    logger.info('Retrieving all related tracks of track "{0.title}"...'.format(track))
+    url = 'https://api-v2.soundcloud.com/tracks/{0.id}/related?limit=100&offset=0&linked_partitioning=1&client_id={2}&app_version=5f4186f'.format(track, offset, scdl_client_id)
+    while not url is None:
+        logger.debug('url: ' + url)
+
+        response = urllib.request.urlopen(url)
+        data = response.read()
+        text = data.decode('utf-8')
+        json_data = json.loads(text)
+
+        resources.extend(json_data['collection']);
+        url = json_data.get('next_href', None)
+
+    total = len(resources)
+    s = '' if total == 1 else 's'
+    logger.info('Retrieved {0} track{1}'.format(total, s))
+    for counter, item in enumerate(resources, 1):
+        try:
+            name = 'track' 
+            logger.info('n°{1} of {2} is a {0}'.format(name, counter + start_offset, total))
+            logger.debug(item)
+            parse_url(item['uri'])
+        except Exception as e:
+            logger.exception(e)
+    logger.info('Downloaded all {2} related {0}{1} of track {3.title}!'.format(name, s, total, track))
 
 
 def download_all_of_user(user, name, download_function):
