@@ -4,10 +4,12 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-    scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
+    scdl -l <track_url> [-a | -r | -f | -t | -p][-c][-o <offset>]\
+[--hidewarnings][--debug | --error][--path <path>][--addtofile]\
+[--onlymp3][--hide-progress][--counter][--counter-padding <value>]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile]\
+[--onlymp3][--hide-progress][--counter][--counter-padding <value>]
     scdl -h | --help
     scdl --version
 
@@ -17,6 +19,7 @@ Options:
     --version          Show version
     me                 Use the user profile from the auth_token
     -l [url]           URL can be track/playlist/user
+    -r                 Download all related tracks
     -s                 Download the stream of an user (token needed)
     -a                 Download all track of an user (including repost)
     -t                 Download all upload of an user
@@ -27,6 +30,8 @@ Options:
     --path [path]      Use a custom path for this time
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
+    --counter          Add download counter to filename ("NNN <track filename>")
+    --counter-padding [value]  Digit padding for counter (default 3 digits)
     --onlymp3          Download only the mp3 file even if the track is Downloadable
     --error            Only print debug information (Error/Warning)
     --debug            Print every information and
@@ -42,6 +47,7 @@ import time
 import urllib.request
 import warnings
 import math
+import glob
 
 import configparser
 import mutagen
@@ -65,6 +71,9 @@ path = ''
 offset = 0
 scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
 
+file_counter = 0
+file_counter_padding = 3 #TODO: add as command line parameter
+
 client = soundcloud.Client(client_id=scdl_client_id)
 
 
@@ -75,12 +84,16 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     global offset
     global arguments
+    global file_counter_padding
 
     # import conf file
     get_config()
 
     # Parse argument
     arguments = docopt(__doc__, version=__version__)
+
+    if arguments['--counter-padding']:
+        file_counter_padding = int(arguments['--counter-padding'])
 
     if arguments['--debug']:
         logger.level = logging.DEBUG
@@ -162,7 +175,7 @@ def get_item(track_url):
     return item
 
 
-def parse_url(track_url):
+def parse_url(track_url, related_track_depth=1):
     """
     Detects if the URL is a track or playlists, and parses the track(s) to the track downloader
     """
@@ -176,6 +189,8 @@ def parse_url(track_url):
     elif item.kind == 'track':
         logger.info('Found a track')
         download_track(item)
+        if arguments['-r']:
+            download_all_related_tracks(item, related_track_depth)
     elif item.kind == 'playlist':
         logger.info('Found a playlist')
         download_playlist(item)
@@ -245,6 +260,43 @@ def download_all_user_tracks(user):
         except Exception as e:
             logger.exception(e)
     logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(name, s, total, user))
+
+def download_all_related_tracks(track, related_track_depth):
+    """
+    Find related tracks of track
+    """
+    if related_track_depth == 0:
+        return
+
+    global offset
+    resources = list()
+    start_offset = offset
+
+    logger.info('Retrieving all related tracks of track "{0.title}"...'.format(track))
+    url = 'https://api-v2.soundcloud.com/tracks/{0.id}/related?limit=100&offset=0&linked_partitioning=1&client_id={2}&app_version=5f4186f'.format(track, offset, scdl_client_id)
+    while not url is None:
+        logger.debug('url: ' + url)
+
+        response = urllib.request.urlopen(url)
+        data = response.read()
+        text = data.decode('utf-8')
+        json_data = json.loads(text)
+
+        resources.extend(json_data['collection']);
+        url = json_data.get('next_href', None)
+
+    total = len(resources)
+    s = '' if total == 1 else 's'
+    logger.info('Retrieved {0} track{1}'.format(total, s))
+    for counter, item in enumerate(resources, 1):
+        try:
+            name = 'track' 
+            logger.info('n°{1} of {2} is a {0}'.format(name, counter + start_offset, total))
+            logger.debug(item)
+            parse_url(item['uri'], related_track_depth-1)
+        except Exception as e:
+            logger.exception(e)
+    logger.info('Downloaded all {2} related {0}{1} of track {3.title}!'.format(name, s, total, track))
 
 
 def download_all_of_user(user, name, download_function):
@@ -335,6 +387,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
     Downloads a track
     """
     global arguments
+    global file_counter
+
+    file_counter += 1
 
     if track.streamable:
         try:
@@ -371,8 +426,17 @@ def download_track(track, playlist_name=None, playlist_file=None):
         playlist_file.write("#EXTINF:" + str(duration) + "," + title + "\n")
         playlist_file.write(filename + "\n")
 
+    base_filename = filename
+    if arguments['--counter']:
+        filename = (('%0' + str(file_counter_padding) + 'd ') % file_counter) + filename
+
+    search = glob.glob("*" + base_filename)
+    if len(search): #file exists with other counter or without counter
+        logger.info('{0} already Downloaded with other filename counter'.format(title))
+        os.rename(search[0], filename)
+
     # Download
-    if not os.path.isfile(filename):
+    elif not os.path.isfile(filename):
         if arguments['--hide-progress']:
             wget.download(url, filename, bar=None)
         else:
