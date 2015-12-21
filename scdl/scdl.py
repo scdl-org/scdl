@@ -403,7 +403,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     logger.newline()
 
 
-def settags(track, filename, album='Soundcloud'):
+def settags(track, filename, album=None):
     """
     Set the tags to the mp3
     """
@@ -418,9 +418,10 @@ def settags(track, filename, album='Soundcloud'):
 
     audio = mutagen.File(filename)
     audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track.title)
-    audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
     audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user.username)
     audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track.genre)
+    if album is not None:
+        audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
     if artwork_url is not None:
         audio['APIC'] = mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc='Cover',
                                          data=open('/tmp/scdl.jpg', 'rb').read())
