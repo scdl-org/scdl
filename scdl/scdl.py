@@ -5,9 +5,9 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtopath][--id][--noplaylistfile][--onlymp3][--hide-progress]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtopath][--id][--noplaylistfile][--onlymp3][--hide-progress]
     scdl -h | --help
     scdl --version
 
@@ -26,8 +26,11 @@ Options:
     -o [offset]        Begin with a custom offset
     --path [path]      Use a custom path for this time
     --hidewarnings     Hide Warnings. (use with precaution)
-    --addtofile        Add the artist name to the filename if it isn't in the filename already
+    --addtofile        Prepend the artist name to the filename if it isn't in the filename already
+    --addtopath        Prepend the artist name to the path
     --onlymp3          Download only the mp3 file even if the track is Downloadable
+    --id               Prepend track number to file name
+    --noplaylistfile   Prevent creation of playlist files
     --error            Only print debug information (Error/Warning)
     --debug            Print every information and
     --hide-progress    Hide the wget progress bar
@@ -63,6 +66,7 @@ arguments = None
 token = ''
 path = ''
 offset = 0
+id = 0
 scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
 
 client = soundcloud.Client(client_id=scdl_client_id)
@@ -279,23 +283,33 @@ def download_playlist(playlist):
     """
     Download a playlist
     """
+
+    global arguments
+
     invalid_chars = '\/:*?|<>"'
     playlist_name = playlist.title.encode('utf-8', 'ignore').decode('utf-8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
+
+
+    if arguments['--addtopath']:
+        playlist_name = '{0} - {1}'.format(playlist.user['username'], playlist_name)
 
     if not os.path.exists(playlist_name):
         os.makedirs(playlist_name)
     os.chdir(playlist_name)
 
-    playlist_file = open(playlist_name + ".m3u", "w+")
-    playlist_file.write("#EXTM3U\n")
+    playlist_file = None
+    if not arguments['--noplaylistfile']:
+        playlist_file = open(playlist_name + ".m3u", "w+")
+        playlist_file.write("#EXTM3U\n")
 
     for counter, track_raw in enumerate(playlist.tracks, 1):
         mp3_url = get_item(track_raw['permalink_url'])
         logger.info('Track n°{0}'.format(counter))
         download_track(mp3_url, playlist.title, playlist_file)
 
-    playlist_file.close()
+    if playlist_file:
+        playlist_file.close()
 
     os.chdir('..')
 
@@ -334,7 +348,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     """
     Downloads a track
     """
-    global arguments
+    global arguments, id
 
     if track.streamable:
         try:
@@ -364,6 +378,10 @@ def download_track(track, playlist_name=None, playlist_file=None):
             title = '{0.user[username]} - {1}'.format(track, title)
         title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
+
+    if arguments['--id']:
+        id+=1
+        filename = '{0} - {1}'.format(id, filename)
 
     # Add the track to the generated m3u playlist file
     if playlist_file:
