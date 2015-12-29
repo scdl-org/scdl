@@ -279,6 +279,7 @@ def download_playlist(playlist):
     """
     Download a playlist
     """
+    global offset
     invalid_chars = '\/:*?|<>"'
     playlist_name = playlist.title.encode('utf-8', 'ignore').decode('utf-8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
@@ -291,6 +292,9 @@ def download_playlist(playlist):
     playlist_file.write("#EXTM3U\n")
 
     for counter, track_raw in enumerate(playlist.tracks, 1):
+        if offset > 0:
+            offset -=1
+            continue
         mp3_url = get_item(track_raw['permalink_url'])
         logger.info('Track n°{0}'.format(counter))
         download_track(mp3_url, playlist.title, playlist_file)
