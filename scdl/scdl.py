@@ -17,11 +17,11 @@ Options:
     --version          Show version
     me                 Use the user profile from the auth_token
     -l [url]           URL can be track/playlist/user
-    -s                 Download the stream of an user (token needed)
-    -a                 Download all track of an user (including repost)
-    -t                 Download all upload of an user
-    -f                 Download all favorite of an user
-    -p                 Download all playlist of an user
+    -s                 Download the stream of a user (token needed)
+    -a                 Download all tracks of a user (including repost)
+    -t                 Download all uploads of a user
+    -f                 Download all favorites of a user
+    -p                 Download all playlists of a user
     -c                 Continue if a music already exist
     -o [offset]        Begin with a custom offset
     --path [path]      Use a custom path for this time
@@ -180,7 +180,7 @@ def parse_url(track_url):
         logger.info('Found a playlist')
         download_playlist(item)
     elif item.kind == 'user':
-        logger.info('Found an user profile')
+        logger.info('Found a user profile')
         if arguments['-f']:
             download_all_of_user(item, 'favorite', download_track)
         elif arguments['-t']:
@@ -249,7 +249,7 @@ def download_all_user_tracks(user):
 
 def download_all_of_user(user, name, download_function):
     """
-    Download all items of an user. Can be playlist or track, or whatever handled by the download function.
+    Download all items of a user. Can be playlist or track, or whatever handled by the download function.
     """
     logger.info('Retrieving the {1}s of user {0.username}...'.format(user, name))
     items = client.get_all('/users/{0.id}/{1}s'.format(user, name), offset=offset)
@@ -310,7 +310,7 @@ def download_all(tracks):
     Not recommended
     """
     logger.error('NOTE: This will only download the songs of the page.(49 max)')
-    logger.error('I recommend you to provide an user link and a download type.')
+    logger.error('I recommend you to provide a user link and a download type.')
     for counter, track in enumerate(tracks, 1):
         logger.newline()
         logger.info('Track n°{0}'.format(counter))
