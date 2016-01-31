@@ -53,7 +53,7 @@ from scdl import __version__
 from scdl import soundcloud, utils
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
-logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger('requests').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
@@ -147,7 +147,6 @@ def get_item(track_url):
     """
     Fetches metadata for an track or playlist
     """
-
     try:
         item = client.get('/resolve', url=track_url)
     except Exception:
@@ -221,8 +220,10 @@ def download_all_user_tracks(user):
     start_offset = offset
 
     logger.info('Retrieving all the track of user {0.username}...'.format(user))
-    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
-    while not url is None:
+    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(
+        user, offset, scdl_client_id
+    )
+    while url:
         logger.debug('url: ' + url)
 
         response = urllib.request.urlopen(url)
@@ -230,7 +231,7 @@ def download_all_user_tracks(user):
         text = data.decode('utf-8')
         json_data = json.loads(text)
 
-        resources.extend(json_data['collection']);
+        resources.extend(json_data['collection'])
         url = json_data['next_href']
 
     total = len(resources)
@@ -288,19 +289,15 @@ def download_playlist(playlist):
         os.makedirs(playlist_name)
     os.chdir(playlist_name)
 
-    playlist_file = open(playlist_name + ".m3u", "w+")
-    playlist_file.write("#EXTM3U\n")
-
-    for counter, track_raw in enumerate(playlist.tracks, 1):
-        if offset > 0:
-            offset -=1
-            continue
-        mp3_url = get_item(track_raw['permalink_url'])
-        logger.info('Track n°{0}'.format(counter))
-        download_track(mp3_url, playlist.title, playlist_file)
-
-    playlist_file.close()
-
+    with open(playlist_name + '.m3u', 'w+') as playlist_file:
+        playlist_file.write('#EXTM3U' + os.linesep)
+        for counter, track_raw in enumerate(playlist.tracks, 1):
+            if offset > 0:
+                offset -= 1
+                continue
+            mp3_url = get_item(track_raw['permalink_url'])
+            logger.info('Track n°{0}'.format(counter))
+            download_track(mp3_url, playlist.title, playlist_file)
     os.chdir('..')
 
 
@@ -354,7 +351,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
     logger.info('Downloading {0}'.format(title))
 
-    #filename
+    # filename
     if track.downloadable and not arguments['--onlymp3']:
         logger.info('Downloading the orginal file.')
         url = '{0.download_url}?client_id={1}'.format(track, scdl_client_id)
@@ -372,8 +369,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     # Add the track to the generated m3u playlist file
     if playlist_file:
         duration = math.floor(track.duration / 1000)
-        playlist_file.write("#EXTINF:" + str(duration) + "," + title + "\n")
-        playlist_file.write(filename + "\n")
+        playlist_file.write('#EXTINF:{0},{1}{3}{2}{3}'.format(duration, title, filename, os.linesep))
 
     # Download
     if not os.path.isfile(filename):
@@ -439,10 +435,9 @@ def signal_handler(signal, frame):
     handle keyboardinterrupt
     """
     time.sleep(1)
-    files = os.listdir()
-    for f in files:
-        if not os.path.isdir(f) and '.tmp' in f:
-            os.remove(f)
+    for path in os.listdir():
+        if not os.path.isdir(path) and '.tmp' in path:
+            os.remove(path)
 
     logger.newline()
     logger.info('Good bye!')

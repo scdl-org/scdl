@@ -2,10 +2,9 @@
 
 """Python Soundcloud Music Downloader."""
 
-__version__ = 'v1.4.1'
-
-
 import os
+
+__version__ = 'v1.4.1'
 
 dir_path_to_conf = os.path.join(os.path.expanduser('~'), '.config/scdl')
 file_path_to_conf = os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg')
@@ -17,6 +16,5 @@ if not os.path.exists(dir_path_to_conf):
     os.makedirs(dir_path_to_conf)
 
 if not os.path.exists(file_path_to_conf):
-    f = open(file_path_to_conf, "w")
-    f.write(text)
-    f.close
+    with open(file_path_to_conf, 'w') as f:
+        f.write(text)
