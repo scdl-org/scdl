@@ -8,11 +8,14 @@ __all__ = ('Client', 'resource')
 class Client(soundcloud.Client):
 
     def get_all(self, url, offset=0, limit=200, **kwargs):
-        resources = list()
-        prev_offset, start_offset = None, offset
-        while offset != prev_offset:
-            resources.extend(self.get(url, offset=offset, limit=limit, **kwargs))
-            prev_offset, offset = offset, start_offset + len(resources)
+        resources = []
+        while url:
+            response = self.get(url, order='created_at', offset=offset, limit=limit, linked_partitioning=1)
+            resources.extend(response.collection)
+            try:
+                url = response.next_href
+            except AttributeError:
+                url = None
         return resources
 
 resource = soundcloud.resource
