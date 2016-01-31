@@ -232,7 +232,7 @@ def download_all_user_tracks(user):
         text = data.decode('utf-8')
         json_data = json.loads(text)
 
-        resources.extend(json_data['collection']);
+        resources.extend(json_data['collection'])
         url = json_data['next_href']
 
     total = len(resources)
@@ -295,7 +295,7 @@ def download_playlist(playlist):
 
     for counter, track_raw in enumerate(playlist.tracks, 1):
         if offset > 0:
-            offset -=1
+            offset -= 1
             continue
         mp3_url = get_item(track_raw['permalink_url'])
         logger.info('Track n°{0}'.format(counter))
@@ -356,7 +356,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
     logger.info('Downloading {0}'.format(title))
 
-    #filename
+    # filename
     if track.downloadable and not arguments['--onlymp3']:
         logger.info('Downloading the orginal file.')
         url = '{0.download_url}?client_id={1}'.format(track, scdl_client_id)
