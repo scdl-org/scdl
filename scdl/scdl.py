@@ -221,8 +221,10 @@ def download_all_user_tracks(user):
     start_offset = offset
 
     logger.info('Retrieving all the track of user {0.username}...'.format(user))
-    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(user, offset, scdl_client_id)
-    while not url is None:
+    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(
+        user, offset, scdl_client_id
+    )
+    while url:
         logger.debug('url: ' + url)
 
         response = urllib.request.urlopen(url)
