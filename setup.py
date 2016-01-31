@@ -15,11 +15,10 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         'docopt',
-        'soundcloud',
-        'wget',
         'mutagen',
+        'soundcloud',
         'termcolor',
-        'six'
+        'wget'
     ],
     url='https://github.com/flyingrub/scdl',
     classifiers=[
