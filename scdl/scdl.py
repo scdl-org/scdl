@@ -53,7 +53,7 @@ from scdl import __version__
 from scdl import soundcloud, utils
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
-logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger('requests').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
@@ -147,7 +147,6 @@ def get_item(track_url):
     """
     Fetches metadata for an track or playlist
     """
-
     try:
         item = client.get('/resolve', url=track_url)
     except Exception:
@@ -290,19 +289,15 @@ def download_playlist(playlist):
         os.makedirs(playlist_name)
     os.chdir(playlist_name)
 
-    playlist_file = open(playlist_name + ".m3u", "w+")
-    playlist_file.write("#EXTM3U\n")
-
-    for counter, track_raw in enumerate(playlist.tracks, 1):
-        if offset > 0:
-            offset -= 1
-            continue
-        mp3_url = get_item(track_raw['permalink_url'])
-        logger.info('Track n°{0}'.format(counter))
-        download_track(mp3_url, playlist.title, playlist_file)
-
-    playlist_file.close()
-
+    with open(playlist_name + '.m3u', 'w+') as playlist_file:
+        playlist_file.write('#EXTM3U' + os.linesep)
+        for counter, track_raw in enumerate(playlist.tracks, 1):
+            if offset > 0:
+                offset -= 1
+                continue
+            mp3_url = get_item(track_raw['permalink_url'])
+            logger.info('Track n°{0}'.format(counter))
+            download_track(mp3_url, playlist.title, playlist_file)
     os.chdir('..')
 
 
@@ -374,8 +369,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     # Add the track to the generated m3u playlist file
     if playlist_file:
         duration = math.floor(track.duration / 1000)
-        playlist_file.write("#EXTINF:" + str(duration) + "," + title + "\n")
-        playlist_file.write(filename + "\n")
+        playlist_file.write('#EXTINF:{0},{1}{3}{2}{3}'.format(duration, title, filename, os.linesep))
 
     # Download
     if not os.path.isfile(filename):
@@ -441,10 +435,9 @@ def signal_handler(signal, frame):
     handle keyboardinterrupt
     """
     time.sleep(1)
-    files = os.listdir()
-    for f in files:
-        if not os.path.isdir(f) and '.tmp' in f:
-            os.remove(f)
+    for path in os.listdir():
+        if not os.path.isdir(path) and '.tmp' in path:
+            os.remove(path)
 
     logger.newline()
     logger.info('Good bye!')
