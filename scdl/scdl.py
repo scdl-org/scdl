@@ -220,9 +220,16 @@ def download_all_user_tracks(user):
     start_offset = offset
 
     logger.info('Retrieving all the track of user {0.username}...'.format(user))
-    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(
+    
+    #TODO Fix Limit Workaround(limit=20000) , workaround fixes the 2. request to be mailformed because the limit is so high , the complete data is gathered in a single request.
+    #Example!
+    #   Retrieving all the track of user MrSuicideSheep(id:3399796)...
+    #   url: https://api-v2.soundcloud.com/profile/soundcloud:users:3399796?limit=200&offset=0&client_id=95a4c0ef214f2a4a0852142807b54b35
+    #   url: https://api-v2.soundcloud.com/profile/soundcloud:users:3399796?offset=0000014f-a913-4ad0-ffff-ffffbd34b06f&limit=200
+    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=20000&offset={1}&client_id={2}'.format(
         user, offset, scdl_client_id
     )
+    
     while url:
         logger.debug('url: ' + url)
 
