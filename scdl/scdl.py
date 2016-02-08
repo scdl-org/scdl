@@ -284,7 +284,7 @@ def download_playlist(playlist):
     """
     global offset
     invalid_chars = '\/:*?|<>"'
-    playlist_name = playlist.title.encode('utf-8', 'ignore').decode('utf-8')
+    playlist_name = playlist['title'].encode('utf-8', 'ignore').decode('utf-8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
 
     if not os.path.exists(playlist_name):
@@ -293,13 +293,13 @@ def download_playlist(playlist):
 
     with open(playlist_name + '.m3u', 'w+') as playlist_file:
         playlist_file.write('#EXTM3U' + os.linesep)
-        for counter, track_raw in enumerate(playlist.tracks, 1):
+        for counter, track_raw in enumerate(playlist['tracks'], 1):
             if offset > 0:
                 offset -= 1
                 continue
             logger.debug(track_raw)
             logger.info('Track n°{0}'.format(counter))
-            download_track(track_raw, playlist.title, playlist_file)
+            download_track(track_raw, playlist['title'], playlist_file)
     os.chdir('..')
 
 
