@@ -43,6 +43,7 @@ import warnings
 import math
 import shutil
 import requests
+import re
 
 import configparser
 import mutagen
@@ -344,7 +345,8 @@ def download_track(track, playlist_name=None, playlist_file=None):
         except requests.exceptions.HTTPError:
             url = alternative_download(track)
     else:
-        logger.error('{0.title} is not streamable...'.format(track))
+        title = track['title']
+        logger.error('{0} is not streamable...'.format(title))
         logger.newline()
         return
     title = track['title']
@@ -358,7 +360,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         url = '{0}?client_id={1}'.format(download_url, scdl_client_id)
         r = requests.get(url, stream=True)
         d = r.headers['content-disposition']
-        filename = re.findall("filename=(.+)", d)
+        filename = re.findall("filename=(.+)", d)[0]
     else:
         invalid_chars = '\/:*?|<>"'
         username = track['user']['username']
@@ -367,6 +369,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
 
+    logger.debug("filename : {0}".format(filename))
     # Add the track to the generated m3u playlist file
     if playlist_file:
         duration = math.floor(track['duration'] / 1000)
