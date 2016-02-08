@@ -5,9 +5,11 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+[--hide-progress]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+[--hide-progress]
     scdl -h | --help
     scdl --version
 
@@ -164,7 +166,8 @@ def get_item(track_url):
 
 def parse_url(track_url):
     """
-    Detects if the URL is a track or playlists, and parses the track(s) to the track downloader
+    Detects if the URL is a track or playlists, and parses the track(s)
+    to the track downloader
     """
     global arguments
     item = get_item(track_url)
@@ -222,10 +225,11 @@ def download_all_user_tracks(user):
     resources = list()
     start_offset = offset
 
-    logger.info('Retrieving all the track of user {0.username}...'.format(user))
-    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}'.format(
-        user, offset
+    logger.info(
+        'Retrieving all the track of user {0.username}...'.format(user)
     )
+    url = ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?'
+           'limit=200&offset={1}').format(user, offset)
     while url:
         url = '{0}&client_id={1}'.format(url, scdl_client_id)
         logger.debug('url: ' + url)
@@ -242,30 +246,43 @@ def download_all_user_tracks(user):
     for counter, item in enumerate(resources, 1):
         try:
             name = 'track' if item['type'] == 'track-repost' else item['type']
-            logger.info('n°{1} of {2} is a {0}'.format(name, counter + start_offset, total))
+            logger.info('n°{1} of {2} is a {0}'.format(
+                name, counter + start_offset, total)
+            )
             logger.debug(item[name])
             parse_url(item[name]['uri'])
         except Exception as e:
             logger.exception(e)
-    logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(name, s, total, user))
+    logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(
+        name, s, total, user)
+    )
 
 
 def download_all_of_user(user, name, download_function):
     """
-    Download all items of a user. Can be playlist or track, or whatever handled by the download function.
+    Download all items of a user.
+    It can be playlist or track, or whatever handled by the download function.
     """
-    logger.info('Retrieving the {1}s of user {0.username}...'.format(user, name))
-    items = client.get_all('/users/{0.id}/{1}s'.format(user, name), offset=offset)
+    logger.info('Retrieving the {1}s of user {0.username}...'.format(
+        user, name)
+    )
+    items = client.get_all(
+        '/users/{0.id}/{1}s'.format(user, name), offset=offset
+    )
     total = len(items)
     s = '' if total == 1 else 's'
     logger.info('Retrieved {2} {0}{1}'.format(name, s, total))
     for counter, item in enumerate(items, 1):
         try:
-            logger.info('{0} n°{1} of {2}'.format(name.capitalize(), counter + offset, total))
+            logger.info('{0} n°{1} of {2}'.format(
+                name.capitalize(), counter + offset, total)
+            )
             download_function(item)
         except Exception as e:
             logger.exception(e)
-    logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(name, s, total, user))
+    logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(
+        name, s, total, user)
+    )
 
 
 def download_my_stream():
@@ -308,7 +325,9 @@ def download_all(tracks):
     Download all song of a page
     Not recommended
     """
-    logger.error('NOTE: This will only download the songs of the page.(49 max)')
+    logger.error(
+        'NOTE: This will only download the songs of the page.(49 max)'
+    )
     logger.error('I recommend you to provide a user link and a download type.')
     for counter, track in enumerate(tracks, 1):
         logger.newline()
@@ -321,13 +340,16 @@ def alternative_download(track):
     Not sure if the url is sill correct...
     """
     logger.debug('alternative_download used')
-    url = 'http://api.soundcloud.com/i1/tracks/{0.id}/streams?client_id=a3e059563d7fd3372b49b37f00a00bcf'.format(track)
+    url = ('http://api.soundcloud.com/i1/tracks/{0.id}/streams?'
+           'client_id=a3e059563d7fd3372b49b37f00a00bcf').format(track)
     r = requests.get(url)
     json_data = r.json()
     try:
         mp3_url = json_data['http_mp3_128_url']
     except KeyError:
-        logger.error('http_mp3_128_url not found in json response, report to developer.')
+        logger.error(
+            'http_mp3_128_url not found in json response, report to developer.'
+        )
         mp3_url = None
     return mp3_url
 
@@ -373,14 +395,21 @@ def download_track(track, playlist_name=None, playlist_file=None):
     # Add the track to the generated m3u playlist file
     if playlist_file:
         duration = math.floor(track['duration'] / 1000)
-        playlist_file.write('#EXTINF:{0},{1}{3}{2}{3}'.format(duration, title, filename, os.linesep))
+        playlist_file.write(
+            '#EXTINF:{0},{1}{3}{2}{3}'.format(
+                duration, title, filename, os.linesep
+            )
+        )
 
     # Download
     if not os.path.isfile(filename):
         r = requests.get(url, stream=True)
         with open(filename, 'wb') as f:
             total_length = int(r.headers.get('content-length'))
-            for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1):
+            for chunk in progress.bar(
+                r.iter_content(chunk_size=1024),
+                expected_size=(total_length/1024) + 1
+            ):
                 if chunk:
                     f.write(chunk)
                     f.flush()
@@ -420,7 +449,7 @@ def settags(track, filename, album=None):
     user = client.get('/users/{0}'.format(user_id), allow_redirects=False)
 
     artwork_url = track['artwork_url']
-    if artwork_url is None:
+    if not artwork_url:
         artwork_url = user.avatar_url
     artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
@@ -431,11 +460,13 @@ def settags(track, filename, album=None):
     audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
     audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user.username)
     audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
-    if album is not None:
+    if album:
         audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
-    if artwork_url is not None:
-        audio['APIC'] = mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc='Cover',
-                                         data=open('/tmp/scdl.jpg', 'rb').read())
+    if artwork_url:
+        audio['APIC'] = mutagen.id3.APIC(
+            encoding=3, mime='image/jpeg', type=3, desc='Cover',
+            data=open('/tmp/scdl.jpg', 'rb').read()
+            )
     else:
         logger.error('Artwork can not be set.')
     audio.save()
