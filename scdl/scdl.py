@@ -174,7 +174,9 @@ def parse_url(track_url):
         download_all(item)
     elif item.kind == 'track':
         logger.info('Found a track')
-        download_track(item)
+        track = json.loads(item.raw_data)
+        logger.debug(track)
+        download_track(track)
     elif item.kind == 'playlist':
         logger.info('Found a playlist')
         download_playlist(item)
@@ -220,10 +222,11 @@ def download_all_user_tracks(user):
     start_offset = offset
 
     logger.info('Retrieving all the track of user {0.username}...'.format(user))
-    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}&client_id={2}'.format(
-        user, offset, scdl_client_id
+    url = 'https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?limit=200&offset={1}'.format(
+        user, offset
     )
     while url:
+        url = url + '&client_id={0}'.format(scdl_client_id)
         logger.debug('url: ' + url)
 
         response = urllib.request.urlopen(url)
@@ -337,9 +340,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
     """
     global arguments
 
-    if track.streamable:
+    if track['streamable']:
         try:
-            stream_url = client.get(track.stream_url, allow_redirects=False)
+            stream_url = client.get(track['stream_url'], allow_redirects=False)
             url = stream_url.location
         except HTTPError:
             url = alternative_download(track)
@@ -347,28 +350,30 @@ def download_track(track, playlist_name=None, playlist_file=None):
         logger.error('{0.title} is not streamable...'.format(track))
         logger.newline()
         return
-    title = track.title
+    title = track['title']
     title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
     logger.info('Downloading {0}'.format(title))
 
     # filename
-    if track.downloadable and not arguments['--onlymp3']:
+    if track['downloadable'] and not arguments['--onlymp3']:
         logger.info('Downloading the orginal file.')
-        url = '{0.download_url}?client_id={1}'.format(track, scdl_client_id)
+        download_url = track['download_url']
+        url = '{0}?client_id={1}'.format(download_url, scdl_client_id)
 
         filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
         if filename[0] == '"' or filename[0] == "'":
             filename = filename[1:-1]
     else:
         invalid_chars = '\/:*?|<>"'
-        if track.user['username'] not in title and arguments['--addtofile']:
-            title = '{0.user[username]} - {1}'.format(track, title)
+        username = track['user']['username']
+        if username not in title and arguments['--addtofile']:
+            title = '{0} - {1}'.format(username, title)
         title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
 
     # Add the track to the generated m3u playlist file
     if playlist_file:
-        duration = math.floor(track.duration / 1000)
+        duration = math.floor(track['duration'] / 1000)
         playlist_file.write('#EXTINF:{0},{1}{3}{2}{3}'.format(duration, title, filename, os.linesep))
 
     # Download
@@ -384,8 +389,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
                     settags(track, filename)
                 else:
                     settags(track, filename, playlist_name)
-            except:
+            except Exception as e:
                 logger.error('Error trying to set the tags...')
+                logger.debug(e)
         else:
             logger.error("This type of audio doesn't support tagging...")
     else:
@@ -408,18 +414,19 @@ def settags(track, filename, album=None):
     Set the tags to the mp3
     """
     logger.info('Settings tags...')
-    user = client.get('/users/{0.user_id}'.format(track), allow_redirects=False)
+    user_id = track['user_id']
+    user = client.get('/users/{0}'.format(user_id), allow_redirects=False)
 
-    artwork_url = track.artwork_url
+    artwork_url = track['artwork_url']
     if artwork_url is None:
         artwork_url = user.avatar_url
     artwork_url = artwork_url.replace('large', 't500x500')
     urllib.request.urlretrieve(artwork_url, '/tmp/scdl.jpg')
 
     audio = mutagen.File(filename)
-    audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track.title)
+    audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
     audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user.username)
-    audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track.genre)
+    audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
     if album is not None:
         audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
     if artwork_url is not None:
