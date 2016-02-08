@@ -39,15 +39,15 @@ import os
 import signal
 import sys
 import time
-import urllib.request
 import warnings
 import math
+import shutil
+import requests
 
 import configparser
 import mutagen
-import wget
 from docopt import docopt
-from requests.exceptions import HTTPError
+from clint.textui import progress
 
 from scdl import __version__
 from scdl import soundcloud, utils
@@ -226,13 +226,11 @@ def download_all_user_tracks(user):
         user, offset
     )
     while url:
-        url = url + '&client_id={0}'.format(scdl_client_id)
+        url = '{0}&client_id={1}'.format(url, scdl_client_id)
         logger.debug('url: ' + url)
 
-        response = urllib.request.urlopen(url)
-        data = response.read()
-        text = data.decode('utf-8')
-        json_data = json.loads(text)
+        response = requests.get(url)
+        json_data = response.json()
 
         resources.extend(json_data['collection'])
         url = json_data['next_href']
@@ -298,9 +296,9 @@ def download_playlist(playlist):
             if offset > 0:
                 offset -= 1
                 continue
-            mp3_url = get_item(track_raw['permalink_url'])
+            logger.debug(track_raw)
             logger.info('Track n°{0}'.format(counter))
-            download_track(mp3_url, playlist.title, playlist_file)
+            download_track(track_raw, playlist.title, playlist_file)
     os.chdir('..')
 
 
@@ -323,9 +321,8 @@ def alternative_download(track):
     """
     logger.debug('alternative_download used')
     url = 'http://api.soundcloud.com/i1/tracks/{0.id}/streams?client_id=a3e059563d7fd3372b49b37f00a00bcf'.format(track)
-    res = urllib.request.urlopen(url)
-    data = res.read().decode('utf-8')
-    json_data = json.loads(data)
+    r = requests.get(url)
+    json_data = r.json()
     try:
         mp3_url = json_data['http_mp3_128_url']
     except KeyError:
@@ -344,7 +341,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         try:
             stream_url = client.get(track['stream_url'], allow_redirects=False)
             url = stream_url.location
-        except HTTPError:
+        except requests.exceptions.HTTPError:
             url = alternative_download(track)
     else:
         logger.error('{0.title} is not streamable...'.format(track))
@@ -359,10 +356,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
         logger.info('Downloading the orginal file.')
         download_url = track['download_url']
         url = '{0}?client_id={1}'.format(download_url, scdl_client_id)
-
-        filename = urllib.request.urlopen(url).info()['Content-Disposition'].split('filename=')[1]
-        if filename[0] == '"' or filename[0] == "'":
-            filename = filename[1:-1]
+        r = requests.get(url, stream=True)
+        d = r.headers['content-disposition']
+        filename = re.findall("filename=(.+)", d)
     else:
         invalid_chars = '\/:*?|<>"'
         username = track['user']['username']
@@ -378,10 +374,13 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     # Download
     if not os.path.isfile(filename):
-        if arguments['--hide-progress']:
-            wget.download(url, filename, bar=None)
-        else:
-            wget.download(url, filename)
+        r = requests.get(url, stream=True)
+        with open(filename, 'wb') as f:
+            total_length = int(r.headers.get('content-length'))
+            for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
         logger.newline()
         if '.mp3' in filename:
             try:
@@ -421,7 +420,9 @@ def settags(track, filename, album=None):
     if artwork_url is None:
         artwork_url = user.avatar_url
     artwork_url = artwork_url.replace('large', 't500x500')
-    urllib.request.urlretrieve(artwork_url, '/tmp/scdl.jpg')
+    response = requests.get(artwork_url, stream=True)
+    with open('/tmp/scdl.jpg', 'wb') as out_file:
+        shutil.copyfileobj(response.raw, out_file)
 
     audio = mutagen.File(filename)
     audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
