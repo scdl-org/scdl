@@ -16,11 +16,18 @@ It should work with OS X, Linux, Windows.
 ## Instructions
 ### Installation
 ___
-1. Install scdl `pip3 install scdl`
-2. (Optional) Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
+```
+pip3 install scdl
+```
+or 
+```
+git clone https://github.com/flyingrub/scdl.git && cd scdl
+python3 setup.py install
+``` 
+(Optional) Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
 
 
-### Authentication:
+### Authentication
 ___
 > Get your auth token here: [Token](http://flyingrub.tk/soundcloud/)
 
@@ -73,4 +80,4 @@ ___
 
 ## License
 
-[GPL v2](https://www.gnu.org/licenses/gpl-2.0.txt), orignal author [Flyingrub](https://github.com/flyingrub)
+[GPL v2](https://www.gnu.org/licenses/gpl-2.0.txt), original author [Flyingrub](https://github.com/flyingrub)
