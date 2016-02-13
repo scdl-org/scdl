@@ -175,25 +175,36 @@ def parse_url(track_url):
     if not item:
         return
     elif isinstance(item, soundcloud.resource.ResourceList):
-        download_all(item)
+        download_all_of_a_page(item)
     elif item.kind == 'track':
         logger.info('Found a track')
         track = json.loads(item.raw_data)
-        logger.debug(track)
         download_track(track)
     elif item.kind == 'playlist':
         logger.info('Found a playlist')
-        download_playlist(item)
+        playlist = json.loads(item.raw_data)
+        download_playlist(playlist)
     elif item.kind == 'user':
         logger.info('Found a user profile')
+        user = json.loads(item.raw_data)
+        user_id = user['id']
         if arguments['-f']:
-            download_all_of_user(item, 'favorite', download_track)
+            url = ('https://api.soundcloud.com/users/{0}/favorites?'
+                   'limit=200&offset={1}').format(user_id, offset)
+            download(user, url, 'likes')
         elif arguments['-t']:
-            download_all_of_user(item, 'track', download_track)
+            url = ('https://api.soundcloud.com/users/{0}/tracks?'
+                   'limit=200&offset={1}').format(user_id, offset)
+            download(user, url, 'uploaded tracks')
         elif arguments['-a']:
-            download_all_user_tracks(item)
+            url = ('https://api-v2.soundcloud.com'
+                   '/profile/soundcloud:users:{0}?'
+                   'limit=200&offset={1}').format(user_id, offset)
+            download(user, url, 'tracks and reposts')
         elif arguments['-p']:
-            download_all_of_user(item, 'playlist', download_playlist)
+            url = ('https://api.soundcloud.com/users/{0}/playlists?'
+                   'limit=200&offset={1}').format(user_id, offset)
+            download(user, url, 'playlists')
         else:
             logger.error('Please provide a download type...')
     else:
@@ -217,82 +228,40 @@ def who_am_i():
     return current_user
 
 
-def download_all_user_tracks(user):
+def download(user, url, name):
     """
-    Find track & repost of the user
+    Download all items of a user
     """
-    global offset
-    resources = list()
-    start_offset = offset
-
+    username = user['username']
     logger.info(
-        'Retrieving all the track of user {0.username}...'.format(user)
+        'Retrieving all the {0} of user {1}...'.format(name, username)
     )
-    url = ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0.id}?'
-           'limit=200&offset={1}').format(user, offset)
-    while url:
-        url = '{0}&client_id={1}'.format(url, scdl_client_id)
-        logger.debug('url: ' + url)
-
-        response = requests.get(url)
-        json_data = response.json()
-
-        resources.extend(json_data['collection'])
-        url = json_data['next_href']
-
+    resources = client.get_collection(url)
     total = len(resources)
-    s = '' if total == 1 else 's'
-    logger.info('Retrieved {0} track{1}'.format(total, s))
+    logger.info('Retrieved {0} {1}'.format(total, name))
     for counter, item in enumerate(resources, 1):
         try:
-            name = 'track' if item['type'] == 'track-repost' else item['type']
-            logger.info('n°{1} of {2} is a {0}'.format(
-                name, counter + start_offset, total)
-            )
-            logger.debug(item[name])
-            parse_url(item[name]['uri'])
-        except Exception as e:
-            logger.exception(e)
-    logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(
-        name, s, total, user)
-    )
-
-
-def download_all_of_user(user, name, download_function):
-    """
-    Download all items of a user.
-    It can be playlist or track, or whatever handled by the download function.
-    """
-    logger.info('Retrieving the {1}s of user {0.username}...'.format(
-        user, name)
-    )
-    items = client.get_all(
-        '/users/{0.id}/{1}s'.format(user, name), offset=offset
-    )
-    total = len(items)
-    s = '' if total == 1 else 's'
-    logger.info('Retrieved {2} {0}{1}'.format(name, s, total))
-    for counter, item in enumerate(items, 1):
-        try:
+            logger.debug(item)
             logger.info('{0} n°{1} of {2}'.format(
                 name.capitalize(), counter + offset, total)
             )
-            download_function(item)
+            if name == 'tracks and reposts':
+                name = ''
+                if item['type'] == 'track-repost':
+                    name = 'track'
+                else:
+                    name = item['type']
+                uri = item[name]['uri']
+                parse_url(uri)
+            elif name == 'playlists':
+                download_playlist(item)
+            else:
+                download_track(item)
         except Exception as e:
             logger.exception(e)
-    logger.info('Downloaded all {2} {0}{1} of user {3.username}!'.format(
-        name, s, total, user)
+    logger.info('Downloaded all {0} {1} of user {2}!'.format(
+        total, name, username)
     )
-
-
-def download_my_stream():
-    """
-    DONT WORK FOR NOW
-    Download the stream of the current user
-    """
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
-    activities = client.get('/me/activities')
-    logger.debug(activities)
 
 
 def download_playlist(playlist):
@@ -320,10 +289,20 @@ def download_playlist(playlist):
     os.chdir('..')
 
 
-def download_all(tracks):
+def download_my_stream():
     """
+    DONT WORK FOR NOW
+    Download the stream of the current user
+    """
+    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
+    activities = client.get('/me/activities')
+    logger.debug(activities)
+
+
+def download_all_of_a_page(tracks):
+    """
+    NOT RECOMMENDED
     Download all song of a page
-    Not recommended
     """
     logger.error(
         'NOTE: This will only download the songs of the page.(49 max)'
@@ -337,6 +316,7 @@ def download_all(tracks):
 
 def alternative_download(track):
     """
+    OBSOLETE ?
     Not sure if the url is sill correct...
     """
     logger.debug('alternative_download used')
@@ -413,13 +393,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
                 if chunk:
                     f.write(chunk)
                     f.flush()
-        logger.newline()
         if '.mp3' in filename:
             try:
-                if playlist_name is None:
-                    settags(track, filename)
-                else:
-                    settags(track, filename, playlist_name)
+                settags(track, filename, playlist_name)
             except Exception as e:
                 logger.error('Error trying to set the tags...')
                 logger.debug(e)
@@ -474,7 +450,7 @@ def settags(track, filename, album=None):
 
 def signal_handler(signal, frame):
     """
-    handle keyboardinterrupt
+    Handle Keyboardinterrupt
     """
     time.sleep(1)
     for path in os.listdir():

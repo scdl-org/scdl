@@ -1,20 +1,29 @@
 # -*- encoding: utf-8 -*-
 
+import requests
 import soundcloud
+
+scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
 
 __all__ = ('Client', 'resource')
 
 
 class Client(soundcloud.Client):
 
-    def get_all(self, url, offset=0, limit=200, **kwargs):
-        resources = []
+    def get_collection(self, url):
+        resources = list()
         while url:
-            response = self.get(url, order='created_at', offset=offset, limit=limit, linked_partitioning=1)
-            resources.extend(response.collection)
-            try:
-                url = response.next_href
-            except AttributeError:
+            url = '{0}&client_id={1}&linked_partitioning=1'.format(
+                url, scdl_client_id)
+            response = requests.get(url)
+            json_data = response.json()
+            if 'collection' in json_data:
+                resources.extend(json_data['collection'])
+            else:
+                resources.extend(json_data)
+            if 'next_href' in json_data:
+                url = json_data['next_href']
+            else:
                 url = None
         return resources
 
