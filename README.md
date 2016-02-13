@@ -44,6 +44,20 @@ ___
   scdl -h | --help
   scdl --version
 ```
+### Exemples:
+```
+# Download track & repost of the user QUANTA
+scdl -l https://soundcloud.com/quanta-uk -a
+
+# Download likes of the user Blastoyz
+scdl -l https://soundcloud.com/kobiblastoyz -f
+
+# Download one track
+scdl -l https://soundcloud.com/jumpstreetpsy/low-extender
+
+# Download one playlist
+scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
+```
 
 ### Options:
 ```
@@ -75,7 +89,8 @@ ___
 * Download all songs from one playlist
 * Download all songs from all playlists from a user
 * Download all songs from a user's favorites
-* Set the tags with mutagen (Title / Artist / Album = 'Soundcloud' / Artwork)
+* Set the tags with mutagen (Title / Artist / Album = Playlist / Artwork)
+* Create playlist files when downloading a playlist
 
 
 ## License
