@@ -7,7 +7,9 @@ import os
 __version__ = 'v1.5.0'
 
 dir_path_to_conf = os.path.join(os.path.expanduser('~'), '.config/scdl')
-file_path_to_conf = os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg')
+file_path_to_conf = os.path.join(
+    os.path.expanduser('~'), '.config/scdl/scdl.cfg'
+)
 text = """[scdl]
 auth_token =
 path = ."""
