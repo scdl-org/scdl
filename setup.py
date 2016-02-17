@@ -2,7 +2,6 @@
 # -*- encoding: utf-8 -*-
 
 from setuptools import setup, find_packages
-import pypandoc
 
 import scdl
 
@@ -13,7 +12,7 @@ setup(
     author='FlyinGrub',
     author_email='flyinggrub@gmail.com',
     description='Download Music from Souncloud',
-    long_description=pypandoc.convert('README.md', 'rst'),
+    long_description="README on github : https://github.com/flyingrub/scdl",
     install_requires=[
         'docopt',
         'mutagen',
