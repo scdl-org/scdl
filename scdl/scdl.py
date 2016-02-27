@@ -340,7 +340,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     """
     global arguments
 
-    if track['streamable']:
+    if track.get('streamable'):
         try:
             stream_url = client.get(track['stream_url'], allow_redirects=False)
             url = stream_url.location
