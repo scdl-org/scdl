@@ -68,6 +68,17 @@ path = ''
 offset = 0
 scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
 
+url = {
+    'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
+                  'limit=200&offset={1}'),
+    'tracks': ('https://api.soundcloud.com/users/{0}/tracks?'
+               'limit=200&offset={1}'),
+    'all': ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0}?'
+            'limit=200&offset={1}'),
+    'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
+                  'limit=200&offset={1}')
+}
+
 client = soundcloud.Client(client_id=scdl_client_id)
 
 
@@ -116,14 +127,14 @@ def main():
     if arguments['-l']:
         parse_url(arguments['-l'])
     elif arguments['me']:
-        if arguments['-a']:
-            download_all_user_tracks(who_am_i())
-        elif arguments['-f']:
-            download_all_of_user(who_am_i(), 'favorite', download_track)
+        if arguments['-f']:
+            download(who_am_i(), 'favorites', 'likes')
         elif arguments['-t']:
-            download_all_of_user(who_am_i(), 'track', download_track)
+            download(who_am_i(), 'tracks', 'uploaded tracks')
+        elif arguments['-a']:
+            download(who_am_i(), 'all', 'tracks and reposts')
         elif arguments['-p']:
-            download_all_of_user(who_am_i(), 'playlist', download_playlist)
+            download(who_am_i(), 'playlists', 'playlists')
 
 
 def get_config():
@@ -186,25 +197,14 @@ def parse_url(track_url):
         download_playlist(playlist)
     elif item.kind == 'user':
         logger.info('Found a user profile')
-        user = json.loads(item.raw_data)
-        user_id = user['id']
         if arguments['-f']:
-            url = ('https://api.soundcloud.com/users/{0}/favorites?'
-                   'limit=200&offset={1}').format(user_id, offset)
-            download(user, url, 'likes')
+            download(user, 'favorites', 'likes')
         elif arguments['-t']:
-            url = ('https://api.soundcloud.com/users/{0}/tracks?'
-                   'limit=200&offset={1}').format(user_id, offset)
-            download(user, url, 'uploaded tracks')
+            download(user, 'tracks', 'uploaded tracks')
         elif arguments['-a']:
-            url = ('https://api-v2.soundcloud.com'
-                   '/profile/soundcloud:users:{0}?'
-                   'limit=200&offset={1}').format(user_id, offset)
-            download(user, url, 'tracks and reposts')
+            download(user, 'all', 'tracks and reposts')
         elif arguments['-p']:
-            url = ('https://api.soundcloud.com/users/{0}/playlists?'
-                   'limit=200&offset={1}').format(user_id, offset)
-            download(user, url, 'playlists')
+            download(user, 'playlists', 'playlists')
         else:
             logger.error('Please provide a download type...')
     else:
@@ -228,15 +228,18 @@ def who_am_i():
     return current_user
 
 
-def download(user, url, name):
+def download(user, dl_type, name):
     """
     Download all items of a user
     """
+    user = json.loads(user.raw_data)
     username = user['username']
+    user_id = user['id']
     logger.info(
         'Retrieving all the {0} of user {1}...'.format(name, username)
     )
-    resources = client.get_collection(url)
+    dl_url = url[dl_type].format(user_id, offset)
+    resources = client.get_collection(dl_url)
     total = len(resources)
     logger.info('Retrieved {0} {1}'.format(total, name))
     for counter, item in enumerate(resources, 1):
