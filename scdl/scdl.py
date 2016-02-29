@@ -362,7 +362,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         url = '{0}?client_id={1}'.format(download_url, scdl_client_id)
         r = requests.get(url, stream=True)
         d = r.headers['content-disposition']
-        filename = re.findall("filename=(.+)", d)[0]
+        filename = re.findall("filename=(.+)", d)[0][1:-1]
     else:
         invalid_chars = '\/:*?|<>"'
         username = track['user']['username']
