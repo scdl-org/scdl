@@ -44,7 +44,7 @@ ___
   scdl -h | --help
   scdl --version
 ```
-### Exemples:
+### Examples:
 ```
 # Download track & repost of the user QUANTA
 scdl -l https://soundcloud.com/quanta-uk -a
