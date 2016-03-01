@@ -35,7 +35,6 @@ Options:
     --hide-progress    Hide the wget progress bar
 """
 
-import json
 import logging
 import os
 import signal
@@ -77,7 +76,9 @@ url = {
     'all': ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0}?'
             'limit=200&offset={1}'),
     'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
-                  'limit=200&offset={1}')
+                  'limit=200&offset={1}'),
+    'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
+    'me': ('https://api.soundcloud.com/me?oauth_token={0}')
 }
 
 client = soundcloud.Client(client_id=scdl_client_id)
@@ -163,12 +164,16 @@ def get_item(track_url):
     Fetches metadata for an track or playlist
     """
     try:
-        item = client.get('/resolve', url=track_url)
+        item_url = url['resolve'].format(track_url)
+        item_url = '{0}&client_id={1}'.format(item_url, scdl_client_id)
+        r = requests.get(item_url)
+        item = r.json()
     except Exception:
         logger.error('Error resolving url, retrying...')
         time.sleep(5)
         try:
-            item = client.get('/resolve', url=track_url)
+            r = requests.get(item_url)
+            item = r.json()
         except Exception as e:
             logger.error('Could not resolve url {0}'.format(track_url))
             logger.exception(e)
@@ -183,20 +188,18 @@ def parse_url(track_url):
     """
     global arguments
     item = get_item(track_url)
-
+    logger.debug(item)
     if not item:
         return
     elif isinstance(item, soundcloud.resource.ResourceList):
         download_all_of_a_page(item)
-    elif item.kind == 'track':
+    elif item['kind'] == 'track':
         logger.info('Found a track')
-        track = json.loads(item.raw_data)
-        download_track(track)
-    elif item.kind == 'playlist':
+        download_track(item)
+    elif item['kind'] == 'playlist':
         logger.info('Found a playlist')
-        playlist = json.loads(item.raw_data)
-        download_playlist(playlist)
-    elif item.kind == 'user':
+        download_playlist(item)
+    elif item['kind'] == 'user':
         logger.info('Found a user profile')
         if arguments['-f']:
             download(item, 'favorites', 'likes')
@@ -216,15 +219,16 @@ def who_am_i():
     """
     display to who the current token correspond, check if the token is valid
     """
-    global client
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
+    me = url['me'].format(token)
+    me = '{0}&client_id={1}'.format(me, scdl_client_id)
+    r = requests.get(me)
+    current_user = r.json()
+    logger.debug(me)
 
-    try:
-        current_user = client.get('/me')
-    except:
+    if r.status_code == 401:
         logger.error('Invalid token...')
         sys.exit(0)
-    logger.info('Hello {0.username}!'.format(current_user))
+    logger.info('Hello {0}!'.format(current_user['username']))
     logger.newline()
     return current_user
 
@@ -233,7 +237,6 @@ def download(user, dl_type, name):
     """
     Download all items of a user
     """
-    user = json.loads(user.raw_data)
     username = user['username']
     user_id = user['id']
     logger.info(
@@ -318,45 +321,20 @@ def download_all_of_a_page(tracks):
         download_track(track)
 
 
-def alternative_download(track):
-    """
-    OBSOLETE ?
-    Not sure if the url is sill correct...
-    """
-    logger.debug('alternative_download used')
-    url = ('http://api.soundcloud.com/i1/tracks/{0.id}/streams?'
-           'client_id=a3e059563d7fd3372b49b37f00a00bcf').format(track)
-    r = requests.get(url)
-    json_data = r.json()
-    try:
-        mp3_url = json_data['http_mp3_128_url']
-    except KeyError:
-        logger.error(
-            'http_mp3_128_url not found in json response, report to developer.'
-        )
-        mp3_url = None
-    return mp3_url
-
-
 def download_track(track, playlist_name=None, playlist_file=None):
     """
     Downloads a track
     """
     global arguments
 
+    title = track['title']
+    title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
     if track['streamable']:
-        try:
-            stream_url = client.get(track['stream_url'], allow_redirects=False)
-            url = stream_url.location
-        except requests.exceptions.HTTPError:
-            url = alternative_download(track)
+        url = '{0}?client_id={1}'.format(track['stream_url'], scdl_client_id)
     else:
-        title = track['title']
         logger.error('{0} is not streamable...'.format(title))
         logger.newline()
         return
-    title = track['title']
-    title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
     logger.info('Downloading {0}'.format(title))
 
     # filename
@@ -387,6 +365,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     # Download
     if not os.path.isfile(filename):
+        logger.debug(url)
         r = requests.get(url, stream=True)
         temp = tempfile.NamedTemporaryFile(delete=False)
         with temp as f:
@@ -459,11 +438,6 @@ def signal_handler(signal, frame):
     """
     Handle Keyboardinterrupt
     """
-    time.sleep(1)
-    for path in os.listdir():
-        if not os.path.isdir(path) and '.tmp' in path:
-            os.remove(path)
-
     logger.newline()
     logger.info('Good bye!')
     sys.exit(0)
