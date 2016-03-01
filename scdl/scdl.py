@@ -46,6 +46,7 @@ import math
 import shutil
 import requests
 import re
+import tempfile
 
 import configparser
 import mutagen
@@ -387,7 +388,8 @@ def download_track(track, playlist_name=None, playlist_file=None):
     # Download
     if not os.path.isfile(filename):
         r = requests.get(url, stream=True)
-        with open(filename, 'wb') as f:
+        temp = tempfile.NamedTemporaryFile(delete=False)
+        with temp as f:
             total_length = int(r.headers.get('content-length'))
             for chunk in progress.bar(
                 r.iter_content(chunk_size=1024),
@@ -396,6 +398,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
                 if chunk:
                     f.write(chunk)
                     f.flush()
+        shutil.move(temp.name, os.path.join(os.getcwd(), filename))
         if '.mp3' in filename:
             try:
                 settags(track, filename, playlist_name)
@@ -432,22 +435,23 @@ def settags(track, filename, album=None):
         artwork_url = user.avatar_url
     artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
-    with open('/tmp/scdl.jpg', 'wb') as out_file:
+    with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
+        out_file.seek(0)
 
-    audio = mutagen.File(filename)
-    audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
-    audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user.username)
-    audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
-    if album:
-        audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
-    if artwork_url:
-        audio['APIC'] = mutagen.id3.APIC(
-            encoding=3, mime='image/jpeg', type=3, desc='Cover',
-            data=open('/tmp/scdl.jpg', 'rb').read()
-            )
-    else:
-        logger.error('Artwork can not be set.')
+        audio = mutagen.File(filename)
+        audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
+        audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user.username)
+        audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
+        if album:
+            audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
+        if artwork_url:
+            audio['APIC'] = mutagen.id3.APIC(
+                encoding=3, mime='image/jpeg', type=3, desc='Cover',
+                data=out_file.read()
+                )
+        else:
+            logger.error('Artwork can not be set.')
     audio.save()
 
 
