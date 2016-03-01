@@ -198,13 +198,13 @@ def parse_url(track_url):
     elif item.kind == 'user':
         logger.info('Found a user profile')
         if arguments['-f']:
-            download(user, 'favorites', 'likes')
+            download(item, 'favorites', 'likes')
         elif arguments['-t']:
-            download(user, 'tracks', 'uploaded tracks')
+            download(item, 'tracks', 'uploaded tracks')
         elif arguments['-a']:
-            download(user, 'all', 'tracks and reposts')
+            download(item, 'all', 'tracks and reposts')
         elif arguments['-p']:
-            download(user, 'playlists', 'playlists')
+            download(item, 'playlists', 'playlists')
         else:
             logger.error('Please provide a download type...')
     else:
