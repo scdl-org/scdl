@@ -29,7 +29,7 @@ python3 setup.py install
 
 ### Authentication
 ___
-> Get your auth token here: [Token](http://flyingrub.tk/soundcloud/)
+> Get your auth token here: `DOMAIN NAME EXPIRED` (will be replaced soon)
 
 * This allows scdl to access to your user profile data.
 * You need to have this set to be able to use the `me` option
