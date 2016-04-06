@@ -292,7 +292,7 @@ def download_playlist(playlist):
                 continue
             logger.debug(track_raw)
             logger.info('Track n°{0}'.format(counter))
-            download_track(track_raw, playlist['title'], playlist_file)
+            download_track(track_raw, playlist['title'], playlist_file, counter)
     os.chdir('..')
 
 
@@ -321,7 +321,7 @@ def download_all_of_a_page(tracks):
         download_track(track)
 
 
-def download_track(track, playlist_name=None, playlist_file=None):
+def download_track(track, playlist_name=None, playlist_file=None, tracknumber=0):
     """
     Downloads a track
     """
@@ -380,7 +380,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         shutil.move(temp.name, os.path.join(os.getcwd(), filename))
         if '.mp3' in filename:
             try:
-                settags(track, filename, playlist_name)
+                settags(track, filename, playlist_name, tracknumber)
             except Exception as e:
                 logger.error('Error trying to set the tags...')
                 logger.debug(e)
@@ -401,11 +401,12 @@ def download_track(track, playlist_name=None, playlist_file=None):
     logger.newline()
 
 
-def settags(track, filename, album=None):
+def settags(track, filename, album=None, tracknumber=0):
     """
     Set the tags to the mp3
     """
     logger.info('Settings tags...')
+    logger.info('Tracknumber is: {0}'.format(tracknumber))
     user_id = track['user_id']
     user = client.get('/users/{0}'.format(user_id), allow_redirects=False)
 
@@ -431,6 +432,9 @@ def settags(track, filename, album=None):
                 )
         else:
             logger.error('Artwork can not be set.')
+        if tracknumber > 0:
+            logger.info('Setting tracknumber: {0}'.format( str(tracknumber) ) )
+            audio['TRCK'] = mutagen.id3.TRCK(encoding=3, text=str(tracknumber))
     audio.save()
 
 
