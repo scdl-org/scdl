@@ -253,12 +253,12 @@ def download(user, dl_type, name):
                 name.capitalize(), counter + offset, total)
             )
             if name == 'tracks and reposts':
-                name = ''
+                item_name = ''
                 if item['type'] == 'track-repost':
-                    name = 'track'
+                    item_name = 'track'
                 else:
-                    name = item['type']
-                uri = item[name]['uri']
+                    item_name = item['type']
+                uri = item[item_name]['uri']
                 parse_url(uri)
             elif name == 'playlists':
                 download_playlist(item)
