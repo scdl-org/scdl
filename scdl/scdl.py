@@ -339,7 +339,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     # filename
     if track['downloadable'] and not arguments['--onlymp3']:
-        logger.info('Downloading the orginal file.')
+        logger.info('Downloading the original file.')
         download_url = track['download_url']
         url = '{0}?client_id={1}'.format(download_url, scdl_client_id)
         r = requests.get(url, stream=True)
