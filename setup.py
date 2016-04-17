@@ -16,7 +16,6 @@ setup(
     install_requires=[
         'docopt',
         'mutagen',
-        'soundcloud',
         'termcolor',
         'requests',
         'clint'

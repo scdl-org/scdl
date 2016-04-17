@@ -53,7 +53,7 @@ from docopt import docopt
 from clint.textui import progress
 
 from scdl import __version__
-from scdl import soundcloud, utils
+from scdl import client, utils
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logging.getLogger('requests').setLevel(logging.WARNING)
@@ -79,10 +79,11 @@ url = {
     'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
                   'limit=200&offset={1}'),
     'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
+    'user': ('https://api.soundcloud.com/users/{0}'),
     'me': ('https://api.soundcloud.com/me?oauth_token={0}')
 }
 
-client = soundcloud.Client(client_id=scdl_client_id)
+client = client.Client()
 
 
 def main():
@@ -199,8 +200,6 @@ def parse_url(track_url):
     logger.debug(item)
     if not item:
         return
-    elif isinstance(item, soundcloud.resource.ResourceList):
-        download_all_of_a_page(item)
     elif item['kind'] == 'track':
         logger.info('Found a track')
         download_track(item)
@@ -309,9 +308,8 @@ def download_my_stream():
     DONT WORK FOR NOW
     Download the stream of the current user
     """
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
-    activities = client.get('/me/activities')
-    logger.debug(activities)
+    # TODO
+    # Use Token
 
 
 def download_all_of_a_page(tracks):
@@ -418,12 +416,10 @@ def settags(track, filename, album=None):
     Set the tags to the mp3
     """
     logger.info('Settings tags...')
-    user_id = track['user_id']
-    user = client.get('/users/{0}'.format(user_id), allow_redirects=False)
-
     artwork_url = track['artwork_url']
+    user = track['user']
     if not artwork_url:
-        artwork_url = user.avatar_url
+        artwork_url = user['avatar_url']
     artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
     with tempfile.NamedTemporaryFile() as out_file:
@@ -432,7 +428,7 @@ def settags(track, filename, album=None):
 
         audio = mutagen.File(filename)
         audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
-        audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user.username)
+        audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user['username'])
         audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
         if album:
             audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
