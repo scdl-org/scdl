@@ -67,6 +67,7 @@ token = ''
 path = ''
 offset = 0
 scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
+alternative_client_id = 'a3e059563d7fd3372b49b37f00a00bcf'
 
 url = {
     'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
@@ -159,21 +160,28 @@ def get_config():
         sys.exit()
 
 
-def get_item(track_url):
+def get_item(track_url, client_id=scdl_client_id):
     """
     Fetches metadata for an track or playlist
     """
     try:
         item_url = url['resolve'].format(track_url)
-        item_url = '{0}&client_id={1}'.format(item_url, scdl_client_id)
+        item_url = '{0}&client_id={1}'.format(item_url, client_id)
+        logger.debug(item_url)
+
         r = requests.get(item_url)
+        if r.status_code == 403:
+            return get_item(track_url, alternative_client_id)
+
         item = r.json()
+        no_tracks = item['kind'] == 'playlist' and not item['tracks']
+        if no_tracks:
+            return get_item(track_url, alternative_client_id)
     except Exception:
         logger.error('Error resolving url, retrying...')
         time.sleep(5)
         try:
-            r = requests.get(item_url)
-            item = r.json()
+            return get_item(track_url, alternative_client_id)
         except Exception as e:
             logger.error('Could not resolve url {0}'.format(track_url))
             logger.exception(e)
@@ -367,6 +375,10 @@ def download_track(track, playlist_name=None, playlist_file=None):
     if not os.path.isfile(filename):
         logger.debug(url)
         r = requests.get(url, stream=True)
+        if r.status_code == 401:
+            url = url[:-32] + alternative_client_id
+            logger.debug(url)
+            r = requests.get(url, stream=True)
         temp = tempfile.NamedTemporaryFile(delete=False)
         with temp as f:
             total_length = int(r.headers.get('content-length'))
