@@ -176,9 +176,12 @@ def get_item(track_url, client_id=scdl_client_id):
 
         item = r.json()
         no_tracks = item['kind'] == 'playlist' and not item['tracks']
-        if no_tracks:
+        if no_tracks and client_id != alternative_client_id:
             return get_item(track_url, alternative_client_id)
     except Exception:
+        if client_id == alternative_client_id:
+            logger.error('Get item failed...')
+            return
         logger.error('Error resolving url, retrying...')
         time.sleep(5)
         try:
