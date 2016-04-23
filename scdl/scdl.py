@@ -284,7 +284,8 @@ def download_playlist(playlist):
     """
     global offset
     invalid_chars = '\/:*?|<>"'
-    playlist_name = playlist['title'].encode('utf-8', 'ignore').decode('utf-8')
+    playlist_name = playlist['title'].encode('utf-8', 'ignore')
+    playlist_name = playlist_name.decode(sys.stdout.encoding)
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
 
     if not os.path.exists(playlist_name):
