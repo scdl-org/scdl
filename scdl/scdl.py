@@ -383,7 +383,8 @@ def download_track(track, playlist_name=None, playlist_file=None):
             total_length = int(r.headers.get('content-length'))
             for chunk in progress.bar(
                 r.iter_content(chunk_size=1024),
-                expected_size=(total_length/1024) + 1
+                expected_size=(total_length/1024) + 1,
+                hide=True if arguments["--hide-progress"] else False
             ):
                 if chunk:
                     f.write(chunk)
