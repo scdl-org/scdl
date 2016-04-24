@@ -357,12 +357,13 @@ def download_track(track, playlist_name=None, playlist_file=None):
         d = r.headers['content-disposition']
         filename = re.findall("filename=(.+)", d)[0][1:-1]
     else:
-        invalid_chars = '\/:*?|<>"'
         username = track['user']['username']
         if username not in title and arguments['--addtofile']:
             title = '{0} - {1}'.format(username, title)
-        title = ''.join(c for c in title if c not in invalid_chars)
         filename = title + '.mp3'
+
+    invalid_chars = '\/:*?|<>"'
+    filename = ''.join(c for c in filename if c not in invalid_chars)
 
     logger.debug("filename : {0}".format(filename))
     # Add the track to the generated m3u playlist file
