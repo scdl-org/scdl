@@ -46,6 +46,7 @@ import shutil
 import requests
 import re
 import tempfile
+import codecs
 
 import configparser
 import mutagen
@@ -288,14 +289,14 @@ def download_playlist(playlist):
     global offset
     invalid_chars = '\/:*?|<>"'
     playlist_name = playlist['title'].encode('utf-8', 'ignore')
-    playlist_name = playlist_name.decode(sys.stdout.encoding)
+    playlist_name = playlist_name.decode('utf8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
 
     if not os.path.exists(playlist_name):
         os.makedirs(playlist_name)
     os.chdir(playlist_name)
 
-    with open(playlist_name + '.m3u', 'w+') as playlist_file:
+    with codecs.open(playlist_name + '.m3u', 'w+', 'utf8') as playlist_file:
         playlist_file.write('#EXTM3U' + os.linesep)
         for counter, track_raw in enumerate(playlist['tracks'], 1):
             if offset > 0:
@@ -338,7 +339,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     global arguments
 
     title = track['title']
-    title = title.encode('utf-8', 'ignore').decode(sys.stdout.encoding)
+    title = title.encode('utf-8', 'ignore').decode('utf8')
     if track['streamable']:
         url = '{0}?client_id={1}'.format(track['stream_url'], scdl_client_id)
     else:
