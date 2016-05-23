@@ -1,14 +1,12 @@
 # -*- encoding: utf-8 -*-
 
 import requests
-import soundcloud
 
 scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
+alternative_client_id = 'a3e059563d7fd3372b49b37f00a00bcf'
 
-__all__ = ('Client', 'resource')
 
-
-class Client(soundcloud.Client):
+class Client():
 
     def get_collection(self, url):
         resources = list()
@@ -26,5 +24,3 @@ class Client(soundcloud.Client):
             else:
                 url = None
         return resources
-
-resource = soundcloud.resource

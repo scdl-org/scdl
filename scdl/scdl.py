@@ -53,7 +53,7 @@ from docopt import docopt
 from clint.textui import progress
 
 from scdl import __version__
-from scdl import soundcloud, utils
+from scdl import client, utils
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logging.getLogger('requests').setLevel(logging.WARNING)
@@ -67,6 +67,7 @@ token = ''
 path = ''
 offset = 0
 scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
+alternative_client_id = 'a3e059563d7fd3372b49b37f00a00bcf'
 
 url = {
     'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
@@ -78,10 +79,11 @@ url = {
     'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
                   'limit=200&offset={1}'),
     'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
+    'user': ('https://api.soundcloud.com/users/{0}'),
     'me': ('https://api.soundcloud.com/me?oauth_token={0}')
 }
 
-client = soundcloud.Client(client_id=scdl_client_id)
+client = client.Client()
 
 
 def main():
@@ -159,21 +161,31 @@ def get_config():
         sys.exit()
 
 
-def get_item(track_url):
+def get_item(track_url, client_id=scdl_client_id):
     """
     Fetches metadata for an track or playlist
     """
     try:
         item_url = url['resolve'].format(track_url)
-        item_url = '{0}&client_id={1}'.format(item_url, scdl_client_id)
+        item_url = '{0}&client_id={1}'.format(item_url, client_id)
+        logger.debug(item_url)
+
         r = requests.get(item_url)
+        if r.status_code == 403:
+            return get_item(track_url, alternative_client_id)
+
         item = r.json()
+        no_tracks = item['kind'] == 'playlist' and not item['tracks']
+        if no_tracks and client_id != alternative_client_id:
+            return get_item(track_url, alternative_client_id)
     except Exception:
+        if client_id == alternative_client_id:
+            logger.error('Get item failed...')
+            return
         logger.error('Error resolving url, retrying...')
         time.sleep(5)
         try:
-            r = requests.get(item_url)
-            item = r.json()
+            return get_item(track_url, alternative_client_id)
         except Exception as e:
             logger.error('Could not resolve url {0}'.format(track_url))
             logger.exception(e)
@@ -191,8 +203,6 @@ def parse_url(track_url):
     logger.debug(item)
     if not item:
         return
-    elif isinstance(item, soundcloud.resource.ResourceList):
-        download_all_of_a_page(item)
     elif item['kind'] == 'track':
         logger.info('Found a track')
         download_track(item)
@@ -253,12 +263,12 @@ def download(user, dl_type, name):
                 name.capitalize(), counter + offset, total)
             )
             if name == 'tracks and reposts':
-                name = ''
+                item_name = ''
                 if item['type'] == 'track-repost':
-                    name = 'track'
+                    item_name = 'track'
                 else:
-                    name = item['type']
-                uri = item[name]['uri']
+                    item_name = item['type']
+                uri = item[item_name]['uri']
                 parse_url(uri)
             elif name == 'playlists':
                 download_playlist(item)
@@ -277,7 +287,8 @@ def download_playlist(playlist):
     """
     global offset
     invalid_chars = '\/:*?|<>"'
-    playlist_name = playlist['title'].encode('utf-8', 'ignore').decode('utf-8')
+    playlist_name = playlist['title'].encode('utf-8', 'ignore')
+    playlist_name = playlist_name.decode(sys.stdout.encoding)
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
 
     if not os.path.exists(playlist_name):
@@ -301,9 +312,8 @@ def download_my_stream():
     DONT WORK FOR NOW
     Download the stream of the current user
     """
-    client = soundcloud.Client(access_token=token, client_id=scdl_client_id)
-    activities = client.get('/me/activities')
-    logger.debug(activities)
+    # TODO
+    # Use Token
 
 
 def download_all_of_a_page(tracks):
@@ -339,7 +349,7 @@ def download_track(track, playlist_name=None, playlist_file=None, tracknumber=0)
 
     # filename
     if track['downloadable'] and not arguments['--onlymp3']:
-        logger.info('Downloading the orginal file.')
+        logger.info('Downloading the original file.')
         download_url = track['download_url']
         url = '{0}?client_id={1}'.format(download_url, scdl_client_id)
         r = requests.get(url, stream=True)
@@ -367,12 +377,17 @@ def download_track(track, playlist_name=None, playlist_file=None, tracknumber=0)
     if not os.path.isfile(filename):
         logger.debug(url)
         r = requests.get(url, stream=True)
+        if r.status_code == 401:
+            url = url[:-32] + alternative_client_id
+            logger.debug(url)
+            r = requests.get(url, stream=True)
         temp = tempfile.NamedTemporaryFile(delete=False)
         with temp as f:
             total_length = int(r.headers.get('content-length'))
             for chunk in progress.bar(
                 r.iter_content(chunk_size=1024),
-                expected_size=(total_length/1024) + 1
+                expected_size=(total_length/1024) + 1,
+                hide=True if arguments["--hide-progress"] else False
             ):
                 if chunk:
                     f.write(chunk)
@@ -406,13 +421,10 @@ def settags(track, filename, album=None, tracknumber=0):
     Set the tags to the mp3
     """
     logger.info('Settings tags...')
-    logger.info('Tracknumber is: {0}'.format(tracknumber))
-    user_id = track['user_id']
-    user = client.get('/users/{0}'.format(user_id), allow_redirects=False)
-
     artwork_url = track['artwork_url']
+    user = track['user']
     if not artwork_url:
-        artwork_url = user.avatar_url
+        artwork_url = user['avatar_url']
     artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
     with tempfile.NamedTemporaryFile() as out_file:
@@ -421,7 +433,7 @@ def settags(track, filename, album=None, tracknumber=0):
 
         audio = mutagen.File(filename)
         audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
-        audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user.username)
+        audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user['username'])
         audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
         if album:
             audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
