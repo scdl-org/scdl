@@ -18,7 +18,8 @@ setup(
         'mutagen',
         'termcolor',
         'requests',
-        'clint'
+        'clint',
+        'wget'
     ],
     url='https://github.com/flyingrub/scdl',
     classifiers=[

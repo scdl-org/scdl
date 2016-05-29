@@ -5,11 +5,9 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
-[--hide-progress]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--rewritefile][--encodealltomp3][--onlymp3][--hide-progress]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
-[--hide-progress]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--rewritefile][--encodealltomp3][--onlymp3][--hide-progress]
     scdl -h | --help
     scdl --version
 
@@ -29,6 +27,8 @@ Options:
     --path [path]      Use a custom path for this time
     --hidewarnings     Hide Warnings. (use with precaution)
     --addtofile        Add the artist name to the filename if it isn't in the filename already
+    --rewritefile      Override the suggested Downloadable file names
+    --encodealltomp3   Encode non-mp3 Downloadable files as .mp3
     --onlymp3          Download only the mp3 file even if the track is Downloadable
     --error            Only print debug information (Error/Warning)
     --debug            Print every information and
@@ -42,6 +42,7 @@ import sys
 import time
 import warnings
 import math
+import datetime
 import shutil
 import requests
 import re
@@ -51,6 +52,8 @@ import configparser
 import mutagen
 from docopt import docopt
 from clint.textui import progress
+from requests.exceptions import HTTPError
+from subprocess import call
 
 from scdl import __version__
 from scdl import client, utils
@@ -331,6 +334,15 @@ def download_all_of_a_page(tracks):
         download_track(track)
 
 
+def add_username_to_title(track, title):
+    invalid_chars = '\/:*?|<>"'
+    username = track['user']['username']
+    if username not in title and arguments['--addtofile']:
+        title = '{0} - {1}'.format(username, title)
+    title = ''.join(c for c in title if c not in invalid_chars)
+    return title
+
+
 def download_track(track, playlist_name=None, playlist_file=None):
     """
     Downloads a track
@@ -355,12 +367,12 @@ def download_track(track, playlist_name=None, playlist_file=None):
         r = requests.get(url, stream=True)
         d = r.headers['content-disposition']
         filename = re.findall("filename=(.+)", d)[0][1:-1]
+        if arguments['--rewritefile']:
+            file_extension = os.path.splitext(filename)[1]
+            filename = add_username_to_title(track, title) + file_extension
+
     else:
-        invalid_chars = '\/:*?|<>"'
-        username = track['user']['username']
-        if username not in title and arguments['--addtofile']:
-            title = '{0} - {1}'.format(username, title)
-        title = ''.join(c for c in title if c not in invalid_chars)
+        title = add_username_to_title(track, title)
         filename = title + '.mp3'
 
     logger.debug("filename : {0}".format(filename))
@@ -373,8 +385,12 @@ def download_track(track, playlist_name=None, playlist_file=None):
             )
         )
 
+    encoded_filename = filename
+    if '.mp3' not in filename and arguments['--encodealltomp3']:
+        encoded_filename = os.path.splitext(filename)[0] + '.mp3'
+
     # Download
-    if not os.path.isfile(filename):
+    if not os.path.isfile(filename) and not os.path.isfile(encoded_filename):
         logger.debug(url)
         r = requests.get(url, stream=True)
         if r.status_code == 401:
@@ -392,7 +408,24 @@ def download_track(track, playlist_name=None, playlist_file=None):
                 if chunk:
                     f.write(chunk)
                     f.flush()
+
+        if '.mp3' not in filename and arguments['--encodealltomp3']:
+            logger.info('Encoding {0} to MP3'.format(filename))
+            show_progress = not arguments['--hide-progress']
+            temp_mp3 = tempfile.NamedTemporaryFile(delete=False)
+            try:
+                if 0 == call(["lame", "--preset", "extreme", temp.name, temp_mp3.name], stdout=show_progress, stderr=show_progress):
+                    temp.name = temp_mp3.name
+                    filename = encoded_filename
+                    logger.debug('Success. New file is {0}'.format(filename))
+                else:
+                    logger.info('MP3 encoding failed. Keeping original file {0}'.format(filename))
+            except Exception as e:
+                logger.error('Error trying to encode {0} to MP3. Keeping original file.'.format(filename))
+                logger.debug(e)
+
         shutil.move(temp.name, os.path.join(os.getcwd(), filename))
+
         if '.mp3' in filename:
             try:
                 settags(track, filename, playlist_name)
@@ -420,7 +453,7 @@ def settags(track, filename, album=None):
     """
     Set the tags to the mp3
     """
-    logger.info('Settings tags...')
+    logger.info('Setting tags...')
     artwork_url = track['artwork_url']
     user = track['user']
     if not artwork_url:
@@ -431,10 +464,27 @@ def settags(track, filename, album=None):
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
 
+        track_date = datetime.datetime.strptime(track['created_at'], "%Y/%m/%d %H:%M:%S %z")
+        logger.debug('Extracting date: {0} {1}'.format(track['created_at'], track_date))
+        track_year = track_date.strftime("%Y")
+        track_day_month = track_date.strftime("%d%m")
+        logger.debug('Extracting year/date: {0}/{1}'.format(track_year, track_day_month))
+        logger.debug('Permalink URL: {0}'.format(track['permalink_url']))
+
         audio = mutagen.File(filename)
         audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
+        audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
         audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user['username'])
         audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
+        audio['TYER'] = mutagen.id3.TYER(encoding=3, text=track_year)
+        audio['TDAT'] = mutagen.id3.TDAT(encoding=3, text=track_day_month)
+        audio['COMM'] = mutagen.id3.COMM(
+                encoding=0,
+                lang=u'ENG',
+                desc="ID3v1 Comment",
+                text=track['permalink_url']
+        )
+
         if album:
             audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
         if artwork_url:
