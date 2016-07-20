@@ -6,33 +6,35 @@
 Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
-[--hide-progress]
+[--hide-progress][--min-size <size>][--max-size <size>]
     scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
-[--hide-progress]
+[--hide-progress][--min-size <size>][--max-size <size>]
     scdl -h | --help
     scdl --version
 
 
 Options:
-    -h --help          Show this screen
-    --version          Show version
-    me                 Use the user profile from the auth_token
-    -l [url]           URL can be track/playlist/user
-    -s                 Download the stream of a user (token needed)
-    -a                 Download all tracks of a user (including repost)
-    -t                 Download all uploads of a user
-    -f                 Download all favorites of a user
-    -p                 Download all playlists of a user
-    -c                 Continue if a music already exist
-    -o [offset]        Begin with a custom offset
-    --path [path]      Use a custom path for this time
-    --hidewarnings     Hide Warnings. (use with precaution)
-    --addtofile        Add the artist name to the filename if it isn't in the filename already
-    --onlymp3          Download only the mp3 file even if the track is Downloadable
-    --error            Only print debug information (Error/Warning)
-    --debug            Print every information and
-    --hide-progress    Hide the wget progress bar
+    -h --help             Show this screen
+    --version             Show version
+    me                    Use the user profile from the auth_token
+    -l [url]              URL can be track/playlist/user
+    -s                    Download the stream of a user (token needed)
+    -a                    Download all tracks of a user (including repost)
+    -t                    Download all uploads of a user
+    -f                    Download all favorites of a user
+    -p                    Download all playlists of a user
+    -c                    Continue if a music already exist
+    -o [offset]           Begin with a custom offset
+    --path [path]         Use a custom path for this time
+    --min-size [min-size] Skip tracks smaller than size (k/m/g)
+    --max-size [max-size] Skip tracks larger than size (k/m/g)
+    --hidewarnings        Hide Warnings. (use with precaution)
+    --addtofile           Add the artist name to the filename if it isn't in the filename already
+    --onlymp3             Download only the mp3 file even if the track is Downloadable
+    --error               Only print debug information (Error/Warning)
+    --debug               Print every information and
+    --hide-progress       Hide the wget progress bar
 """
 
 import logging
@@ -115,6 +117,30 @@ def main():
             logger.error('Offset should be an integer...')
             sys.exit()
         logger.debug('offset: %d', offset)
+
+    if arguments['--min-size'] is not None:
+        try:
+            arguments['--min-size'] = utils.size_in_bytes(
+                arguments['--min-size']
+            )
+        except:
+            logger.exception(
+                'Min size should be an integer with a possible unit suffix'
+            )
+            sys.exit()
+        logger.debug('min-size: %d', arguments['--min-size'])
+
+    if arguments['--max-size'] is not None:
+        try:
+            arguments['--max-size'] = utils.size_in_bytes(
+                arguments['--max-size']
+            )
+        except:
+            logger.error(
+                'Max size should be an integer with a possible unit suffix'
+            )
+            sys.exit()
+        logger.debug('max-size: %d', arguments['--max-size'])
 
     if arguments['--hidewarnings']:
         warnings.filterwarnings('ignore')
@@ -382,8 +408,21 @@ def download_track(track, playlist_name=None, playlist_file=None):
             logger.debug(url)
             r = requests.get(url, stream=True)
         temp = tempfile.NamedTemporaryFile(delete=False)
+
+        total_length = int(r.headers.get('content-length'))
+
+        min_size = arguments.get('--min-size')
+        max_size = arguments.get('--max-size')
+
+        if min_size is not None and total_length < min_size:
+            logging.info('{0} not large enough, skipping'.format(title))
+            return
+
+        if max_size is not None and total_length > max_size:
+            logging.info('{0} too large, skipping'.format(title))
+            return
+
         with temp as f:
-            total_length = int(r.headers.get('content-length'))
             for chunk in progress.bar(
                 r.iter_content(chunk_size=1024),
                 expected_size=(total_length/1024) + 1,
