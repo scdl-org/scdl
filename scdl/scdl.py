@@ -55,8 +55,9 @@ import mutagen
 from docopt import docopt
 from clint.textui import progress
 
-from scdl import __version__
+from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
 from scdl import client, utils
+
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logging.getLogger('requests').setLevel(logging.WARNING)
@@ -69,8 +70,6 @@ arguments = None
 token = ''
 path = ''
 offset = 0
-scdl_client_id = '95a4c0ef214f2a4a0852142807b54b35'
-alternative_client_id = 'a3e059563d7fd3372b49b37f00a00bcf'
 
 url = {
     'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
@@ -188,7 +187,7 @@ def get_config():
         sys.exit()
 
 
-def get_item(track_url, client_id=scdl_client_id):
+def get_item(track_url, client_id=CLIENT_ID):
     """
     Fetches metadata for an track or playlist
     """
@@ -199,20 +198,20 @@ def get_item(track_url, client_id=scdl_client_id):
 
         r = requests.get(item_url)
         if r.status_code == 403:
-            return get_item(track_url, alternative_client_id)
+            return get_item(track_url, ALT_CLIENT_ID)
 
         item = r.json()
         no_tracks = item['kind'] == 'playlist' and not item['tracks']
-        if no_tracks and client_id != alternative_client_id:
-            return get_item(track_url, alternative_client_id)
+        if no_tracks and client_id != ALT_CLIENT_ID:
+            return get_item(track_url, ALT_CLIENT_ID)
     except Exception:
-        if client_id == alternative_client_id:
+        if client_id == ALT_CLIENT_ID:
             logger.error('Get item failed...')
             return
         logger.error('Error resolving url, retrying...')
         time.sleep(5)
         try:
-            return get_item(track_url, alternative_client_id)
+            return get_item(track_url, ALT_CLIENT_ID)
         except Exception as e:
             logger.error('Could not resolve url {0}'.format(track_url))
             logger.exception(e)
@@ -257,7 +256,7 @@ def who_am_i():
     display to who the current token correspond, check if the token is valid
     """
     me = url['me'].format(token)
-    me = '{0}&client_id={1}'.format(me, scdl_client_id)
+    me = '{0}&client_id={1}'.format(me, CLIENT_ID)
     r = requests.get(me)
     current_user = r.json()
     logger.debug(me)
@@ -367,7 +366,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     title = track['title']
     title = title.encode('utf-8', 'ignore').decode('utf8')
     if track['streamable']:
-        url = '{0}?client_id={1}'.format(track['stream_url'], scdl_client_id)
+        url = '{0}?client_id={1}'.format(track['stream_url'], CLIENT_ID)
     else:
         logger.error('{0} is not streamable...'.format(title))
         logger.newline()
@@ -378,7 +377,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     if track['downloadable'] and not arguments['--onlymp3']:
         logger.info('Downloading the original file.')
         download_url = track['download_url']
-        url = '{0}?client_id={1}'.format(download_url, scdl_client_id)
+        url = '{0}?client_id={1}'.format(download_url, CLIENT_ID)
         r = requests.get(url, stream=True)
         d = r.headers['content-disposition']
         filename = re.findall("filename=(.+)", d)[0][1:-1]
@@ -406,7 +405,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         logger.debug(url)
         r = requests.get(url, stream=True)
         if r.status_code == 401:
-            url = url[:-32] + alternative_client_id
+            url = url[:-32] + ALT_CLIENT_ID
             logger.debug(url)
             r = requests.get(url, stream=True)
         temp = tempfile.NamedTemporaryFile(delete=False)

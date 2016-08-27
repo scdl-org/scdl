@@ -1,3 +1,4 @@
+
 [![PyPI version](https://img.shields.io/pypi/v/scdl.svg)](https://pypi.python.org/pypi/scdl/)
 [![PyPI version](https://img.shields.io/github/issues-raw/flyingrub/scdl.svg)](https://github.com/flyingrub/scdl/issues)
 [![PyPI version](https://img.shields.io/pypi/dm/scdl.svg)](https://pypi.python.org/pypi/scdl/)
@@ -19,17 +20,17 @@ ___
 ```
 pip3 install scdl
 ```
-or 
+or
 ```
 git clone https://github.com/flyingrub/scdl.git && cd scdl
 python3 setup.py install
-``` 
+```
 (Optional) Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
 
 
 ### Authentication
 ___
-> Get your auth token here: `DOMAIN NAME EXPIRED` (will be replaced soon)
+> Get your auth token here: [https://flyingrub.github.io/scdl/](https://flyingrub.github.io/scdl/)
 
 * This allows scdl to access to your user profile data.
 * You need to have this set to be able to use the `me` option

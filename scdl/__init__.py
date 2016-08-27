@@ -4,7 +4,9 @@
 
 import os
 
-__version__ = 'v1.5.2'
+__version__ = 'v1.5.3'
+CLIENT_ID = 'bed20744714e9c5962c351efe15840ff'
+ALT_CLIENT_ID = 'a3e059563d7fd3372b49b37f00a00bcf'
 
 dir_path_to_conf = os.path.join(os.path.expanduser('~'), '.config/scdl')
 file_path_to_conf = os.path.join(
