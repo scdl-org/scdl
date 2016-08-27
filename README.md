@@ -6,7 +6,7 @@
 ## Description
 
 This script is able to download music from http://www.soundcloud.com and set id3tag to the downloaded music.
-It should work with OS X, Linux, Windows.
+Compatible with Windows, OS X, Linux.
 
 
 ## System requirements
@@ -16,7 +16,6 @@ It should work with OS X, Linux, Windows.
 
 ## Instructions
 ### Installation
-___
 ```
 pip3 install scdl
 ```
@@ -28,8 +27,7 @@ python3 setup.py install
 (Optional) Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
 
 
-### Authentication
-___
+### Authentication (WIP)
 > Get your auth token here: [https://flyingrub.github.io/scdl/](https://flyingrub.github.io/scdl/)
 
 * This allows scdl to access to your user profile data.
@@ -96,4 +94,4 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
 
 ## License
 
-[GPL v2](https://www.gnu.org/licenses/gpl-2.0.txt), original author [Flyingrub](https://github.com/flyingrub)
+[GPL v2](https://www.gnu.org/licenses/gpl-2.0.txt), original author [flyingrub](https://github.com/flyingrub)
