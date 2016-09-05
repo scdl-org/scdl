@@ -9,9 +9,10 @@ class Client():
     def get_collection(self, url):
         resources = list()
         while url:
-            url = '{0}&client_id={1}&linked_partitioning=1'.format(
-                url, CLIENT_ID)
-            response = requests.get(url)
+            response = requests.get(url, params={
+                'client_id': CLIENT_ID,
+                'linked_partitioning': '1',
+            })
             json_data = response.json()
             if 'collection' in json_data:
                 resources.extend(json_data['collection'])
