@@ -193,10 +193,9 @@ def get_item(track_url, client_id=CLIENT_ID):
     """
     try:
         item_url = url['resolve'].format(track_url)
-        item_url = '{0}&client_id={1}'.format(item_url, client_id)
-        logger.debug(item_url)
 
-        r = requests.get(item_url)
+        r = requests.get(item_url, params={'client_id': client_id})
+        logger.debug(r.url)
         if r.status_code == 403:
             return get_item(track_url, ALT_CLIENT_ID)
 
@@ -256,8 +255,7 @@ def who_am_i():
     display to who the current token correspond, check if the token is valid
     """
     me = url['me'].format(token)
-    me = '{0}&client_id={1}'.format(me, CLIENT_ID)
-    r = requests.get(me)
+    r = requests.get(me, params={'client_id': CLIENT_ID})
     current_user = r.json()
     logger.debug(me)
 
@@ -366,19 +364,20 @@ def download_track(track, playlist_name=None, playlist_file=None):
     title = track['title']
     title = title.encode('utf-8', 'ignore').decode('utf8')
     if track['streamable']:
-        url = '{0}?client_id={1}'.format(track['stream_url'], CLIENT_ID)
+        url = track['stream_url']
     else:
         logger.error('{0} is not streamable...'.format(title))
         logger.newline()
         return
     logger.info('Downloading {0}'.format(title))
 
+    r = None
     # filename
     if track['downloadable'] and not arguments['--onlymp3']:
         logger.info('Downloading the original file.')
-        download_url = track['download_url']
-        url = '{0}?client_id={1}'.format(download_url, CLIENT_ID)
-        r = requests.get(url, stream=True)
+        url = track['download_url']
+        r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
+        r.raise_for_status()
         d = r.headers['content-disposition']
         filename = re.findall("filename=(.+)", d)[0][1:-1]
     else:
@@ -403,11 +402,12 @@ def download_track(track, playlist_name=None, playlist_file=None):
     # Download
     if not os.path.isfile(filename):
         logger.debug(url)
-        r = requests.get(url, stream=True)
-        if r.status_code == 401:
-            url = url[:-32] + ALT_CLIENT_ID
-            logger.debug(url)
-            r = requests.get(url, stream=True)
+        if r is None:
+            r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
+            if r.status_code == 401:
+                r = requests.get(url, params={'client_id': ALT_CLIENT_ID}, stream=True)
+                logger.debug(r.url)
+                r.raise_for_status()
         temp = tempfile.NamedTemporaryFile(delete=False)
 
         total_length = int(r.headers.get('content-length'))
@@ -433,7 +433,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
                     f.write(chunk)
                     f.flush()
         shutil.move(temp.name, os.path.join(os.getcwd(), filename))
-        if '.mp3' in filename:
+        if filename.endswith('.mp3') or filename.endswith('.m4a'):
             try:
                 settags(track, filename, playlist_name)
             except Exception as e:
