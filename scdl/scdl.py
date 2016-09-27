@@ -263,12 +263,10 @@ def who_am_i():
     """
     me = url['me'].format(token)
     r = requests.get(me, params={'client_id': CLIENT_ID})
+    r.raise_for_status()
     current_user = r.json()
     logger.debug(me)
 
-    if r.status_code == 401:
-        logger.error('Invalid token...')
-        sys.exit(0)
     logger.info('Hello {0}!'.format(current_user['username']))
     logger.newline()
     return current_user
