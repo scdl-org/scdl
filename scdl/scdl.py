@@ -7,7 +7,7 @@ Usage:
     scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
 [--hide-progress][--min-size <size>][--max-size <size>]
-    scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>]\
+    scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
 [--hide-progress][--min-size <size>][--max-size <size>]
     scdl -h | --help
@@ -24,6 +24,7 @@ Options:
     -t                    Download all uploads of a user
     -f                    Download all favorites of a user
     -p                    Download all playlists of a user
+    -m                    Download all liked and owned playlists of a user
     -c                    Continue if a music already exist
     -o [offset]           Begin with a custom offset
     --path [path]         Use a custom path for this time
@@ -72,6 +73,8 @@ path = ''
 offset = 0
 
 url = {
+    'playlists-liked': ('https://api-v2.soundcloud.com/users/{0}/playlists'
+                        '/liked_and_owned?limit=200&offset={1}'),
     'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
                   'limit=200&offset={1}'),
     'tracks': ('https://api.soundcloud.com/users/{0}/tracks?'
@@ -165,6 +168,8 @@ def main():
             download(who_am_i(), 'all', 'tracks and reposts')
         elif arguments['-p']:
             download(who_am_i(), 'playlists', 'playlists')
+        elif arguments['-m']:
+            download(who_am_i(), 'playlists-liked', 'my and liked playlists')
 
 
 def get_config():
@@ -244,6 +249,8 @@ def parse_url(track_url):
             download(item, 'all', 'tracks and reposts')
         elif arguments['-p']:
             download(item, 'playlists', 'playlists')
+        elif arguments['-m']:
+            download(item, 'playlists-liked', 'my and liked playlists')
         else:
             logger.error('Please provide a download type...')
     else:
@@ -274,28 +281,28 @@ def download(user, dl_type, name):
     username = user['username']
     user_id = user['id']
     logger.info(
-        'Retrieving all the {0} of user {1}...'.format(name, username)
+        'Retrieving all {0} of user {1}...'.format(name, username)
     )
     dl_url = url[dl_type].format(user_id, offset)
-    resources = client.get_collection(dl_url)
-    total = len(resources)
+    logger.debug(dl_url)
+    ressources = client.get_collection(dl_url, token)
+    logger.debug(ressources)
+    total = len(ressources)
     logger.info('Retrieved {0} {1}'.format(total, name))
-    for counter, item in enumerate(resources, 1):
+    for counter, item in enumerate(ressources, 1):
         try:
             logger.debug(item)
             logger.info('{0} n°{1} of {2}'.format(
                 name.capitalize(), counter + offset, total)
             )
-            if name == 'tracks and reposts':
-                item_name = ''
-                if item['type'] == 'track-repost':
-                    item_name = 'track'
-                else:
-                    item_name = item['type']
+            if dl_type == 'all':
+                item_name = item['type'].split('-')[0]  # remove the '-repost'
                 uri = item[item_name]['uri']
                 parse_url(uri)
-            elif name == 'playlists':
+            elif dl_type == 'playlists':
                 download_playlist(item)
+            elif dl_type == 'playlists-liked':
+                parse_url(item['playlist']['uri'])
             else:
                 download_track(item)
         except Exception as e:
@@ -309,7 +316,6 @@ def download_playlist(playlist):
     """
     Download a playlist
     """
-    global offset
     invalid_chars = '\/:*?|<>"'
     playlist_name = playlist['title'].encode('utf-8', 'ignore')
     playlist_name = playlist_name.decode('utf8')
@@ -322,9 +328,6 @@ def download_playlist(playlist):
     with codecs.open(playlist_name + '.m3u', 'w+', 'utf8') as playlist_file:
         playlist_file.write('#EXTM3U' + os.linesep)
         for counter, track_raw in enumerate(playlist['tracks'], 1):
-            if offset > 0:
-                offset -= 1
-                continue
             logger.debug(track_raw)
             logger.info('Track n°{0}'.format(counter))
             download_track(track_raw, playlist['title'], playlist_file)
