@@ -376,11 +376,17 @@ def download_track(track, playlist_name=None, playlist_file=None):
     # filename
     if track['downloadable'] and not arguments['--onlymp3']:
         logger.info('Downloading the original file.')
-        url = track['download_url']
-        r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
-        r.raise_for_status()
-        d = r.headers['content-disposition']
-        filename = re.findall("filename=(.+)", d)[0][1:-1]
+        original_url = track['download_url']
+        r = requests.get(original_url, params={'client_id': CLIENT_ID}, stream=True)
+        if r.status_code == 401:
+            logger.info('The original file has no download left.')
+            username = track['user']['username']
+            if username not in title and arguments['--addtofile']:
+                title = '{0} - {1}'.format(username, title)
+            filename = title + '.mp3'
+        else:
+            d = r.headers['content-disposition']
+            filename = re.findall("filename=(.+)", d)[0][1:-1]
     else:
         username = track['user']['username']
         if username not in title and arguments['--addtofile']:
