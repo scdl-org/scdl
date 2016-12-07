@@ -408,9 +408,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     # Download
     if not os.path.isfile(filename):
-        logger.debug(url)
-        if r is None:
+        if r is None or r.status_code == 401:
             r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
+            logger.debug(r.url)
             if r.status_code == 401:
                 r = requests.get(url, params={'client_id': ALT_CLIENT_ID}, stream=True)
                 logger.debug(r.url)
