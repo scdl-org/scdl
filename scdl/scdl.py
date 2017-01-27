@@ -355,6 +355,12 @@ def download_all_of_a_page(tracks):
         logger.info('Track n°{0}'.format(counter))
         download_track(track)
 
+def get_filename(track):
+    username = track['user']['username']
+    if username not in title and arguments['--addtofile']:
+        title = '{0} - {1}'.format(username, title)
+    return title + '.mp3'
+
 
 def download_track(track, playlist_name=None, playlist_file=None):
     """
@@ -380,18 +386,15 @@ def download_track(track, playlist_name=None, playlist_file=None):
         r = requests.get(original_url, params={'client_id': CLIENT_ID}, stream=True)
         if r.status_code == 401:
             logger.info('The original file has no download left.')
-            username = track['user']['username']
-            if username not in title and arguments['--addtofile']:
-                title = '{0} - {1}'.format(username, title)
-            filename = title + '.mp3'
+            filename = get_filename(track)
         else:
             d = r.headers['content-disposition']
-            filename = re.findall("filename=(.+)", d)[0][1:-1]
+            if d:
+                filename = re.findall("filename=(.+)", d)[0][1:-1]
+            else:
+                filename = get_filename(track)
     else:
-        username = track['user']['username']
-        if username not in title and arguments['--addtofile']:
-            title = '{0} - {1}'.format(username, title)
-        filename = title + '.mp3'
+        filename = get_filename(track)
 
     invalid_chars = '\/:*?|<>"'
     filename = ''.join(c for c in filename if c not in invalid_chars)
