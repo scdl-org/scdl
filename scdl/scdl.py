@@ -65,7 +65,6 @@ logging.getLogger('requests').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
-logger.newline = print
 
 arguments = None
 token = ''
@@ -99,9 +98,6 @@ def main():
     global offset
     global arguments
 
-    # import conf file
-    get_config()
-
     # Parse argument
     arguments = docopt(__doc__, version=__version__)
 
@@ -109,6 +105,9 @@ def main():
         logger.level = logging.DEBUG
     elif arguments['--error']:
         logger.level = logging.ERROR
+
+    # import conf file
+    get_config()
 
     logger.info('Soundcloud Downloader')
     logger.debug(arguments)
@@ -156,7 +155,6 @@ def main():
             sys.exit()
     logger.debug('Downloading to '+os.getcwd()+'...')
 
-    logger.newline()
     if arguments['-l']:
         parse_url(arguments['-l'])
     elif arguments['me']:
@@ -268,7 +266,6 @@ def who_am_i():
     logger.debug(me)
 
     logger.info('Hello {0}!'.format(current_user['username']))
-    logger.newline()
     return current_user
 
 
@@ -351,8 +348,7 @@ def download_all_of_a_page(tracks):
     )
     logger.error('I recommend you to provide a user link and a download type.')
     for counter, track in enumerate(tracks, 1):
-        logger.newline()
-        logger.info('Track n°{0}'.format(counter))
+        logger.info('\nTrack n°{0}'.format(counter))
         download_track(track)
 
 def get_filename(track):
@@ -374,7 +370,6 @@ def download_track(track, playlist_name=None, playlist_file=None):
         url = track['stream_url']
     else:
         logger.error('{0} is not streamable...'.format(title))
-        logger.newline()
         return
     logger.info('Downloading {0}'.format(title))
 
@@ -454,16 +449,12 @@ def download_track(track, playlist_name=None, playlist_file=None):
     else:
         if arguments['-c']:
             logger.info('{0} already Downloaded'.format(title))
-            logger.newline()
             return
         else:
-            logger.newline()
             logger.error('Music already exists ! (exiting)')
             sys.exit(0)
 
-    logger.newline()
-    logger.info('{0} Downloaded.'.format(filename))
-    logger.newline()
+    logger.info('{0} Downloaded.\n'.format(filename))
 
 
 def settags(track, filename, album=None):
@@ -501,8 +492,7 @@ def signal_handler(signal, frame):
     """
     Handle Keyboardinterrupt
     """
-    logger.newline()
-    logger.info('Good bye!')
+    logger.info('\nGood bye!')
     sys.exit(0)
 
 if __name__ == '__main__':
