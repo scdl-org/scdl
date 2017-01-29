@@ -351,7 +351,7 @@ def download_all_of_a_page(tracks):
         logger.info('\nTrack n°{0}'.format(counter))
         download_track(track)
 
-def get_filename(track):
+def get_filename(track, title):
     username = track['user']['username']
     if username not in title and arguments['--addtofile']:
         title = '{0} - {1}'.format(username, title)
@@ -381,15 +381,15 @@ def download_track(track, playlist_name=None, playlist_file=None):
         r = requests.get(original_url, params={'client_id': CLIENT_ID}, stream=True)
         if r.status_code == 401:
             logger.info('The original file has no download left.')
-            filename = get_filename(track)
+            filename = get_filename(track, title)
         else:
             d = r.headers['content-disposition']
             if d:
                 filename = re.findall("filename=(.+)", d)[0][1:-1]
             else:
-                filename = get_filename(track)
+                filename = get_filename(track, title)
     else:
-        filename = get_filename(track)
+        filename = get_filename(track, title)
 
     invalid_chars = '\/:*?|<>"'
     filename = ''.join(c for c in filename if c not in invalid_chars)
