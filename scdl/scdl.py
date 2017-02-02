@@ -325,7 +325,7 @@ def download_playlist(playlist):
         for counter, track_raw in enumerate(playlist['tracks'], 1):
             logger.debug(track_raw)
             logger.info('Track n°{0}'.format(counter))
-            download_track(track_raw, playlist['title'], playlist_file)
+            download_track(track_raw, playlist['title'], playlist_file, counter)
     os.chdir('..')
 
 
@@ -358,7 +358,7 @@ def get_filename(track, title):
     return title + '.mp3'
 
 
-def download_track(track, playlist_name=None, playlist_file=None):
+def download_track(track, playlist_name=None, playlist_file=None, tracknumber=0):
     """
     Downloads a track
     """
@@ -440,7 +440,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         shutil.move(temp.name, os.path.join(os.getcwd(), filename))
         if filename.endswith('.mp3') or filename.endswith('.m4a'):
             try:
-                settags(track, filename, playlist_name)
+                settags(track, filename, playlist_name, tracknumber)
             except Exception as e:
                 logger.error('Error trying to set the tags...')
                 logger.debug(e)
@@ -457,7 +457,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     logger.info('{0} Downloaded.\n'.format(filename))
 
 
-def settags(track, filename, album=None):
+def settags(track, filename, album=None, tracknumber=0):
     """
     Set the tags to the mp3
     """
@@ -485,6 +485,9 @@ def settags(track, filename, album=None):
                 )
         else:
             logger.error('Artwork can not be set.')
+        if tracknumber > 0:
+            logger.info('Setting tracknumber: {0}'.format( str(tracknumber) ) )
+            audio['TRCK'] = mutagen.id3.TRCK(encoding=3, text=str(tracknumber))
     audio.save()
 
 
