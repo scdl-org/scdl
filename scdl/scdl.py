@@ -383,8 +383,8 @@ def download_track(track, playlist_name=None, playlist_file=None):
             logger.info('The original file has no download left.')
             filename = get_filename(track, title)
         else:
-            d = r.headers['content-disposition']
-            if d:
+            if r.headers['content-disposition']:
+                d = r.headers['content-disposition']
                 filename = re.findall("filename=(.+)", d)[0][1:-1]
             else:
                 filename = get_filename(track, title)
