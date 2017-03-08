@@ -320,13 +320,15 @@ def download_playlist(playlist):
         os.makedirs(playlist_name)
     os.chdir(playlist_name)
 
-    with codecs.open(playlist_name + '.m3u', 'w+', 'utf8') as playlist_file:
-        playlist_file.write('#EXTM3U' + os.linesep)
-        for counter, track_raw in enumerate(playlist['tracks'], 1):
-            logger.debug(track_raw)
-            logger.info('Track n°{0}'.format(counter))
-            download_track(track_raw, playlist['title'], playlist_file)
-    os.chdir('..')
+    try:
+        with codecs.open(playlist_name + '.m3u', 'w+', 'utf8') as playlist_file:
+            playlist_file.write('#EXTM3U' + os.linesep)
+            for counter, track_raw in enumerate(playlist['tracks'], 1):
+                logger.debug(track_raw)
+                logger.info('Track n°{0}'.format(counter))
+                download_track(track_raw, playlist['title'], playlist_file)
+    finally:
+        os.chdir('..')
 
 
 def download_my_stream():
