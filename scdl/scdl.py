@@ -411,7 +411,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         if r is None or r.status_code == 401:
             r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
             logger.debug(r.url)
-            if r.status_code == 401:
+            if r.status_code == 401 or r.status_code == 429:
                 r = requests.get(url, params={'client_id': ALT_CLIENT_ID}, stream=True)
                 logger.debug(r.url)
                 r.raise_for_status()
@@ -439,6 +439,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
                 if chunk:
                     f.write(chunk)
                     f.flush()
+
         shutil.move(temp.name, os.path.join(os.getcwd(), filename))
         if filename.endswith('.mp3') or filename.endswith('.m4a'):
             try:
