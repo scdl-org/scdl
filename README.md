@@ -1,7 +1,7 @@
 # Soundcloud Music Downloader [![PyPI version](https://img.shields.io/pypi/v/scdl.svg)](https://pypi.python.org/pypi/scdl/)
 ## Description
 
-This script is able to download music from http://www.soundcloud.com and set id3tag to the downloaded music.
+This script is able to download music from SoundCloud and set id3tag to the downloaded music.
 Compatible with Windows, OS X, Linux.
 
 
@@ -23,22 +23,14 @@ python3 setup.py install
 (Optional) Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
 
 
-### Authentication (WIP)
+### Authentication
 > Get your auth token here: [https://flyingrub.github.io/scdl/](https://flyingrub.github.io/scdl/)
 
 * This allows scdl to access to your user profile data.
 * You need to have this set to be able to use the `me` option
-* Soon scdl will be able to download a user's stream
 
 
 ## Help
-### Usage:
-```
-  scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
-  scdl me (-s | -a | -f | -t | -p)[-c][-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3][--hide-progress]
-  scdl -h | --help
-  scdl --version
-```
 ### Examples:
 ```
 # Download track & repost of the user QUANTA
@@ -52,6 +44,9 @@ scdl -l https://soundcloud.com/jumpstreetpsy/low-extender
 
 # Download one playlist
 scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
+
+# Download your likes (with authentification token)
+scdl me -f
 ```
 
 ### Options:
@@ -67,13 +62,13 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
   -p                 Download all playlist of an user
   -c                 Continue if a music already exist
   -o [offset]        Begin with a custom offset
-  --path [path]      Use a custom path for this time
+  --path [path]      Download the music to a custom path
   --hidewarnings     Hide Warnings. (use with precaution)
   --addtofile        Add the artist name to the filename if it isn't in the filename already
   --onlymp3          Download only the mp3 file even if the track is Downloadable
-  --error            Only print debug information (Error/Warning)
-  --debug            Print every information and
-  --hide-progress    Hide the wget progress bar
+  --error            Swho only error and warning
+  --debug            Print debugging information
+  --hide-progress    Hide the progress bar
 ```
 
 
@@ -84,7 +79,7 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
 * Download all songs from one playlist
 * Download all songs from all playlists from a user
 * Download all songs from a user's favorites
-* Set the tags with mutagen (Title / Artist / Album = Playlist / Artwork)
+* Set the tags with mutagen (Title / Artist / Album / Artwork)
 * Create playlist files when downloading a playlist
 
 
