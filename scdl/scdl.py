@@ -239,6 +239,7 @@ def parse_url(track_url):
         download_playlist(item)
     elif item['kind'] == 'user':
         logger.info('Found a user profile')
+        user = who_am_i()
         if arguments['-f']:
             download(item, 'favorites', 'likes')
         elif arguments['-t']:
