@@ -181,7 +181,7 @@ def get_config():
         token = config['scdl']['auth_token']
         path = config['scdl']['path']
     except:
-        logger.error('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?')
+        logger.error('Are you sure scdl.cfg is in $HOME/.config/scdl/ ? Are both "auth_token" and "path" defined there ?')
         sys.exit()
     if os.path.exists(path):
         os.chdir(path)
