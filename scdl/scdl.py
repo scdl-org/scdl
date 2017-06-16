@@ -181,7 +181,7 @@ def get_config():
         token = config['scdl']['auth_token']
         path = config['scdl']['path']
     except:
-        logger.error('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?')
+        logger.error('Are you sure scdl.cfg is in $HOME/.config/scdl/ ? Are both "auth_token" and "path" defined there ?')
         sys.exit()
     if os.path.exists(path):
         os.chdir(path)
@@ -443,7 +443,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         shutil.move(temp.name, os.path.join(os.getcwd(), filename))
         if filename.endswith('.mp3') or filename.endswith('.m4a'):
             try:
-                settags(track, filename, playlist_name)
+                setMetadata(track, filename, playlist_name)
             except Exception as e:
                 logger.error('Error trying to set the tags...')
                 logger.debug(e)
@@ -460,7 +460,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     logger.info('{0} Downloaded.\n'.format(filename))
 
 
-def settags(track, filename, album=None):
+def setMetadata(track, filename, album=None):
     """
     Set the tags to the mp3
     """
