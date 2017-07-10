@@ -24,7 +24,7 @@ python3 setup.py install
 
 
 ### Authentication
-> Get your auth token here: [https://flyingrub.github.io/scdl/](https://flyingrub.github.io/scdl/)
+> Get your auth token here: [https://dev.vm0.eu/scdl/](https://dev.vm0.eu/scdl/)
 
 * This allows scdl to access to your user profile data.
 * You need to have this set to be able to use the `me` option
