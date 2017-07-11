@@ -407,7 +407,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         )
 
     # Download
-    if not os.path.isfile(filename):
+    if not os.path.isfile(filename.encode('utf-8')):
         if r is None or r.status_code == 401:
             r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
             logger.debug(r.url)
@@ -440,7 +440,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
                     f.write(chunk)
                     f.flush()
 
-        shutil.move(temp.name, os.path.join(os.getcwd(), filename))
+        shutil.move(temp.name, os.path.join(os.getcwd().encode('utf-8'), filename.encode('utf-8')))
         if filename.endswith('.mp3') or filename.endswith('.m4a'):
             try:
                 setMetadata(track, filename, playlist_name)
