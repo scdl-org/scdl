@@ -395,7 +395,8 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     invalid_chars = '\/:*?|<>"'
     filename = ''.join(c for c in filename if c not in invalid_chars)
-
+    base, ext = os.path.splitext(filename)
+    filename = base + ext.lower()
     logger.debug("filename : {0}".format(filename))
     # Add the track to the generated m3u playlist file
     if playlist_file:
