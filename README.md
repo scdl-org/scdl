@@ -51,24 +51,27 @@ scdl me -f
 
 ### Options:
 ```
-  -h --help          Show this screen
-  --version          Show version
-  me                 Use the user profile from the auth_token
-  -l [url]           URL can be track/playlist/user
-  -s                 Download the stream of an user (token needed)
-  -a                 Download all track of an user (including repost)
-  -t                 Download all upload of an user
-  -f                 Download all favorite of an user
-  -p                 Download all playlist of an user
-  -c                 Continue if a music already exist
-  -o [offset]        Begin with a custom offset
-  --path [path]      Download the music to a custom path
-  --hidewarnings     Hide Warnings. (use with precaution)
-  --addtofile        Add the artist name to the filename if it isn't in the filename already
-  --onlymp3          Download only the mp3 file even if the track is Downloadable
-  --error            Swho only error and warning
-  --debug            Print debugging information
-  --hide-progress    Hide the progress bar
+    -h --help             Show this screen
+    --version             Show version
+    me                    Use the user profile from the auth_token
+    -l [url]              URL can be track/playlist/user
+    -s                    Download the stream of a user (token needed)
+    -a                    Download all tracks of a user (including repost)
+    -t                    Download all uploads of a user
+    -f                    Download all favorites of a user
+    -p                    Download all playlists of a user
+    -m                    Download all liked and owned playlists of a user
+    -c                    Continue if a music already exist
+    -o [offset]           Begin with a custom offset
+    --path [path]         Use a custom path for this time
+    --min-size [min-size] Skip tracks smaller than size (k/m/g)
+    --max-size [max-size] Skip tracks larger than size (k/m/g)
+    --hidewarnings        Hide Warnings. (use with precaution)
+    --addtofile           Add the artist name to the filename if it isn't in the filename already
+    --onlymp3             Download only the mp3 file even if the track is Downloadable
+    --error               Only print debug information (Error/Warning)
+    --debug               Print every information and
+    --hide-progress       Hide the wget progress bar
 ```
 
 
