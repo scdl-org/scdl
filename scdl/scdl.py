@@ -4,7 +4,7 @@
 """scdl allow you to download music from soundcloud
 
 Usage:
-    scdl -l <track_url> [-a | -f | -t | -p][-c][-o <offset>]\
+    scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
 [--hide-progress][--min-size <size>][--max-size <size>]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
@@ -23,6 +23,7 @@ Options:
     -a                    Download all tracks of a user (including repost)
     -t                    Download all uploads of a user
     -f                    Download all favorites of a user
+    -C                    Download all commented by a user    
     -p                    Download all playlists of a user
     -m                    Download all liked and owned playlists of a user
     -c                    Continue if a music already exist
@@ -76,6 +77,7 @@ url = {
                         '/liked_and_owned?limit=200&offset={1}'),
     'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
                   'limit=200&offset={1}'),
+    'commented': ('https://api.soundcloud.com/users/{0}/comments'),
     'tracks': ('https://api.soundcloud.com/users/{0}/tracks?'
                'limit=200&offset={1}'),
     'all': ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0}?'
@@ -83,6 +85,7 @@ url = {
     'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
                   'limit=200&offset={1}'),
     'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
+    'trackinfo': ('https://api.soundcloud.com/tracks/{0}'),
     'user': ('https://api.soundcloud.com/users/{0}'),
     'me': ('https://api.soundcloud.com/me?oauth_token={0}')
 }
@@ -160,6 +163,8 @@ def main():
     elif arguments['me']:
         if arguments['-f']:
             download(who_am_i(), 'favorites', 'likes')
+        if arguments['-C']:
+            download(who_am_i(), 'commented', 'commented tracks')
         elif arguments['-t']:
             download(who_am_i(), 'tracks', 'uploaded tracks')
         elif arguments['-a']:
@@ -241,6 +246,8 @@ def parse_url(track_url):
         logger.info('Found a user profile')
         if arguments['-f']:
             download(item, 'favorites', 'likes')
+        elif arguments['-C']:
+            download(item, 'commented', 'commented tracks')
         elif arguments['-t']:
             download(item, 'tracks', 'uploaded tracks')
         elif arguments['-a']:
@@ -268,6 +275,16 @@ def who_am_i():
     logger.info('Hello {0}!'.format(current_user['username']))
     return current_user
 
+def get_track_info(trackid):
+    """
+    Fetch more info on the track
+    """
+    logger.info('Retrieving more info on the track')
+    info_url = url["trackinfo"].format(trackid)
+    r = requests.get(info_url, params={'client_id': CLIENT_ID}, stream=True)
+    item = r.json()
+    logger.debug(item)
+    return item
 
 def download(user, dl_type, name):
     """
@@ -298,6 +315,9 @@ def download(user, dl_type, name):
                 download_playlist(item)
             elif dl_type == 'playlists-liked':
                 parse_url(item['playlist']['uri'])
+            elif dl_type == 'commented':
+                item=get_track_info(item['track_id'])
+                download_track(item)
             else:
                 download_track(item)
         except Exception as e:
