@@ -59,6 +59,7 @@ from clint.textui import progress
 from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
 from scdl import client, utils
 
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logging.getLogger('requests').setLevel(logging.WARNING)
