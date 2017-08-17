@@ -53,7 +53,6 @@ import codecs
 
 import configparser
 import mutagen
-from mutagen.id3 import ID3
 from docopt import docopt
 from clint.textui import progress
 
