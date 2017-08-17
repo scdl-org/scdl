@@ -462,7 +462,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         #Try to change the real creation date
         created_at = track['created_at']
         filetime = int(time.mktime(datetime.strptime(created_at, '%Y/%m/%d %H:%M:%S %z').timetuple()))
-        try_utime(os.path.join(os.getcwd(), filename),filetime)
+        try_utime(filename,filetime)
 
     else:
         if arguments['-c']:
