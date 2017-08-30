@@ -60,6 +60,7 @@ from clint.textui import progress
 from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
 from scdl import client, utils
 
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logging.getLogger('requests').setLevel(logging.WARNING)
@@ -373,6 +374,13 @@ def download_all_of_a_page(tracks):
         logger.info('\nTrack n°{0}'.format(counter))
         download_track(track)
 
+def try_utime(path, filetime):
+    try:
+        os.utime(path, (time.time(), filetime))
+    except:
+        logger.warn("Cannot update utime of file")
+
+
 def get_filename(track, title):
     username = track['user']['username']
     if username not in title and arguments['--addtofile']:
@@ -471,6 +479,12 @@ def download_track(track, playlist_name=None, playlist_file=None):
                 logger.debug(e)
         else:
             logger.error("This type of audio doesn't support tagging...")
+
+        #Try to change the real creation date
+        created_at = track['created_at']
+        filetime = int(time.mktime(datetime.strptime(created_at, '%Y/%m/%d %H:%M:%S %z').timetuple()))
+        try_utime(filename,filetime)
+
     else:
         if arguments['-c']:
             logger.info('{0} already Downloaded'.format(title))
@@ -497,10 +511,20 @@ def setMetadata(track, filename, album=None):
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
 
+        track_date = datetime.strptime(track['created_at'], "%Y/%m/%d %H:%M:%S %z")
+        logger.debug('Extracting date: {0} {1}'.format(track['created_at'], track_date))
+        track_year = track_date.strftime("%Y")
+        track_day_month = track_date.strftime("%d%m")
+
         audio = mutagen.File(filename)
         audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
         audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user['username'])
         audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
+        audio['COMM'] = mutagen.id3.COMM(encoding=3, lang=u'ENG', text=track['description'])
+        audio['TYER'] = mutagen.id3.TYER(encoding=3, text=track_year)
+        audio['TDAT'] = mutagen.id3.TDAT(encoding=3, text=track_day_month)
+        audio['WOAS'] = mutagen.id3.WOAS(url=track['permalink_url'])
+
         if album:
             audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
         if artwork_url:
@@ -510,7 +534,7 @@ def setMetadata(track, filename, album=None):
                 )
         else:
             logger.error('Artwork can not be set.')
-    audio.save()
+    audio.save(v2_version=3)
 
 
 def signal_handler(signal, frame):
