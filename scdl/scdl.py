@@ -364,20 +364,6 @@ def download_my_stream():
     # TODO
     # Use Token
 
-
-def download_all_of_a_page(tracks):
-    """
-    NOT RECOMMENDED
-    Download all song of a page
-    """
-    logger.error(
-        'NOTE: This will only download the songs of the page.(49 max)'
-    )
-    logger.error('I recommend you to provide a user link and a download type.')
-    for counter, track in enumerate(tracks, 1):
-        logger.info('\nTrack n°{0}'.format(counter))
-        download_track(track)
-
 def try_utime(path, filetime):
     try:
         os.utime(path, (time.time(), filetime))
