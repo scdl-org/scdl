@@ -75,16 +75,16 @@ offset = 0
 
 url = {
     'playlists-liked': ('https://api-v2.soundcloud.com/users/{0}/playlists'
-                        '/liked_and_owned?limit=200&offset={1}'),
+                        '/liked_and_owned?limit=200'),
     'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
-                  'limit=200&offset={1}'),
+                  'limit=200'),
     'commented': ('https://api.soundcloud.com/users/{0}/comments'),
     'tracks': ('https://api.soundcloud.com/users/{0}/tracks?'
-               'limit=200&offset={1}'),
+               'limit=200'),
     'all': ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0}?'
-            'limit=200&offset={1}'),
+            'limit=200'),
     'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
-                  'limit=200&offset={1}'),
+                  'limit=200'),
     'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
     'trackinfo': ('https://api.soundcloud.com/tracks/{0}'),
     'user': ('https://api.soundcloud.com/users/{0}'),
@@ -296,9 +296,10 @@ def download(user, dl_type, name):
     logger.info(
         'Retrieving all {0} of user {1}...'.format(name, username)
     )
-    dl_url = url[dl_type].format(user_id, offset)
+    dl_url = url[dl_type].format(user_id)
     logger.debug(dl_url)
     ressources = client.get_collection(dl_url, token)
+    del ressources[:offset]
     logger.debug(ressources)
     total = len(ressources)
     logger.info('Retrieved {0} {1}'.format(total, name))
