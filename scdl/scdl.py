@@ -23,7 +23,7 @@ Options:
     -a                    Download all tracks of a user (including reposts)
     -t                    Download all uploads of a user (no reposts)
     -f                    Download all favorites of a user
-    -C                    Download all commented by a user    
+    -C                    Download all commented by a user
     -p                    Download all playlists of a user
     -m                    Download all liked and owned playlists of a user
     -c                    Continue if a downloaded file already exists
