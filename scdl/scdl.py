@@ -414,6 +414,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     invalid_chars = '\/:*?|<>"'
     filename = ''.join(c for c in filename if c not in invalid_chars)
+    filename.encode('utf-8', 'ignore').decode('utf8')
     base, ext = os.path.splitext(filename)
     filename = base + ext.lower()
     logger.debug("filename : {0}".format(filename))
