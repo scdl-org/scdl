@@ -71,7 +71,7 @@ logger.addFilter(utils.ColorizeFilter())
 arguments = None
 token = ''
 path = ''
-offset = 0
+offset = 1
 
 url = {
     'playlists-liked': ('https://api-v2.soundcloud.com/users/{0}/playlists'
@@ -118,9 +118,11 @@ def main():
 
     if arguments['-o'] is not None:
         try:
-            offset = int(arguments['-o']) - 1
+            offset = int(arguments['-o'])
+            if offset < 0:
+                raise
         except:
-            logger.error('Offset should be an integer...')
+            logger.error('Offset should be a positive integer...')
             sys.exit()
         logger.debug('offset: %d', offset)
 
@@ -299,15 +301,15 @@ def download(user, dl_type, name):
     dl_url = url[dl_type].format(user_id)
     logger.debug(dl_url)
     ressources = client.get_collection(dl_url, token)
-    del ressources[:offset]
+    del ressources[:offset - 1]
     logger.debug(ressources)
     total = len(ressources)
     logger.info('Retrieved {0} {1}'.format(total, name))
-    for counter, item in enumerate(ressources, 1):
+    for counter, item in enumerate(ressources, offset):
         try:
             logger.debug(item)
             logger.info('{0} n°{1} of {2}'.format(
-                name.capitalize(), counter + offset, total)
+                name.capitalize(), counter, total)
             )
             if dl_type == 'all':
                 item_name = item['type'].split('-')[0]  # remove the '-repost'
@@ -345,7 +347,8 @@ def download_playlist(playlist):
     try:
         with codecs.open(playlist_name + '.m3u', 'w+', 'utf8') as playlist_file:
             playlist_file.write('#EXTM3U' + os.linesep)
-            for counter, track_raw in enumerate(playlist['tracks'], 1):
+            del playlist['tracks'][:offset - 1]
+            for counter, track_raw in enumerate(playlist['tracks'], offset):
                 logger.debug(track_raw)
                 logger.info('Track n°{0}'.format(counter))
                 download_track(track_raw, playlist['title'], playlist_file)
