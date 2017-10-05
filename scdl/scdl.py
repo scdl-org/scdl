@@ -5,10 +5,10 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
 [--hide-progress][--min-size <size>][--max-size <size>]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--onlymp3]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
 [--hide-progress][--min-size <size>][--max-size <size>]
     scdl -h | --help
     scdl --version
@@ -33,6 +33,7 @@ Options:
     --max-size [max-size] Skip tracks larger than size (k/m/g)
     --hidewarnings        Hide Warnings. (use with precaution)
     --addtofile           Add the artist name to the filename if it isn't in the filename already
+    --addtimestamp        Adds the timestamp of the creation of the track to the title (useful to sort chronologically)
     --onlymp3             Download only the mp3 file even if the track is Downloadable
     --error               Set log level to ERROR
     --debug               Set log level to DEBUG
@@ -375,6 +376,15 @@ def get_filename(track, title):
     username = track['user']['username']
     if username not in title and arguments['--addtofile']:
         title = '{0} - {1}'.format(username, title)
+
+    if arguments['--addtimestamp']:
+        # created_at sample: 2017/03/03 09:29:33 +0000
+        ts = datetime\
+            .strptime(track['created_at'], "%Y/%m/%d %H:%M:%S %z")\
+            .timestamp()
+
+        title = str(int(ts)) + "_" + title
+
     return title + '.mp3'
 
 
