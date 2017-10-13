@@ -69,6 +69,7 @@ scdl me -f
     --max-size [max-size] Skip tracks larger than size (k/m/g)
     --hidewarnings        Hide Warnings. (use with precaution)
     --addtofile           Add the artist name to the filename if it isn't in the filename already
+    --addtimestamp        Adds the timestamp of the creation of the track to the title (useful to sort chronologically)
     --onlymp3             Download only the mp3 file even if the track is Downloadable
     --error               Set log level to ERROR
     --debug               Set log level to DEBUG
