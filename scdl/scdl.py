@@ -491,7 +491,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
             logger.info('{0} already Downloaded'.format(title))
             return
         else:
-            logger.error('Music already exists ! (exiting)')
+            logger.error('Music already exists ! (use -c to continue)')
             sys.exit(0)
 
     logger.info('{0} Downloaded.\n'.format(filename))
