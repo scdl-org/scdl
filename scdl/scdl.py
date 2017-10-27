@@ -6,10 +6,10 @@
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
-[--hide-progress][--min-size <size>][--max-size <size>]
+[--hide-progress][--min-size <size>][--max-size <size>][--remove]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
-[--hide-progress][--min-size <size>][--max-size <size>]
+[--hide-progress][--min-size <size>][--max-size <size>][--remove]
     scdl -h | --help
     scdl --version
 
@@ -35,6 +35,7 @@ Options:
     --addtofile           Add the artist name to the filename if it isn't in the filename already
     --addtimestamp        Adds the timestamp of the creation of the track to the title (useful to sort chronologically)
     --onlymp3             Download only the mp3 file even if the track is Downloadable
+    --remove              Also remove all files that are not in the downloaded collection
     --error               Set log level to ERROR
     --debug               Set log level to DEBUG
     --hide-progress       Hide the wget progress bar
@@ -91,9 +92,9 @@ url = {
     'user': ('https://api.soundcloud.com/users/{0}'),
     'me': ('https://api.soundcloud.com/me?oauth_token={0}')
 }
-
 client = client.Client()
 
+fileToKeep = []
 
 def main():
     """
@@ -177,6 +178,9 @@ def main():
             download(who_am_i(), 'playlists', 'playlists')
         elif arguments['-m']:
             download(who_am_i(), 'playlists-liked', 'my and liked playlists')
+
+    if arguments['--remove']:
+        removeFiles()
 
 
 def get_config():
@@ -278,6 +282,17 @@ def who_am_i():
 
     logger.info('Hello {0}!'.format(current_user['username']))
     return current_user
+
+
+def removeFiles():
+    """
+    Remove the track that are not in the downloaded collection
+    """
+    logger.info("Removing all track that were not downloaded...")
+    files = [f for f in os.listdir('.') if os.path.isfile(f)]
+    for f in files:
+        if not f in fileToKeep:
+            os.remove(f)
 
 def get_track_info(trackid):
     """
@@ -437,6 +452,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
             )
         )
 
+    if arguments['--remove']:
+        fileToKeep.append(filename)
+
     # Download
     if not os.path.isfile(filename):
         if r is None or r.status_code == 401:
@@ -487,7 +505,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         try_utime(filename,filetime)
 
     else:
-        if arguments['-c']:
+        if arguments['-c'] or arguments['--remove']:
             logger.info('{0} already Downloaded'.format(title))
             return
         else:
