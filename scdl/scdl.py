@@ -388,6 +388,7 @@ def try_utime(path, filetime):
 
 
 def get_filename(track, title, is_original = False):
+    invalid_chars = '\/:*?|<>"'
     username = track['user']['username']
     if username not in title and arguments['--addtofile']:
         title = '{0} - {1}'.format(username, title)
@@ -400,8 +401,12 @@ def get_filename(track, title, is_original = False):
 
         title = str(int(ts)) + "_" + title
 
-    title = title if is_original else title + ".mp3"
-    return title
+    filename = title if is_original else title[:251] + ".mp3"
+    filename = ''.join(c for c in filename if c not in invalid_chars)
+    filename.encode('utf-8', 'ignore').decode('utf8')
+    base, ext = os.path.splitext(filename)
+    filename = base + ext.lower()
+    return filename
 
 
 def download_track(track, playlist_name=None, playlist_file=None):
@@ -438,11 +443,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     else:
         filename = get_filename(track, title)
 
-    invalid_chars = '\/:*?|<>"'
-    filename = ''.join(c for c in filename if c not in invalid_chars)
-    filename.encode('utf-8', 'ignore').decode('utf8')
-    base, ext = os.path.splitext(filename)
-    filename = base + ext.lower()
+
     logger.debug("filename : {0}".format(filename))
     # Add the track to the generated m3u playlist file
     if playlist_file:
