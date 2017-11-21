@@ -387,7 +387,7 @@ def try_utime(path, filetime):
         logger.warn("Cannot update utime of file")
 
 
-def get_filename(track, title):
+def get_filename(track, title, is_original = False):
     username = track['user']['username']
     if username not in title and arguments['--addtofile']:
         title = '{0} - {1}'.format(username, title)
@@ -400,7 +400,8 @@ def get_filename(track, title):
 
         title = str(int(ts)) + "_" + title
 
-    return title + '.mp3'
+    title = title if is_original else title + ".mp3"
+    return title
 
 
 def download_track(track, playlist_name=None, playlist_file=None):
@@ -431,7 +432,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
             if r.headers['content-disposition']:
                 d = r.headers['content-disposition']
                 filename = re.findall("filename=(.+)", d)[0][1:-1]
-                filename = get_filename(track, filename)
+                filename = get_filename(track, filename, True)
             else:
                 filename = get_filename(track, title)
     else:
