@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
-"""scdl allow you to download music from soundcloud
+"""scdl allows you to download music from Soundcloud
 
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
@@ -98,7 +98,7 @@ fileToKeep = []
 
 def main():
     """
-    Main function, call parse_url
+    Main function, parses the URL from command line arguments
     """
     signal.signal(signal.SIGINT, signal_handler)
     global offset
@@ -180,12 +180,12 @@ def main():
             download(who_am_i(), 'playlists-liked', 'my and liked playlists')
 
     if arguments['--remove']:
-        removeFiles()
+        remove_files()
 
 
 def get_config():
     """
-    read the path where to store music
+    Reads the music download filepath from scdl.cfg
     """
     global token
     config = configparser.ConfigParser()
@@ -205,7 +205,7 @@ def get_config():
 
 def get_item(track_url, client_id=CLIENT_ID):
     """
-    Fetches metadata for an track or playlist
+    Fetches metadata for a track or playlist
     """
     try:
         item_url = url['resolve'].format(track_url)
@@ -221,7 +221,7 @@ def get_item(track_url, client_id=CLIENT_ID):
             return get_item(track_url, ALT_CLIENT_ID)
     except Exception:
         if client_id == ALT_CLIENT_ID:
-            logger.error('Get item failed...')
+            logger.error('Failed to get item...')
             return
         logger.error('Error resolving url, retrying...')
         time.sleep(5)
@@ -236,7 +236,7 @@ def get_item(track_url, client_id=CLIENT_ID):
 
 def parse_url(track_url):
     """
-    Detects if the URL is a track or playlists, and parses the track(s)
+    Detects if a URL is a track or a playlist, and parses the track(s)
     to the track downloader
     """
     global arguments
@@ -267,12 +267,12 @@ def parse_url(track_url):
         else:
             logger.error('Please provide a download type...')
     else:
-        logger.error('Unknown item type')
+        logger.error('Unknown item type {0}'.format(item['kind']))
 
 
 def who_am_i():
     """
-    display to who the current token correspond, check if the token is valid
+    Display username from current token and check for validity
     """
     me = url['me'].format(token)
     r = requests.get(me, params={'client_id': CLIENT_ID})
@@ -284,22 +284,22 @@ def who_am_i():
     return current_user
 
 
-def removeFiles():
+def remove_files():
     """
-    Remove the track that are not in the downloaded collection
+    Removes any pre-existing tracks that were not just downloaded
     """
-    logger.info("Removing all track that were not downloaded...")
+    logger.info("Removing local track files that were not downloaded...")
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
     for f in files:
         if not f in fileToKeep:
             os.remove(f)
 
-def get_track_info(trackid):
+def get_track_info(track_id):
     """
-    Fetch more info on the track
+    Fetches track info from Soundcloud, given a track_id
     """
     logger.info('Retrieving more info on the track')
-    info_url = url["trackinfo"].format(trackid)
+    info_url = url["trackinfo"].format(track_id)
     r = requests.get(info_url, params={'client_id': CLIENT_ID}, stream=True)
     item = r.json()
     logger.debug(item)
@@ -307,7 +307,7 @@ def get_track_info(trackid):
 
 def download(user, dl_type, name):
     """
-    Download all items of a user
+    Download user items of dl_type (ie. all, playlists, liked, commented, etc.)
     """
     username = user['username']
     user_id = user['id']
@@ -316,12 +316,12 @@ def download(user, dl_type, name):
     )
     dl_url = url[dl_type].format(user_id)
     logger.debug(dl_url)
-    ressources = client.get_collection(dl_url, token)
-    del ressources[:offset - 1]
-    logger.debug(ressources)
-    total = len(ressources)
+    resources = client.get_collection(dl_url, token)
+    del resources[:offset - 1]
+    logger.debug(resources)
+    total = len(resources)
     logger.info('Retrieved {0} {1}'.format(total, name))
-    for counter, item in enumerate(ressources, offset):
+    for counter, item in enumerate(resources, offset):
         try:
             logger.debug(item)
             logger.info('{0} n°{1} of {2}'.format(
@@ -349,7 +349,7 @@ def download(user, dl_type, name):
 
 def download_playlist(playlist):
     """
-    Download a playlist
+    Downloads a playlist
     """
     invalid_chars = '\/:*?|<>"'
     playlist_name = playlist['title'].encode('utf-8', 'ignore')
@@ -494,7 +494,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         shutil.move(temp.name, os.path.join(os.getcwd(), filename))
         if filename.endswith('.mp3') or filename.endswith('.m4a'):
             try:
-                setMetadata(track, filename, playlist_name)
+                set_metadata(track, filename, playlist_name)
             except Exception as e:
                 logger.error('Error trying to set the tags...')
                 logger.debug(e)
@@ -517,11 +517,11 @@ def download_track(track, playlist_name=None, playlist_file=None):
     logger.info('{0} Downloaded.\n'.format(filename))
 
 
-def setMetadata(track, filename, album=None):
+def set_metadata(track, filename, album=None):
     """
-    Set the tags to the mp3
+    Sets the mp3 file metadata using the Python module Mutagen
     """
-    logger.info('Settings tags...')
+    logger.info('Setting tags...')
     artwork_url = track['artwork_url']
     user = track['user']
     if not artwork_url:
@@ -560,7 +560,7 @@ def setMetadata(track, filename, album=None):
 
 def signal_handler(signal, frame):
     """
-    Handle Keyboardinterrupt
+    Handle keyboard interrupt
     """
     logger.info('\nGood bye!')
     sys.exit(0)
