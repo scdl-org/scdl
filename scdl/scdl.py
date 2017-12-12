@@ -295,6 +295,7 @@ def remove_files():
         if not f in fileToKeep:
             os.remove(f)
 
+
 def get_track_info(track_id):
     """
     Fetches track info from Soundcloud, given a track_id
@@ -305,6 +306,7 @@ def get_track_info(track_id):
     item = r.json()
     logger.debug(item)
     return item
+
 
 def download(user, dl_type, name):
     """
@@ -381,6 +383,7 @@ def download_my_stream():
     # TODO
     # Use Token
 
+
 def try_utime(path, filetime):
     try:
         os.utime(path, (time.time(), filetime))
@@ -392,7 +395,8 @@ def get_filename(track, title, is_original = False):
     invalid_chars = '\/:*?|<>"'
     username = track['user']['username']
     if username not in title and arguments['--addtofile']:
-        title = '{0} - {1}'.format(username, title)
+        if '–' not in title:
+            title = '{0} - {1}'.format(username, title)
 
     if arguments['--addtimestamp']:
         # created_at sample: 2017/03/03 09:29:33 +0000
