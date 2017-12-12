@@ -295,7 +295,6 @@ def remove_files():
         if not f in fileToKeep:
             os.remove(f)
 
-
 def get_track_info(track_id):
     """
     Fetches track info from Soundcloud, given a track_id
@@ -546,7 +545,6 @@ def record_download_archive(track):
         logger.error('Error trying to write to download archive...')
         logger.debug(ioe)
 
-
 def in_download_archive(track):
     """
     Return True if a track_id exists in the download archive
@@ -568,7 +566,6 @@ def in_download_archive(track):
         logger.error('Error trying to read download archive...')
         logger.debug(ioe)
     return False
-
 
 def set_metadata(track, filename, album=None):
     """
