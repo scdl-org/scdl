@@ -391,7 +391,8 @@ def get_filename(track, title, is_original = False):
     invalid_chars = '\/:*?|<>"'
     username = track['user']['username']
     if username not in title and arguments['--addtofile']:
-        title = '{0} - {1}'.format(username, title)
+        if '-' not in title:
+            title = '{0} - {1}'.format(username, title)
 
     if arguments['--addtimestamp']:
         # created_at sample: 2017/03/03 09:29:33 +0000
