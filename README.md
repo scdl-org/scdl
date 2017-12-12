@@ -45,36 +45,40 @@ scdl -l https://soundcloud.com/jumpstreetpsy/low-extender
 # Download one playlist
 scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
 
+# Download only new tracks from a playlist
+scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --download-archive archive.txt
+
 # Download your likes (with authentification token)
 scdl me -f
 ```
 
 ### Options:
 ```
-    -h --help             Show this screen
-    --version             Show version
-    me                    Use the user profile from the auth_token
-    -l [url]              URL can be track/playlist/user
-    -s                    Download the stream of a user (token needed)
-    -a                    Download all tracks of a user (including reposts)
-    -t                    Download all uploads of a user (no reposts)
-    -f                    Download all favorites of a user
-    -C                    Download all commented by a user
-    -p                    Download all playlists of a user
-    -m                    Download all liked and owned playlists of a user
-    -c                    Continue if a downloaded file already exists
-    -o [offset]           Begin with a custom offset
-    --path [path]         Use a custom path for downloaded files
-    --min-size [min-size] Skip tracks smaller than size (k/m/g)
-    --max-size [max-size] Skip tracks larger than size (k/m/g)
-    --hidewarnings        Hide Warnings. (use with precaution)
-    --addtofile           Add the artist name to the filename if it isn't in the filename already
-    --addtimestamp        Adds the timestamp of the creation of the track to the title (useful to sort chronologically)
-    --onlymp3             Download only the mp3 file even if the track is Downloadable
-    --error               Set log level to ERROR
-    --debug               Set log level to DEBUG
-    --hide-progress       Hide the wget progress bar
-    --no-playlist-folder  Download playlist tracks into directory, instead of making a playlist subfolder (the default)
+    -h --help                   Show this screen
+    --version                   Show version
+    me                          Use the user profile from the auth_token
+    -l [url]                    URL can be track/playlist/user
+    -s                          Download the stream of a user (token needed)
+    -a                          Download all tracks of a user (including reposts)
+    -t                          Download all uploads of a user (no reposts)
+    -f                          Download all favorites of a user
+    -C                          Download all commented by a user
+    -p                          Download all playlists of a user
+    -m                          Download all liked and owned playlists of a user
+    -c                          Continue if a downloaded file already exists
+    -o [offset]                 Begin with a custom offset
+    --path [path]               Use a custom path for downloaded files
+    --min-size [min-size]       Skip tracks smaller than size (k/m/g)
+    --max-size [max-size]       Skip tracks larger than size (k/m/g)
+    --hidewarnings              Hide Warnings. (use with precaution)
+    --addtofile                 Add the artist name to the filename if it isn't in the filename already
+    --addtimestamp              Adds the timestamp of the creation of the track to the title (useful to sort chronologically)
+    --onlymp3                   Download only the mp3 file even if the track is Downloadable
+    --error                     Set log level to ERROR
+    --debug                     Set log level to DEBUG
+    --hide-progress             Hide the wget progress bar
+    --no-playlist-folder        Download playlist tracks into directory, instead of making a playlist subfolder (the default)
+    --download-archive [file]   Keep track of track IDs in an archive file and skip already-downloaded files
 ```
 
 
@@ -85,6 +89,7 @@ scdl me -f
 * Download all songs from one playlist
 * Download all songs from all playlists from a user
 * Download all songs from a user's favorites
+* Download only new tracks from a list (playlist, favorites, etc.)
 * Set the tags with mutagen (Title / Artist / Album / Artwork)
 * Create playlist files when downloading a playlist
 
