@@ -6,40 +6,39 @@
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
-[--hide-progress][--min-size <size>][--max-size <size>][--remove][--download-archive <file>]
+[--hide-progress][--min-size <size>][--max-size <size>][--remove]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
-[--hide-progress][--min-size <size>][--max-size <size>][--remove][--download-archive <file>]
+[--hide-progress][--min-size <size>][--max-size <size>][--remove]
     scdl -h | --help
     scdl --version
 
 
 Options:
-    -h --help                   Show this screen
-    --version                   Show version
-    me                          Use the user profile from the auth_token
-    -l [url]                    URL can be track/playlist/user
-    -s                          Download the stream of a user (token needed)
-    -a                          Download all tracks of a user (including reposts)
-    -t                          Download all uploads of a user (no reposts)
-    -f                          Download all favorites of a user
-    -C                          Download all commented by a user
-    -p                          Download all playlists of a user
-    -m                          Download all liked and owned playlists of a user
-    -c                          Continue if a downloaded file already exists
-    -o [offset]                 Begin with a custom offset
-    --path [path]               Use a custom path for downloaded files
-    --min-size [min-size]       Skip tracks smaller than size (k/m/g)
-    --max-size [max-size]       Skip tracks larger than size (k/m/g)
-    --hidewarnings              Hide Warnings. (use with precaution)
-    --addtofile                 Add the artist name to the filename if it isn't in the filename already
-    --addtimestamp              Adds the timestamp of the creation of the track to the title (useful to sort chronologically)
-    --onlymp3                   Download only the mp3 file even if the track is Downloadable
-    --remove                    Also remove all files that are not in the downloaded collection
-    --error                     Set log level to ERROR
-    --debug                     Set log level to DEBUG
-    --hide-progress             Hide the wget progress bar
-    --download-archive [file]   Download only tracks not listed in the archive file. Record the IDs of all downloaded tracks in it.
+    -h --help             Show this screen
+    --version             Show version
+    me                    Use the user profile from the auth_token
+    -l [url]              URL can be track/playlist/user
+    -s                    Download the stream of a user (token needed)
+    -a                    Download all tracks of a user (including reposts)
+    -t                    Download all uploads of a user (no reposts)
+    -f                    Download all favorites of a user
+    -C                    Download all commented by a user
+    -p                    Download all playlists of a user
+    -m                    Download all liked and owned playlists of a user
+    -c                    Continue if a downloaded file already exists
+    -o [offset]           Begin with a custom offset
+    --path [path]         Use a custom path for downloaded files
+    --min-size [min-size] Skip tracks smaller than size (k/m/g)
+    --max-size [max-size] Skip tracks larger than size (k/m/g)
+    --hidewarnings        Hide Warnings. (use with precaution)
+    --addtofile           Add the artist name to the filename if it isn't in the filename already
+    --addtimestamp        Adds the timestamp of the creation of the track to the title (useful to sort chronologically)
+    --onlymp3             Download only the mp3 file even if the track is Downloadable
+    --remove              Also remove all files that are not in the downloaded collection
+    --error               Set log level to ERROR
+    --debug               Set log level to DEBUG
+    --hide-progress       Hide the wget progress bar
 """
 
 import logging
@@ -206,7 +205,7 @@ def get_config():
 
 def get_item(track_url, client_id=CLIENT_ID):
     """
-    Fetches SoundCloud metadata for a track or playlist
+    Fetches metadata for a track or playlist
     """
     try:
         item_url = url['resolve'].format(track_url)
@@ -295,7 +294,6 @@ def remove_files():
         if not f in fileToKeep:
             os.remove(f)
 
-
 def get_track_info(track_id):
     """
     Fetches track info from Soundcloud, given a track_id
@@ -306,7 +304,6 @@ def get_track_info(track_id):
     item = r.json()
     logger.debug(item)
     return item
-
 
 def download(user, dl_type, name):
     """
@@ -383,7 +380,6 @@ def download_my_stream():
     # TODO
     # Use Token
 
-
 def try_utime(path, filetime):
     try:
         os.utime(path, (time.time(), filetime))
@@ -395,7 +391,7 @@ def get_filename(track, title, is_original = False):
     invalid_chars = '\/:*?|<>"'
     username = track['user']['username']
     if username not in title and arguments['--addtofile']:
-        if '–' not in title:
+        if '-' not in title:
             title = '{0} - {1}'.format(username, title)
 
     if arguments['--addtimestamp']:
@@ -422,12 +418,15 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     title = track['title']
     title = title.encode('utf-8', 'ignore').decode('utf8')
-    if not allow_download(track, title):
+    if track['streamable']:
+        url = track['stream_url']
+    else:
+        logger.error('{0} is not streamable...'.format(title))
         return
     logger.info('Downloading {0}'.format(title))
 
     r = None
-    # Download original file
+    # filename
     if track['downloadable'] and not arguments['--onlymp3']:
         logger.info('Downloading the original file.')
         original_url = track['download_url']
@@ -444,9 +443,10 @@ def download_track(track, playlist_name=None, playlist_file=None):
                 filename = get_filename(track, title)
     else:
         filename = get_filename(track, title)
-    logger.debug("filename : {0}".format(filename))
 
-    # Add track to generated m3u playlist file
+
+    logger.debug("filename : {0}".format(filename))
+    # Add the track to the generated m3u playlist file
     if playlist_file:
         duration = math.floor(track['duration'] / 1000)
         playlist_file.write(
@@ -458,117 +458,64 @@ def download_track(track, playlist_name=None, playlist_file=None):
     if arguments['--remove']:
         fileToKeep.append(filename)
 
-    # Download streamable track
-    if r is None or r.status_code == 401:
-        url = track['stream_url']
-        r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
-        logger.debug(r.url)
-        if r.status_code == 401 or r.status_code == 429:
-            r = requests.get(url, params={'client_id': ALT_CLIENT_ID}, stream=True)
+    # Download
+    if not os.path.isfile(filename):
+        if r is None or r.status_code == 401:
+            r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
             logger.debug(r.url)
-            r.raise_for_status()
-    temp = tempfile.NamedTemporaryFile(delete=False)
+            if r.status_code == 401 or r.status_code == 429:
+                r = requests.get(url, params={'client_id': ALT_CLIENT_ID}, stream=True)
+                logger.debug(r.url)
+                r.raise_for_status()
+        temp = tempfile.NamedTemporaryFile(delete=False)
 
-    total_length = int(r.headers.get('content-length'))
+        total_length = int(r.headers.get('content-length'))
 
-    min_size = arguments.get('--min-size')
-    max_size = arguments.get('--max-size')
+        min_size = arguments.get('--min-size')
+        max_size = arguments.get('--max-size')
 
-    if min_size is not None and total_length < min_size:
-        logging.info('{0} not large enough, skipping'.format(title))
-        return
+        if min_size is not None and total_length < min_size:
+            logging.info('{0} not large enough, skipping'.format(title))
+            return
 
-    if max_size is not None and total_length > max_size:
-        logging.info('{0} too large, skipping'.format(title))
-        return
+        if max_size is not None and total_length > max_size:
+            logging.info('{0} too large, skipping'.format(title))
+            return
 
-    with temp as f:
-        for chunk in progress.bar(
-            r.iter_content(chunk_size=1024),
-            expected_size=(total_length/1024) + 1,
-            hide=True if arguments["--hide-progress"] else False
-        ):
-            if chunk:
-                f.write(chunk)
-                f.flush()
+        with temp as f:
+            for chunk in progress.bar(
+                r.iter_content(chunk_size=1024),
+                expected_size=(total_length/1024) + 1,
+                hide=True if arguments["--hide-progress"] else False
+            ):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
 
-    shutil.move(temp.name, os.path.join(os.getcwd(), filename))
-    if filename.endswith('.mp3') or filename.endswith('.m4a'):
-        try:
-            set_metadata(track, filename, playlist_name)
-        except Exception as e:
-            logger.error('Error trying to set the tags...')
-            logger.debug(e)
-    else:
-        logger.error("This type of audio doesn't support tagging...")
-
-    # Try to change the real creation date
-    created_at = track['created_at']
-    filetime = int(time.mktime(datetime.strptime(created_at, '%Y/%m/%d %H:%M:%S %z').timetuple()))
-    try_utime(filename,filetime)
-
-    record_download_archive(track)
-    logger.info('{0} Downloaded.\n'.format(filename))
-
-
-def allow_download(track, title):
-    """
-    Returns True if the file should be downloaded
-    """
-    global arguments
-
-    # Not streamable
-    if not track['streamable']:
-        logger.error('{0} is not streamable...'.format(title))
-        return True
-
-    # Already downloaded
-    archive_fn = arguments.get('--download-archive')
-    if archive_fn is not None and in_download_archive(track):
-        if arguments['-c'] or arguments['--remove']:
-            logger.info('Track "{0}" already downloaded.'.format(title))
-            return False
+        shutil.move(temp.name, os.path.join(os.getcwd(), filename))
+        if filename.endswith('.mp3') or filename.endswith('.m4a'):
+            try:
+                set_metadata(track, filename, playlist_name)
+            except Exception as e:
+                logger.error('Error trying to set the tags...')
+                logger.debug(e)
         else:
-            logger.error('Track "{0}" already exists! Exiting... (run again with -c to continue)'.format(title))
+            logger.error("This type of audio doesn't support tagging...")
+
+        #Try to change the real creation date
+        created_at = track['created_at']
+        filetime = int(time.mktime(datetime.strptime(created_at, '%Y/%m/%d %H:%M:%S %z').timetuple()))
+        try_utime(filename,filetime)
+
+    else:
+        if arguments['-c'] or arguments['--remove']:
+            logger.info('{0} already Downloaded'.format(title))
+            return
+        else:
+            logger.error('Music already exists ! (use -c to continue)')
             sys.exit(0)
-    return True
 
-
-def record_download_archive(track):
-    """
-    Write the track_id in the download archive
-    """
-    global arguments
-    archive_fn = arguments.get('--download-archive')
-    try:
-        with open(archive_fn, 'a', encoding='utf-8') as file:
-            file.write('{0}'.format(track['id'])+'\n')
-    except IOError as ioe:
-        logger.error('Error trying to write to download archive...')
-        logger.debug(ioe)
-
-
-def in_download_archive(track):
-    """
-    Return True if a track_id exists in the download archive
-    """
-    global arguments
-    archive_fn = arguments.get('--download-archive')
-    try:
-        with open(archive_fn, 'a+', encoding='utf-8') as file:
-            logger.debug('Contents of {0}:'.format(archive_fn))
-            file.seek(0)
-            track_id = '{0}'.format(track['id'])
-            for line in file:
-                logger.debug('"'+line.strip()+'"')
-                if line.strip() == track_id:
-                    return True
-                else:
-                    logger.debug('"{0}" is apparently != "{1}"'.format(line.strip(), track['id']))
-    except IOError as ioe:
-        logger.error('Error trying to read download archive...')
-        logger.debug(ioe)
-    return False
+    logger.info('{0} Downloaded.\n'.format(filename))
 
 
 def set_metadata(track, filename, album=None):
