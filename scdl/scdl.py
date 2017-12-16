@@ -6,10 +6,10 @@
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
-[--hide-progress][--min-size <size>][--max-size <size>][--remove]
+[--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-playlist-folder]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
-[--hide-progress][--min-size <size>][--max-size <size>][--remove]
+[--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-playlist-folder]
     scdl -h | --help
     scdl --version
 
@@ -39,6 +39,7 @@ Options:
     --error               Set log level to ERROR
     --debug               Set log level to DEBUG
     --hide-progress       Hide the wget progress bar
+    --no-playlist-folder  Download playlist tracks into directory, instead of making a playlist subfolder (the default)
 """
 
 import logging
@@ -351,14 +352,16 @@ def download_playlist(playlist):
     """
     Downloads a playlist
     """
+    global arguments
     invalid_chars = '\/:*?|<>"'
     playlist_name = playlist['title'].encode('utf-8', 'ignore')
     playlist_name = playlist_name.decode('utf8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
 
-    if not os.path.exists(playlist_name):
-        os.makedirs(playlist_name)
-    os.chdir(playlist_name)
+    if not arguments['--no-playlist-folder']:
+        if not os.path.exists(playlist_name):
+            os.makedirs(playlist_name)
+        os.chdir(playlist_name)
 
     try:
         with codecs.open(playlist_name + '.m3u', 'w+', 'utf8') as playlist_file:
