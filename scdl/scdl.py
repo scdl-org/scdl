@@ -5,42 +5,48 @@
 
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
-[--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-playlist-folder][--download-archive <file>]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
+[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
+[--no-playlist-folder][--download-archive <file>]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp][--onlymp3]
-[--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-playlist-folder][--download-archive <file>]
+[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
+[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
+[--no-playlist-folder][--download-archive <file>]
     scdl -h | --help
     scdl --version
 
 
 Options:
-    -h --help             Show this screen
-    --version             Show version
-    me                    Use the user profile from the auth_token
-    -l [url]              URL can be track/playlist/user
-    -s                    Download the stream of a user (token needed)
-    -a                    Download all tracks of a user (including reposts)
-    -t                    Download all uploads of a user (no reposts)
-    -f                    Download all favorites of a user
-    -C                    Download all commented by a user
-    -p                    Download all playlists of a user
-    -m                    Download all liked and owned playlists of a user
-    -c                    Continue if a downloaded file already exists
-    -o [offset]           Begin with a custom offset
-    --path [path]         Use a custom path for downloaded files
-    --min-size [min-size] Skip tracks smaller than size (k/m/g)
-    --max-size [max-size] Skip tracks larger than size (k/m/g)
-    --hidewarnings        Hide Warnings. (use with precaution)
-    --addtofile           Add the artist name to the filename if it isn't in the filename already
-    --addtimestamp        Adds the timestamp of the creation of the track to the title (useful to sort chronologically)
-    --onlymp3             Download only the mp3 file even if the track is Downloadable
-    --remove              Also remove all files that are not in the downloaded collection
-    --error               Set log level to ERROR
-    --debug               Set log level to DEBUG
-    --hide-progress       Hide the wget progress bar
-    --no-playlist-folder  Download playlist tracks into directory, instead of making a playlist subfolder (the default)
-    --download-archive [file]   Keep track of track IDs in an archive file and skip already-downloaded files
+    -h --help                   Show this screen
+    --version                   Show version
+    me                          Use the user profile from the auth_token
+    -l [url]                    URL can be track/playlist/user
+    -s                          Download the stream of a user (token needed)
+    -a                          Download all tracks of user (including reposts)
+    -t                          Download all uploads of a user (no reposts)
+    -f                          Download all favorites of a user
+    -C                          Download all commented by a user
+    -p                          Download all playlists of a user
+    -m                          Download all liked and owned playlists of user
+    -c                          Continue if a downloaded file already exists
+    -o [offset]                 Begin with a custom offset
+    --addtimestamp              Add track creation timestamp to filename,
+                                which allows for chronological sorting
+    --addtofile                 Add artist to filename if missing
+    --debug                     Set log level to DEBUG
+    --download-archive [file]   Keep track of track IDs in an archive file,
+                                and skip already-downloaded files
+    --error                     Set log level to ERROR
+    --hide-progress             Hide the wget progress bar
+    --hidewarnings              Hide Warnings. (use with precaution)
+    --max-size [max-size]       Skip tracks larger than size (k/m/g)
+    --min-size [min-size]       Skip tracks smaller than size (k/m/g)
+    --no-playlist-folder        Download playlist tracks into main directory,
+                                instead of making a playlist subfolder
+    --onlymp3                   Download only the streamable mp3 file,
+                                even if track has a Downloadable file
+    --path [path]               Use a custom path for downloaded files
+    --remove                    Remove any files not downloaded from execution
 """
 
 import logging
@@ -97,6 +103,7 @@ url = {
 client = client.Client()
 
 fileToKeep = []
+
 
 def main():
     """
@@ -196,7 +203,8 @@ def get_config():
         token = config['scdl']['auth_token']
         path = config['scdl']['path']
     except:
-        logger.error('Are you sure scdl.cfg is in $HOME/.config/scdl/ ? Are both "auth_token" and "path" defined there ?')
+        logger.error('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?')
+        logger.error('Are both "auth_token" and "path" defined there?')
         sys.exit()
     if os.path.exists(path):
         os.chdir(path)
@@ -293,8 +301,9 @@ def remove_files():
     logger.info("Removing local track files that were not downloaded...")
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
     for f in files:
-        if not f in fileToKeep:
+        if f not in fileToKeep:
             os.remove(f)
+
 
 def get_track_info(track_id):
     """
@@ -306,6 +315,7 @@ def get_track_info(track_id):
     item = r.json()
     logger.debug(item)
     return item
+
 
 def download(user, dl_type, name):
     """
@@ -338,7 +348,7 @@ def download(user, dl_type, name):
             elif dl_type == 'playlists-liked':
                 parse_url(item['playlist']['uri'])
             elif dl_type == 'commented':
-                item=get_track_info(item['track_id'])
+                item = get_track_info(item['track_id'])
                 download_track(item)
             else:
                 download_track(item)
@@ -384,6 +394,7 @@ def download_my_stream():
     # TODO
     # Use Token
 
+
 def try_utime(path, filetime):
     try:
         os.utime(path, (time.time(), filetime))
@@ -391,7 +402,7 @@ def try_utime(path, filetime):
         logger.warn("Cannot update utime of file")
 
 
-def get_filename(track, title, is_original = False):
+def get_filename(track, title, is_original=False):
     invalid_chars = '\/:*?|<>"'
     username = track['user']['username']
 
@@ -436,7 +447,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
     if track['downloadable'] and not arguments['--onlymp3']:
         logger.info('Downloading the original file.')
         original_url = track['download_url']
-        r = requests.get(original_url, params={'client_id': CLIENT_ID}, stream=True)
+        r = requests.get(
+            original_url, params={'client_id': CLIENT_ID}, stream=True
+        )
         if r.status_code == 401:
             logger.info('The original file has no download left.')
             filename = get_filename(track, title)
@@ -452,7 +465,8 @@ def download_track(track, playlist_name=None, playlist_file=None):
     logger.debug("filename : {0}".format(filename))
 
     # Skip if file ID or filename already exists
-    if already_downloaded(track, title, filename): return
+    if already_downloaded(track, title, filename):
+        return
 
     # Add the track to the generated m3u playlist file
     if playlist_file:
@@ -472,7 +486,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
         r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
         logger.debug(r.url)
         if r.status_code == 401 or r.status_code == 429:
-            r = requests.get(url, params={'client_id': ALT_CLIENT_ID}, stream=True)
+            r = requests.get(
+                url, params={'client_id': ALT_CLIENT_ID}, stream=True
+            )
             logger.debug(r.url)
             r.raise_for_status()
     temp = tempfile.NamedTemporaryFile(delete=False)
@@ -510,10 +526,11 @@ def download_track(track, playlist_name=None, playlist_file=None):
     else:
         logger.error("This type of audio doesn't support tagging...")
 
-    #Try to change the real creation date
+    # Try to change the real creation date
     created_at = track['created_at']
-    filetime = int(time.mktime(datetime.strptime(created_at, '%Y/%m/%d %H:%M:%S %z').timetuple()))
-    try_utime(filename,filetime)
+    timestamp = datetime.strptime(created_at, '%Y/%m/%d %H:%M:%S %z')
+    filetime = int(time.mktime(timestamp.timetuple()))
+    try_utime(filename, filetime)
 
     logger.info('{0} Downloaded.\n'.format(filename))
     record_download_archive(track)
@@ -536,7 +553,8 @@ def already_downloaded(track, title, filename=None):
             logger.info('Track "{0}" already downloaded.'.format(title))
             return True
         else:
-            logger.error('Track "{0}" already exists! Exiting... (run again with -c to continue)'.format(title))
+            logger.error('Track "{0}" already exists!'.format(title))
+            logger.error('Exiting... (run again with -c to continue)')
             sys.exit(0)
     return False
 
@@ -546,7 +564,8 @@ def in_download_archive(track):
     Returns True if a track_id exists in the download archive
     """
     global arguments
-    if not arguments['--download-archive']: return
+    if not arguments['--download-archive']:
+        return
 
     archive_filename = arguments.get('--download-archive')
     try:
@@ -570,7 +589,8 @@ def record_download_archive(track):
     Write the track_id in the download archive
     """
     global arguments
-    if not arguments['--download-archive']: return
+    if not arguments['--download-archive']:
+        return
 
     archive_filename = arguments.get('--download-archive')
     try:
@@ -596,8 +616,10 @@ def set_metadata(track, filename, album=None):
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
 
-        track_date = datetime.strptime(track['created_at'], "%Y/%m/%d %H:%M:%S %z")
-        logger.debug('Extracting date: {0} {1}'.format(track['created_at'], track_date))
+        track_created = track['created_at']
+        track_date = datetime.strptime(track_created, "%Y/%m/%d %H:%M:%S %z")
+        debug_extract_dates = '{0} {1}'.format(track_created, track_date)
+        logger.debug('Extracting date: {0}'.format(debug_extract_dates))
         track_year = track_date.strftime("%Y")
         track_day_month = track_date.strftime("%d%m")
 
@@ -605,7 +627,9 @@ def set_metadata(track, filename, album=None):
         audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
         audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user['username'])
         audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
-        audio['COMM'] = mutagen.id3.COMM(encoding=3, lang=u'ENG', text=track['description'])
+        audio['COMM'] = mutagen.id3.COMM(
+            encoding=3, lang=u'ENG', text=track['description']
+        )
         audio['TYER'] = mutagen.id3.TYER(encoding=3, text=track_year)
         audio['TDAT'] = mutagen.id3.TDAT(encoding=3, text=track_day_month)
         audio['WOAS'] = mutagen.id3.WOAS(url=track['permalink_url'])
