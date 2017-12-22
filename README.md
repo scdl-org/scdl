@@ -74,6 +74,7 @@ scdl me -f
     --error               Set log level to ERROR
     --debug               Set log level to DEBUG
     --hide-progress       Hide the wget progress bar
+    --no-playlist-folder  Download playlist tracks into directory, instead of making a playlist subfolder (the default)
 ```
 
 
