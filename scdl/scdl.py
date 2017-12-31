@@ -7,11 +7,11 @@ Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>]
+[--no-playlist-folder][--download-archive <file>][--extract-artist]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>]
+[--no-playlist-folder][--download-archive <file>][--extract-artist]
     scdl -h | --help
     scdl --version
 
@@ -37,6 +37,7 @@ Options:
     --download-archive [file]   Keep track of track IDs in an archive file,
                                 and skip already-downloaded files
     --error                     Set log level to ERROR
+    --extract-artist            Set artist tag from title instead of username
     --hide-progress             Hide the wget progress bar
     --hidewarnings              Hide Warnings. (use with precaution)
     --max-size [max-size]       Skip tracks larger than size (k/m/g)
@@ -606,6 +607,7 @@ def set_metadata(track, filename, album=None):
     Sets the mp3 file metadata using the Python module Mutagen
     """
     logger.info('Setting tags...')
+    global arguments
     artwork_url = track['artwork_url']
     user = track['user']
     if not artwork_url:
@@ -623,9 +625,16 @@ def set_metadata(track, filename, album=None):
         track_year = track_date.strftime("%Y")
         track_day_month = track_date.strftime("%d%m")
 
+        track['artist'] = user['username']
+        if arguments['--extract-artist']:
+            if '-' in track['title']:
+                artist_title = track['title'].split('-')
+                track['artist'] = artist_title[0].strip()
+                track['title'] = artist_title[1].strip()
+
         audio = mutagen.File(filename)
         audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
-        audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user['username'])
+        audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=track['artist'])
 
         if track['genre']:
             audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
