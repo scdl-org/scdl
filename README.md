@@ -78,7 +78,7 @@ scdl me -f
     --debug                     Set log level to DEBUG
     --hide-progress             Hide the wget progress bar
     --no-playlist-folder        Download playlist tracks into directory, instead of making a playlist subfolder (the default)
-    --download-archive [file]   Keep track of track IDs in an archive file and skip already-downloaded files
+    --download-archive [file]   Store track IDs in an archive file and skip already-downloaded files
 ```
 
 
