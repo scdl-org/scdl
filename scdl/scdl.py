@@ -626,16 +626,21 @@ def set_metadata(track, filename, album=None):
         audio = mutagen.File(filename)
         audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
         audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=user['username'])
-        audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
-        audio['COMM'] = mutagen.id3.COMM(
-            encoding=3, lang=u'ENG', text=track['description']
-        )
-        audio['TYER'] = mutagen.id3.TYER(encoding=3, text=track_year)
-        audio['TDAT'] = mutagen.id3.TDAT(encoding=3, text=track_day_month)
-        audio['WOAS'] = mutagen.id3.WOAS(url=track['permalink_url'])
 
+        if track['genre']:
+            audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
+        if track_year:
+            audio['TYER'] = mutagen.id3.TYER(encoding=3, text=track_year)
+        if track_day_month:
+            audio['TDAT'] = mutagen.id3.TDAT(encoding=3, text=track_day_month)
+        if track['permalink_url']:
+            audio['WOAS'] = mutagen.id3.WOAS(url=track['permalink_url'])
         if album:
             audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
+        if track['description']:
+            audio['COMM'] = mutagen.id3.COMM(
+                encoding=3, lang=u'ENG', text=track['description']
+            )
         if artwork_url:
             audio['APIC'] = mutagen.id3.APIC(
                 encoding=3, mime='image/jpeg', type=3, desc='Cover',
