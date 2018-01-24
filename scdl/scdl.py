@@ -507,6 +507,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         logging.info('{0} too large, skipping'.format(title))
         return
 
+    received=0
     with temp as f:
         for chunk in progress.bar(
             r.iter_content(chunk_size=1024),
@@ -514,8 +515,13 @@ def download_track(track, playlist_name=None, playlist_file=None):
             hide=True if arguments["--hide-progress"] else False
         ):
             if chunk:
+                received+=len(chunk)
                 f.write(chunk)
                 f.flush()
+
+    if received != total_length:
+        logger.error('connection closed prematurely, download incomplete')
+        sys.exit()
 
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
     if filename.endswith('.mp3') or filename.endswith('.m4a'):
