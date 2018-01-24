@@ -403,9 +403,10 @@ def try_utime(path, filetime):
         logger.warn("Cannot update utime of file")
 
 
-def get_filename(track, title, is_original=False):
+def get_filename(track, original_filename=None):
     invalid_chars = '\/:*?|<>"'
     username = track['user']['username']
+    title = track['title'].encode('utf-8', 'ignore').decode('utf8')
 
     if arguments['--addtofile']:
         if username not in title and '-' not in title:
@@ -420,11 +421,12 @@ def get_filename(track, title, is_original=False):
 
         title = str(int(ts)) + "_" + title
 
-    filename = title if is_original else title[:251] + ".mp3"
+    ext = ".mp3"
+    if original_filename is not None:
+        original_filename.encode('utf-8', 'ignore').decode('utf8')
+        ext = os.path.splitext(original_filename)[1]
+    filename = title[:251] + ext.lower()
     filename = ''.join(c for c in filename if c not in invalid_chars)
-    filename.encode('utf-8', 'ignore').decode('utf8')
-    base, ext = os.path.splitext(filename)
-    filename = base + ext.lower()
     return filename
 
 
@@ -453,16 +455,14 @@ def download_track(track, playlist_name=None, playlist_file=None):
         )
         if r.status_code == 401:
             logger.info('The original file has no download left.')
-            filename = get_filename(track, title)
+            filename = get_filename(track)
         else:
-            if r.headers.get('content-disposition'):
-                d = r.headers['content-disposition']
-                filename = re.findall("filename=(.+)", d)[0][1:-1]
-                filename = get_filename(track, filename, True)
-            else:
-                filename = get_filename(track, title)
+            d = r.headers.get('content-disposition')
+            filename = re.findall("filename=(.+)", d)[0][1:-1]
+            filename = get_filename(track, filename)
+
     else:
-        filename = get_filename(track, title)
+        filename = get_filename(track)
     logger.debug("filename : {0}".format(filename))
 
     # Skip if file ID or filename already exists
