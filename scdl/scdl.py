@@ -633,10 +633,12 @@ def set_metadata(track, filename, album=None):
 
         track['artist'] = user['username']
         if arguments['--extract-artist']:
-            if '-' in track['title']:
-                artist_title = track['title'].split('-')
-                track['artist'] = artist_title[0].strip()
-                track['title'] = artist_title[1].strip()
+            for dash in [' - ', ' − ', ' – ', ' — ', ' ― ']:
+                if dash in track['title']:
+                    artist_title = track['title'].split(dash)
+                    track['artist'] = artist_title[0].strip()
+                    track['title'] = artist_title[1].strip()
+                    break
 
         audio = mutagen.File(filename)
         audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
