@@ -7,11 +7,11 @@ Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
     scdl -h | --help
     scdl --version
 
@@ -48,6 +48,7 @@ Options:
                                 even if track has a Downloadable file
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
+    --flac                      Convert downloaded .wav files to .flac
 """
 
 import logging
@@ -62,6 +63,7 @@ import requests
 import re
 import tempfile
 import codecs
+import shlex
 
 import configparser
 import mutagen
@@ -524,7 +526,15 @@ def download_track(track, playlist_name=None, playlist_file=None):
         sys.exit()
 
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
-    if filename.endswith('.mp3') or filename.endswith('.m4a'):
+    if arguments['--flac'] and filename.endswith('.wav'):
+        newfilename = filename[:-4] + ".flac"
+        new = shlex.quote(newfilename)
+        old = shlex.quote(filename)
+        logger.debug("ffmpeg -i {0} {1} -loglevel fatal".format(old, new))
+        os.system("ffmpeg -i {0} {1} -loglevel fatal".format(old, new))
+        filename = newfilename
+
+    if filename.endswith('.mp3'):
         try:
             set_metadata(track, filename, playlist_name)
         except Exception as e:
@@ -663,7 +673,7 @@ def set_metadata(track, filename, album=None):
                 )
         else:
             logger.error('Artwork can not be set.')
-    audio.save(v2_version=3)
+    audio.save()
 
 
 def signal_handler(signal, frame):
