@@ -527,14 +527,16 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
     if arguments['--flac'] and filename.endswith('.wav'):
+        logger.info('Converting from .wav to .flac...')
         newfilename = filename[:-4] + ".flac"
         new = shlex.quote(newfilename)
         old = shlex.quote(filename)
         logger.debug("ffmpeg -i {0} {1} -loglevel fatal".format(old, new))
         os.system("ffmpeg -i {0} {1} -loglevel fatal".format(old, new))
+        os.remove(filename)
         filename = newfilename
 
-    if filename.endswith('.mp3'):
+    if not filename.endswith('.wav'):
         try:
             set_metadata(track, filename, playlist_name)
         except Exception as e:
@@ -638,8 +640,7 @@ def set_metadata(track, filename, album=None):
         track_date = datetime.strptime(track_created, "%Y/%m/%d %H:%M:%S %z")
         debug_extract_dates = '{0} {1}'.format(track_created, track_date)
         logger.debug('Extracting date: {0}'.format(debug_extract_dates))
-        track_year = track_date.strftime("%Y")
-        track_day_month = track_date.strftime("%d%m")
+        track['date'] = track_date.strftime("%Y-%m-%d %H::%M::%S")
 
         track['artist'] = user['username']
         if arguments['--extract-artist']:
@@ -650,31 +651,32 @@ def set_metadata(track, filename, album=None):
                     track['title'] = artist_title[1].strip()
                     break
 
-        audio = mutagen.File(filename)
-        audio['TIT2'] = mutagen.id3.TIT2(encoding=3, text=track['title'])
-        audio['TPE1'] = mutagen.id3.TPE1(encoding=3, text=track['artist'])
-
-        if track['genre']:
-            audio['TCON'] = mutagen.id3.TCON(encoding=3, text=track['genre'])
-        if track_year:
-            audio['TYER'] = mutagen.id3.TYER(encoding=3, text=track_year)
-        if track_day_month:
-            audio['TDAT'] = mutagen.id3.TDAT(encoding=3, text=track_day_month)
-        if track['permalink_url']:
-            audio['WOAS'] = mutagen.id3.WOAS(url=track['permalink_url'])
-        if album:
-            audio['TALB'] = mutagen.id3.TALB(encoding=3, text=album)
+        audio = mutagen.File(filename, easy=True)
+        audio['title'] = track['title']
+        audio['artist'] = track['artist']
+        if album: audio['album'] = album
+        if track['genre']: audio['genre'] = track['genre']
+        if track['permalink_url']: audio['website'] = track['permalink_url']
+        if track['date']: audio['date'] = track['date']
         if track['description']:
-            audio['COMM'] = mutagen.id3.COMM(
-                encoding=3, lang=u'ENG', text=track['description']
-            )
-        if artwork_url:
-            audio['APIC'] = mutagen.id3.APIC(
-                encoding=3, mime='image/jpeg', type=3, desc='Cover',
-                data=out_file.read()
+            if audio.__class__ is mutagen.flac:
+               audio['comment'] = track['description']
+            elif audio.__class__ is mutagen.easyid3:
+                a = mutagen.File(filename)
+                a['COMM'] = mutagen.id3.COMM(
+                    encoding=3, lang=u'ENG', text=track['description']
                 )
-        else:
-            logger.error('Artwork can not be set.')
+        if artwork_url:
+            if audio.__class__ is mutagen.flac:
+                p = mutagen.flac.Picture(out_file.read())
+                p.type = 3
+                audio.add_picture(p)
+            elif audio.__class__ is mutagen.easyid3:
+                a = mutagen.File(filename)
+                a['APIC'] = mutagen.id3.APIC(
+                    encoding=3, mime='image/jpeg', type=3, data=out_file.read()
+                )
+
     audio.save()
 
 
