@@ -20,6 +20,15 @@ or
 git clone https://github.com/flyingrub/scdl.git && cd scdl
 python3 setup.py install
 ```
+or
+
+### Gentoo
+
+```
+layman -fa glicOne
+sudo emerge -av net-misc/scdl
+```
+
 (Optional) Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
 
 
