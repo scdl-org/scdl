@@ -48,7 +48,7 @@ Options:
                                 even if track has a Downloadable file
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
-    --flac                      Convert downloaded .wav files to .flac
+    --flac                      Convert original files to .flac
 """
 
 import logging
@@ -526,8 +526,8 @@ def download_track(track, playlist_name=None, playlist_file=None):
         sys.exit()
 
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
-    if arguments['--flac'] and filename.endswith('.wav'):
-        logger.info('Converting from .wav to .flac...')
+    if arguments['--flac'] and can_convert(filename):
+        logger.info('Converting to .flac...')
         newfilename = filename[:-4] + ".flac"
         new = shlex.quote(newfilename)
         old = shlex.quote(filename)
@@ -536,7 +536,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
         os.remove(filename)
         filename = newfilename
 
-    if not filename.endswith('.wav'):
+    if filename.endswith('.mp3') or filename.endswith('.flac'):
         try:
             set_metadata(track, filename, playlist_name)
         except Exception as e:
@@ -555,21 +555,27 @@ def download_track(track, playlist_name=None, playlist_file=None):
     record_download_archive(track)
 
 
-def already_downloaded(track, title, filename=None):
+def can_convert(filename):
+    ext = os.path.splitext(filename)[1]
+    return ext == 'wav' or ext in 'aif'
+
+def already_downloaded(track, title, filename):
     """
     Returns True if the file has already been downloaded
     """
     global arguments
     already_downloaded = False
 
-    if filename and os.path.isfile(filename):
+    if os.path.isfile(filename):
         already_downloaded = True
-    if filename and arguments['--flac'] \
-                and filename.endswith('.wav') \
-                and os.path.isfile(filename[:-4] + ".flac"):
+    if arguments['--flac'] and can_convert(filename) \
+                           and os.path.isfile(filename[:-4] + ".flac"):
         already_downloaded = True
     if arguments['--download-archive'] and in_download_archive(track):
         already_downloaded = True
+
+    if arguments['--flac'] and can_convert(filename) and os.path.isfile(filename):
+        already_downloaded = False
 
     if already_downloaded:
         if arguments['-c'] or arguments['--remove']:
