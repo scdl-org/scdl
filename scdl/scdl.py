@@ -97,7 +97,7 @@ url = {
     'all': ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0}?'
             'limit=200'),
     'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
-                  'limit=200'),
+                  'limit=5'),
     'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
     'trackinfo': ('https://api.soundcloud.com/tracks/{0}'),
     'user': ('https://api.soundcloud.com/users/{0}'),
@@ -557,7 +557,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
 def can_convert(filename):
     ext = os.path.splitext(filename)[1]
-    return ext == 'wav' or ext in 'aif'
+    return 'wav' in ext or 'aif' in ext
 
 def already_downloaded(track, title, filename):
     """
@@ -672,21 +672,21 @@ def set_metadata(track, filename, album=None):
 
         a = mutagen.File(filename)
         if track['description']:
-            if a.__class__ is mutagen.flac.FLAC:
+            if a.__class__ == mutagen.flac.FLAC:
                 a['description'] = track['description']
-            elif a.__class__ is mutagen.mp3.MP3:
+            elif a.__class__ == mutagen.mp3.MP3:
                 a['COMM'] = mutagen.id3.COMM(
                     encoding=3, lang=u'ENG', text=track['description']
                 )
         if artwork_url:
-            if a.__class__ is mutagen.flac.FLAC:
+            if a.__class__ == mutagen.flac.FLAC:
                 p = mutagen.flac.Picture()
                 p.data = out_file.read()
                 p.width = 500
                 p.height = 500
                 p.type = mutagen.id3.PictureType.COVER_FRONT
                 a.add_picture(p)
-            elif a.__class__ is mutagen.mp3.MP3:
+            elif a.__class__ == mutagen.mp3.MP3:
                 a['APIC'] = mutagen.id3.APIC(
                     encoding=3, mime='image/jpeg', type=3,
                     desc='Cover', data=out_file.read()
