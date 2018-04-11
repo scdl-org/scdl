@@ -564,6 +564,10 @@ def already_downloaded(track, title, filename=None):
 
     if filename and os.path.isfile(filename):
         already_downloaded = True
+    if filename and arguments['--flac'] \
+                and filename.endswith('.wav') \
+                and os.path.isfile(filename[:-4] + ".flac"):
+        already_downloaded = True
     if arguments['--download-archive'] and in_download_archive(track):
         already_downloaded = True
 
@@ -658,26 +662,30 @@ def set_metadata(track, filename, album=None):
         if track['genre']: audio['genre'] = track['genre']
         if track['permalink_url']: audio['website'] = track['permalink_url']
         if track['date']: audio['date'] = track['date']
+        audio.save()
+
+        a = mutagen.File(filename)
         if track['description']:
-            if audio.__class__ is mutagen.flac:
-               audio['comment'] = track['description']
-            elif audio.__class__ is mutagen.easyid3:
-                a = mutagen.File(filename)
+            if a.__class__ is mutagen.flac.FLAC:
+                a['description'] = track['description']
+            elif a.__class__ is mutagen.mp3.MP3:
                 a['COMM'] = mutagen.id3.COMM(
                     encoding=3, lang=u'ENG', text=track['description']
                 )
         if artwork_url:
-            if audio.__class__ is mutagen.flac:
-                p = mutagen.flac.Picture(out_file.read())
-                p.type = 3
-                audio.add_picture(p)
-            elif audio.__class__ is mutagen.easyid3:
-                a = mutagen.File(filename)
+            if a.__class__ is mutagen.flac.FLAC:
+                p = mutagen.flac.Picture()
+                p.data = out_file.read()
+                p.width = 500
+                p.height = 500
+                p.type = mutagen.id3.PictureType.COVER_FRONT
+                a.add_picture(p)
+            elif a.__class__ is mutagen.mp3.MP3:
                 a['APIC'] = mutagen.id3.APIC(
-                    encoding=3, mime='image/jpeg', type=3, data=out_file.read()
+                    encoding=3, mime='image/jpeg', type=3,
+                    desc='Cover', data=out_file.read()
                 )
-
-    audio.save()
+        a.save()
 
 
 def signal_handler(signal, frame):
