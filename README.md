@@ -55,7 +55,7 @@ scdl -l https://soundcloud.com/jumpstreetpsy/low-extender
 scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
 
 # Download only new tracks from a playlist
-scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --download-archive archive.txt
+scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --download-archive archive.txt -c
 
 # Download your likes (with authentification token)
 scdl me -f
