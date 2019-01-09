@@ -522,8 +522,10 @@ def download_track(track, playlist_name=None, playlist_file=None):
                 f.flush()
 
     if received != total_length:
-        logger.error('connection closed prematurely, download incomplete')
-        sys.exit()
+        logger.error('connection closed prematurely, download incomplete, Skipping...')
+        # sys.exit()
+        # handling missing playlist tracks
+        return
 
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
     if arguments['--flac'] and can_convert(filename):
