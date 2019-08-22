@@ -1,4 +1,4 @@
-# Soundcloud Music Downloader [![PyPI version](https://img.shields.io/pypi/v/scdl.svg)](https://pypi.python.org/pypi/scdl/)
+# Soundcloud Music Downloader
 ## Description
 
 This script is able to download music from SoundCloud and set id3tag to the downloaded music.
