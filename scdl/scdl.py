@@ -386,7 +386,8 @@ def download_playlist(playlist):
                 logger.info('Track n°{0}'.format(counter))
                 download_track(track_raw, playlist['title'], playlist_file)
     finally:
-        os.chdir('..')
+        if not arguments['--no-playlist-folder']:
+            os.chdir('..')
 
 
 def download_my_stream():
