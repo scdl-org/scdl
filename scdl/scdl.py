@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
 """scdl allows you to download music from Soundcloud
@@ -6,7 +6,7 @@
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
-[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
+[--onlymp3][--hide-progress][--min-size <size>][--write-cover][--max-size <size>][--remove]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
@@ -49,6 +49,7 @@ Options:
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
+    --write-cover               Download track cover of tracks as seperate image file
 """
 
 import logging
@@ -552,10 +553,36 @@ def download_track(track, playlist_name=None, playlist_file=None):
     filetime = int(time.mktime(timestamp.timetuple()))
     try_utime(filename, filetime)
 
+    #Download track cover art
+    if arguments['--write-cover'] and track['artwork_url']:
+        logger.info('Downloading track art...')
+        download_track_art(track)
+        
+
     logger.info('{0} Downloaded.\n'.format(filename))
     record_download_archive(track)
 
+def download_track_art(track):
+    """
+    Download track art from track
+    """
+    url = track['artwork_url']
+    title = track['title']
+    title = title.encode('utf-8', 'ignore').decode('utf8')
+    
+    if not url.endswith('.jpg'):
+        #Unsupported file type
+        return
+    
+    newFilename = title + ' TRACK ART'
+    
+    response = requests.get(url, stream=True)
+    with open(newFilename + '.jpg', 'wb') as out_file:
+        shutil.copyfileobj(response.raw, out_file)
+    del response
 
+    return newFilename 
+    
 def can_convert(filename):
     ext = os.path.splitext(filename)[1]
     return 'wav' in ext or 'aif' in ext
