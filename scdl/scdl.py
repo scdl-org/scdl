@@ -49,7 +49,7 @@ Options:
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
-    --write-cover               Download track cover of tracks as seperate image file
+    --write-cover               Download track cover art of tracks as seperate image file
 """
 
 import logging
