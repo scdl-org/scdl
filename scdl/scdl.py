@@ -1,4 +1,4 @@
- #!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
 """scdl allows you to download music from Soundcloud
@@ -553,36 +553,9 @@ def download_track(track, playlist_name=None, playlist_file=None):
     filetime = int(time.mktime(timestamp.timetuple()))
     try_utime(filename, filetime)
 
-    #Download track cover art
-    if arguments['--write-cover'] and track['artwork_url']:
-        logger.info('Downloading track art...')
-        download_track_art(track)
-        
-
     logger.info('{0} Downloaded.\n'.format(filename))
     record_download_archive(track)
 
-def download_track_art(track):
-    """
-    Download track art from track
-    """
-    url = track['artwork_url']
-    title = track['title']
-    title = title.encode('utf-8', 'ignore').decode('utf8')
-    
-    if not url.endswith('.jpg'):
-        #Unsupported file type
-        return
-    
-    newFilename = title + ' TRACK ART'
-    
-    response = requests.get(url, stream=True)
-    with open(newFilename + '.jpg', 'wb') as out_file:
-        shutil.copyfileobj(response.raw, out_file)
-    del response
-
-    return newFilename 
-    
 def can_convert(filename):
     ext = os.path.splitext(filename)[1]
     return 'wav' in ext or 'aif' in ext
@@ -670,6 +643,19 @@ def set_metadata(track, filename, album=None):
         artwork_url = user['avatar_url']
     artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
+
+    #Write artwork cover to seperate file
+    if artwork_url and arguments['--write-cover']:  
+        invalid_chars = '\/:*?|<>"'
+        title = track['title']
+        title = title.encode('utf-8', 'ignore').decode('utf8')
+        title = ''.join(c for c in title if c not in invalid_chars)
+        
+        logger.info('Downloading track art...')
+        with open(title + '.jpg', 'wb') as img_file:
+            response.raw.decode_content = True
+            shutil.copyfileobj(response.raw, img_file)
+
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
