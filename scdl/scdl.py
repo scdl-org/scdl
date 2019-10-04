@@ -4,7 +4,7 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
+    scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-n <maxtracks>][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
@@ -21,6 +21,7 @@ Options:
     --version                   Show version
     me                          Use the user profile from the auth_token
     -l [url]                    URL can be track/playlist/user
+    -n [maxtracks]              Download the n last tracks of a playlist according to the creation date
     -s                          Download the stream of a user (token needed)
     -a                          Download all tracks of user (including reposts)
     -t                          Download all uploads of a user (no reposts)
@@ -371,6 +372,7 @@ def download_playlist(playlist):
     playlist_name = playlist['title'].encode('utf-8', 'ignore')
     playlist_name = playlist_name.decode('utf8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
+    # Sort playlist by date of track creation
 
     if not arguments['--no-playlist-folder']:
         if not os.path.exists(playlist_name):
@@ -380,7 +382,11 @@ def download_playlist(playlist):
     try:
         with codecs.open(playlist_name + '.m3u', 'w+', 'utf8') as playlist_file:
             playlist_file.write('#EXTM3U' + os.linesep)
-            del playlist['tracks'][:offset - 1]
+            if arguments['-n']: # Order by creation date and get the n lasts tracks
+                playlist['tracks'].sort(key=lambda track: track['created_at'], reverse=True)
+                playlist['tracks'] = playlist['tracks'][:int(arguments['-n'])]
+            else:
+                del playlist['tracks'][:offset - 1]
             for counter, track_raw in enumerate(playlist['tracks'], offset):
                 logger.debug(track_raw)
                 logger.info('Track n°{0}'.format(counter))
