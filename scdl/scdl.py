@@ -372,7 +372,6 @@ def download_playlist(playlist):
     playlist_name = playlist['title'].encode('utf-8', 'ignore')
     playlist_name = playlist_name.decode('utf8')
     playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
-    # Sort playlist by date of track creation
 
     if not arguments['--no-playlist-folder']:
         if not os.path.exists(playlist_name):
