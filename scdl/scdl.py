@@ -7,11 +7,11 @@ Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--fullpermissions]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--fullpermissions]
     scdl -h | --help
     scdl --version
 
@@ -49,6 +49,7 @@ Options:
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
+    --fullpermissions           Updates *nix permissions for downloaded file to read/write/execute for everyone (equivalent to chmod 777).
 """
 
 import logging
@@ -74,6 +75,8 @@ from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
 from scdl import client, utils
 
 from datetime import datetime
+
+import stat
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logging.getLogger('requests').setLevel(logging.WARNING)
@@ -405,6 +408,12 @@ def try_utime(path, filetime):
     except:
         logger.warn("Cannot update utime of file")
 
+def try_update_file_permissions(path):
+    try:
+        os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    except:
+        logger.warn("Cannot update file permissions")
+
 
 def get_filename(track, original_filename=None):
     invalid_chars = '\/:*?|<>"'
@@ -551,6 +560,10 @@ def download_track(track, playlist_name=None, playlist_file=None):
     timestamp = datetime.strptime(created_at, '%Y/%m/%d %H:%M:%S %z')
     filetime = int(time.mktime(timestamp.timetuple()))
     try_utime(filename, filetime)
+
+    # update the file permissions to 777 (linux specific)
+    if arguments['--fullpermissions']:
+        try_update_file_permissions(filename)
 
     logger.info('{0} Downloaded.\n'.format(filename))
     record_download_archive(track)
