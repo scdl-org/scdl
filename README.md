@@ -90,6 +90,7 @@ scdl me -f
     --onlymp3                   Download only the streamable mp3 file, even if track has a Downloadable file
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
+    --fullpermissions           Updates *nix permissions for downloaded file to read/write/execute for everyone (equivalent to chmod 777).
 ```
 
 
