@@ -339,9 +339,14 @@ def download(user, dl_type, name):
     for counter, item in enumerate(resources, offset):
         try:
             logger.debug(item)
-            logger.info('{0} n°{1} of {2}'.format(
-                name.capitalize(), counter, total)
-            )
+            if offset is not None:
+                logger.info('{0} n°{1} of {2}, starting from n°{3}'.format(
+                    name.capitalize(), counter - (offset - 1), total, offset)
+                )
+            else:
+                logger.info('{0} n°{1} of {2}'.format(
+                    name.capitalize(), counter, total,)
+                )
             if dl_type == 'all':
                 item_name = item['type'].split('-')[0]  # remove the '-repost'
                 uri = item[item_name]['uri']
