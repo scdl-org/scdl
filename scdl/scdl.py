@@ -8,10 +8,12 @@ Usage:
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+[--list]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+[--list]
     scdl -h | --help
     scdl --version
 
@@ -49,6 +51,7 @@ Options:
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
+    --list                      Just list files, don't download
 """
 
 import logging
@@ -337,6 +340,12 @@ def download(user, dl_type, name):
     total = len(resources)
     logger.info('Retrieved {0} {1}'.format(total, name))
     for counter, item in enumerate(resources, offset):
+        if arguments['--list']:
+            print("#%s" % counter)
+            print(item['title'])
+            print(item['permalink_url'])
+            print()
+            continue
         try:
             logger.debug(item)
             logger.info('{0} n°{1} of {2}'.format(
@@ -357,9 +366,10 @@ def download(user, dl_type, name):
                 download_track(item)
         except Exception as e:
             logger.exception(e)
-    logger.info('Downloaded all {0} {1} of user {2}!'.format(
-        total, name, username)
-    )
+    if not arguments['--list']:
+        logger.info('Downloaded all {0} {1} of user {2}!'.format(
+            total, name, username)
+        )
 
 
 def download_playlist(playlist):
