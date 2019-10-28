@@ -671,18 +671,6 @@ def set_metadata(track, filename, album=None):
     artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
 
-    #Write artwork cover to seperate file
-    if artwork_url and arguments['--write-cover']:  
-        invalid_chars = '\/:*?|<>"'
-        title = track['title']
-        title = title.encode('utf-8', 'ignore').decode('utf8')
-        title = ''.join(c for c in title if c not in invalid_chars)
-        
-        logger.info('Downloading track art...')
-        with open(title + '.jpg', 'wb') as img_file:
-            response.raw.decode_content = True
-            shutil.copyfileobj(response.raw, img_file)
-
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
