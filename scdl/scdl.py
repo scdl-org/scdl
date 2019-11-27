@@ -99,7 +99,7 @@ url = {
     'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
                   'limit=5'),
     'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
-    'trackinfo': ('https://api.soundcloud.com/tracks/{0}'),
+    'trackinfo': ('https://api-v2.soundcloud.com/tracks/{0}'),
     'user': ('https://api.soundcloud.com/users/{0}'),
     'me': ('https://api.soundcloud.com/me?oauth_token={0}')
 }
@@ -351,7 +351,6 @@ def download(user, dl_type, name):
             elif dl_type == 'playlists-liked':
                 parse_url(item['playlist']['uri'])
             elif dl_type == 'commented':
-                item = get_track_info(item['track_id'])
                 download_track(item)
             else:
                 download_track(item)
@@ -433,83 +432,31 @@ def get_filename(track, original_filename=None):
     return filename
 
 
-def download_track(track, playlist_name=None, playlist_file=None):
-    """
-    Downloads a track
-    """
-    global arguments
+def download_original_file(track, title):
+    logger.info('Downloading the original file.')
+    original_url = track['download_url']
 
-    title = track['title']
-    title = title.encode('utf-8', 'ignore').decode('utf8')
-    logger.info('Downloading {0}'.format(title))
+    # Get the requests stream
+    r = requests.get(
+        original_url, params={'client_id': CLIENT_ID}, stream=True
+    )
+    if r.status_code == 401:
+        logger.info('The original file has no download left.')
+        return None
 
-    # Not streamable
-    if not track['streamable']:
-        logger.error('{0} is not streamable...'.format(title))
-        return
-
-    r = None
-    # Downloadable track
-    if track['downloadable'] and not arguments['--onlymp3']:
-        logger.info('Downloading the original file.')
-        original_url = track['download_url']
-        r = requests.get(
-            original_url, params={'client_id': CLIENT_ID}, stream=True
-        )
-        if r.status_code == 401:
-            logger.info('The original file has no download left.')
-            filename = get_filename(track)
-        else:
-            d = r.headers.get('content-disposition')
-            filename = re.findall("filename=(.+)", d)[0][1:-1]
-            filename = get_filename(track, filename)
-
-    else:
-        filename = get_filename(track)
+    # Find filename
+    d = r.headers.get('content-disposition')
+    filename = re.findall("filename=(.+)", d)[0][1:-1]
+    filename = get_filename(track, filename)
     logger.debug("filename : {0}".format(filename))
 
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename):
-        return
+        return filename
 
-    # Add the track to the generated m3u playlist file
-    if playlist_file:
-        duration = math.floor(track['duration'] / 1000)
-        playlist_file.write(
-            '#EXTINF:{0},{1}{3}{2}{3}'.format(
-                duration, title, filename, os.linesep
-            )
-        )
-
-    if arguments['--remove']:
-        fileToKeep.append(filename)
-
-    # Streamable track download
-    if r is None or r.status_code == 401:
-        url = track['stream_url']
-        r = requests.get(url, params={'client_id': CLIENT_ID}, stream=True)
-        logger.debug(r.url)
-        if r.status_code == 401 or r.status_code == 429:
-            r = requests.get(
-                url, params={'client_id': ALT_CLIENT_ID}, stream=True
-            )
-            logger.debug(r.url)
-            r.raise_for_status()
-    temp = tempfile.NamedTemporaryFile(delete=False)
-
+    # Write file
     total_length = int(r.headers.get('content-length'))
-
-    min_size = arguments.get('--min-size')
-    max_size = arguments.get('--max-size')
-
-    if min_size is not None and total_length < min_size:
-        logging.info('{0} not large enough, skipping'.format(title))
-        return
-
-    if max_size is not None and total_length > max_size:
-        logging.info('{0} too large, skipping'.format(title))
-        return
-
+    temp = tempfile.NamedTemporaryFile(delete=False)
     received=0
     with temp as f:
         for chunk in progress.bar(
@@ -537,6 +484,77 @@ def download_track(track, playlist_name=None, playlist_file=None):
         os.remove(filename)
         filename = newfilename
 
+    return filename
+
+
+def get_track_m3u8(track):
+    url = None
+    for transcoding in track['media']['transcodings']:
+        if transcoding['format']['protocol'] == 'hls' \
+            and transcoding['format']['mime_type'] == 'audio/mpeg':
+            url = transcoding['url']
+
+    if url is not None:
+        r = requests.get(url, params={'client_id': CLIENT_ID})
+        logger.debug(r.url)
+        return r.json()['url']
+
+
+def download_hls_mp3(track, title):
+    filename = get_filename(track)
+    logger.debug("filename : {0}".format(filename))
+
+    # Skip if file ID or filename already exists
+    if already_downloaded(track, title, filename):
+        return
+
+    # Get the requests stream
+    url = get_track_m3u8(track)
+    os.system(
+        "ffmpeg -i {0} -c copy {1} -loglevel fatal".format(
+            shlex.quote(url),
+            shlex.quote(filename)
+        )
+    )
+    return filename
+
+
+def download_track(track, playlist_name=None, playlist_file=None):
+    """
+    Downloads a track
+    """
+    global arguments
+    track = get_track_info(track['id'])
+    title = track['title']
+    title = title.encode('utf-8', 'ignore').decode('utf8')
+    logger.info('Downloading {0}'.format(title))
+
+    # Not streamable
+    if not track['streamable']:
+        logger.error('{0} is not streamable...'.format(title))
+        return
+
+    # Downloadable track
+    filename = None
+    if track['downloadable'] and not arguments['--onlymp3']:
+        filename = download_original_file(track, title)
+
+    if filename is None:
+        filename = download_hls_mp3(track, title)
+
+    # Add the track to the generated m3u playlist file
+    if playlist_file:
+        duration = math.floor(track['duration'] / 1000)
+        playlist_file.write(
+            '#EXTINF:{0},{1}{3}{2}{3}'.format(
+                duration, title, filename, os.linesep
+            )
+        )
+
+    if arguments['--remove']:
+        fileToKeep.append(filename)
+
+
     if filename.endswith('.mp3') or filename.endswith('.flac'):
         try:
             set_metadata(track, filename, playlist_name)
@@ -548,7 +566,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     # Try to change the real creation date
     created_at = track['created_at']
-    timestamp = datetime.strptime(created_at, '%Y/%m/%d %H:%M:%S %z')
+    timestamp = datetime.strptime(created_at, '%Y-%m-%dT%H:%M:%SZ')
     filetime = int(time.mktime(timestamp.timetuple()))
     try_utime(filename, filetime)
 
@@ -648,7 +666,7 @@ def set_metadata(track, filename, album=None):
         out_file.seek(0)
 
         track_created = track['created_at']
-        track_date = datetime.strptime(track_created, "%Y/%m/%d %H:%M:%S %z")
+        track_date = datetime.strptime(track_created, "%Y-%m-%dT%H:%M:%SZ")
         debug_extract_dates = '{0} {1}'.format(track_created, track_date)
         logger.debug('Extracting date: {0}'.format(debug_extract_dates))
         track['date'] = track_date.strftime("%Y-%m-%d %H::%M::%S")
