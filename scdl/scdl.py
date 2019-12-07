@@ -572,6 +572,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     logger.info('{0} Downloaded.\n'.format(filename))
     record_download_archive(track)
+    return filename
 
 
 def can_convert(filename):
