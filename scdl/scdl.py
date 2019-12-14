@@ -202,7 +202,7 @@ def get_config():
     """
     global token
     config = configparser.ConfigParser()
-    config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
+    config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'), "utf8")
     try:
         token = config['scdl']['auth_token']
         path = config['scdl']['path']
