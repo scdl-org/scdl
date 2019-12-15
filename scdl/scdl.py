@@ -506,7 +506,7 @@ def download_hls_mp3(track, title):
 
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename):
-        return
+        return filename
 
     # Get the requests stream
     url = get_track_m3u8(track)
