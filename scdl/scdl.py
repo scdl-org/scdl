@@ -416,9 +416,9 @@ def get_filename(track, original_filename=None):
             logger.debug('Adding "{0}" to filename'.format(username))
 
     if arguments['--addtimestamp']:
-        # created_at sample: 2017/03/03 09:29:33 +0000
+        # created_at sample: 2019-01-30T11:11:37Z
         ts = datetime\
-            .strptime(track['created_at'], "%Y/%m/%d %H:%M:%S %z")\
+            .strptime(track['created_at'], "%Y-%m-%dT%H:%M:%SZ")\
             .timestamp()
 
         title = str(int(ts)) + "_" + title
