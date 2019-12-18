@@ -443,6 +443,10 @@ def download_original_file(track, title):
     if r.status_code == 401:
         logger.info('The original file has no download left.')
         return None
+    
+    if r.status_code == 404:
+        logger.info('Could not get name from stream - using basic name')
+        return None
 
     # Find filename
     d = r.headers.get('content-disposition')
