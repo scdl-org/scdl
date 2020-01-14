@@ -17,8 +17,7 @@ pip3 install scdl
 ```
 or
 ```
-git clone https://github.com/flyingrub/scdl.git && cd scdl
-python3 setup.py install
+pip install git+https://github.com/flyingrub/scdl
 ```
 or
 
