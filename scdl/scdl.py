@@ -74,6 +74,7 @@ from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
 from scdl import client, utils
 
 from datetime import datetime
+import subprocess
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logging.getLogger('requests').setLevel(logging.WARNING)
@@ -173,7 +174,7 @@ def main():
         else:
             logger.error('Invalid path in arguments...')
             sys.exit()
-    logger.debug('Downloading to '+os.getcwd()+'...')
+    logger.debug('Downloading to ' + os.getcwd() + '...')
 
     if arguments['-l']:
         parse_url(arguments['-l'])
@@ -201,7 +202,7 @@ def get_config():
     """
     global token
     config = configparser.ConfigParser()
-    config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'))
+    config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'), "utf8")
     try:
         token = config['scdl']['auth_token']
         path = config['scdl']['path']
@@ -417,8 +418,8 @@ def get_filename(track, original_filename=None):
 
     if arguments['--addtimestamp']:
         # created_at sample: 2019-01-30T11:11:37Z
-        ts = datetime\
-            .strptime(track['created_at'], "%Y-%m-%dT%H:%M:%SZ")\
+        ts = datetime \
+            .strptime(track['created_at'], "%Y-%m-%dT%H:%M:%SZ") \
             .timestamp()
 
         title = str(int(ts)) + "_" + title
@@ -461,15 +462,15 @@ def download_original_file(track, title):
     # Write file
     total_length = int(r.headers.get('content-length'))
     temp = tempfile.NamedTemporaryFile(delete=False)
-    received=0
+    received = 0
     with temp as f:
         for chunk in progress.bar(
-            r.iter_content(chunk_size=1024),
-            expected_size=(total_length/1024) + 1,
-            hide=True if arguments["--hide-progress"] else False
+                r.iter_content(chunk_size=1024),
+                expected_size=(total_length / 1024) + 1,
+                hide=True if arguments["--hide-progress"] else False
         ):
             if chunk:
-                received+=len(chunk)
+                received += len(chunk)
                 f.write(chunk)
                 f.flush()
 
@@ -484,7 +485,7 @@ def download_original_file(track, title):
         new = shlex.quote(newfilename)
         old = shlex.quote(filename)
         logger.debug("ffmpeg -i {0} {1} -loglevel fatal".format(old, new))
-        os.system("ffmpeg -i {0} {1} -loglevel fatal".format(old, new))
+        subprocess.call("ffmpeg -i {0} {1} -loglevel fatal".format(old, new))
         os.remove(filename)
         filename = newfilename
 
@@ -495,7 +496,7 @@ def get_track_m3u8(track):
     url = None
     for transcoding in track['media']['transcodings']:
         if transcoding['format']['protocol'] == 'hls' \
-            and transcoding['format']['mime_type'] == 'audio/mpeg':
+                and transcoding['format']['mime_type'] == 'audio/mpeg':
             url = transcoding['url']
 
     if url is not None:
@@ -514,10 +515,10 @@ def download_hls_mp3(track, title):
 
     # Get the requests stream
     url = get_track_m3u8(track)
-    os.system(
+    res = subprocess.call(
         "ffmpeg -i {0} -c copy {1} -loglevel fatal".format(
-            shlex.quote(url),
-            shlex.quote(filename)
+            '"' + url + '"',
+            '"' + filename + '"'
         )
     )
     return filename
@@ -558,7 +559,6 @@ def download_track(track, playlist_name=None, playlist_file=None):
     if arguments['--remove']:
         fileToKeep.append(filename)
 
-
     if filename.endswith('.mp3') or filename.endswith('.flac'):
         try:
             set_metadata(track, filename, playlist_name)
@@ -576,11 +576,13 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     logger.info('{0} Downloaded.\n'.format(filename))
     record_download_archive(track)
+    return filename
 
 
 def can_convert(filename):
     ext = os.path.splitext(filename)[1]
     return 'wav' in ext or 'aif' in ext
+
 
 def already_downloaded(track, title, filename):
     """
@@ -592,7 +594,7 @@ def already_downloaded(track, title, filename):
     if os.path.isfile(filename):
         already_downloaded = True
     if arguments['--flac'] and can_convert(filename) \
-                           and os.path.isfile(filename[:-4] + ".flac"):
+            and os.path.isfile(filename[:-4] + ".flac"):
         already_downloaded = True
     if arguments['--download-archive'] and in_download_archive(track):
         already_downloaded = True
@@ -626,7 +628,7 @@ def in_download_archive(track):
             file.seek(0)
             track_id = '{0}'.format(track['id'])
             for line in file:
-                logger.debug('"'+line.strip()+'"')
+                logger.debug('"' + line.strip() + '"')
                 if line.strip() == track_id:
                     return True
     except IOError as ioe:
@@ -647,7 +649,7 @@ def record_download_archive(track):
     archive_filename = arguments.get('--download-archive')
     try:
         with open(archive_filename, 'a', encoding='utf-8') as file:
-            file.write('{0}'.format(track['id'])+'\n')
+            file.write('{0}'.format(track['id']) + '\n')
     except IOError as ioe:
         logger.error('Error trying to write to download archive...')
         logger.debug(ioe)
@@ -723,6 +725,7 @@ def signal_handler(signal, frame):
     """
     logger.info('\nGood bye!')
     sys.exit(0)
+
 
 if __name__ == '__main__':
     main()
