@@ -72,7 +72,7 @@ import requests
 from clint.textui import progress
 from docopt import docopt
 
-from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
+from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID, API_BASE_V2
 from scdl import client, utils
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -87,21 +87,26 @@ path = ''
 offset = 1
 
 url = {
-    'playlists-liked': ('https://api-v2.soundcloud.com/users/{0}/playlists'
-                        '/liked_and_owned?limit=200'),
-    'favorites': ('https://api-v2.soundcloud.com/users/{0}/favorites?'
-                  'limit=200'),
-    'commented': ('https://api-v2.soundcloud.com/users/{0}/comments'),
-    'tracks': ('https://api-v2.soundcloud.com/users/{0}/tracks?'
-               'limit=200'),
-    'all': ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0}?'
-            'limit=200'),
-    'playlists': ('https://api-v2.soundcloud.com/users/{0}/playlists?'
-                  'limit=5'),
-    'resolve': ('https://api-v2.soundcloud.com/resolve?url={0}'),
-    'trackinfo': ('https://api-v2.soundcloud.com/tracks/{0}'),
-    'user': ('https://api-v2.soundcloud.com/users/{0}'),
-    'me': ('https://api-v2.soundcloud.com/me?oauth_token={0}')
+    'playlists-liked':
+        ('https://' + API_BASE_V2 + '/users/{0}/playlists/liked_and_owned?limit=200'),
+    'favorites':
+        ('https://' + API_BASE_V2 + '/users/{0}/favorites?limit=200'),
+    'commented':
+        ('https://' + API_BASE_V2 + '/users/{0}/comments'),
+    'tracks':
+        ('https://' + API_BASE_V2 + '/users/{0}/tracks?limit=200'),
+    'all':
+        ('https://' + API_BASE_V2 + '/profile/soundcloud:users:{0}?limit=200'),
+    'playlists':
+        ('https://' + API_BASE_V2 + '/users/{0}/playlists?limit=5'),
+    'resolve':
+        ('https://' + API_BASE_V2 + '/resolve?url={0}'),
+    'trackinfo':
+        ('https://' + API_BASE_V2 + '/tracks/{0}'),
+    'user':
+        ('https://' + API_BASE_V2 + '/users/{0}'),
+    'me':
+        ('https://' + API_BASE_V2 + '/me?oauth_token={0}')
 }
 client = client.Client()
 
@@ -257,10 +262,10 @@ def parse_url(track_url):
     if not item:
         return
     elif item['kind'] == 'track':
-        logger.info('Found a track')
+        logger.info('Found a track {}'.format(track_url))
         download_track(item)
     elif item['kind'] == 'playlist':
-        logger.info('Found a playlist')
+        logger.info('Found a playlist {}'.format(track_url))
         download_playlist(item)
     elif item['kind'] == 'user':
         logger.info('Found a user profile')
