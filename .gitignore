@@ -4,3 +4,6 @@ dist/
 *.egg-info/
 __pycache__/
 *.mp3
+.DS_Store
+.idea
+*.sh
