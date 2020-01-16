@@ -17,7 +17,7 @@ pip3 install scdl
 ```
 or
 ```
-pip install git+https://github.com/flyingrub/scdl
+pip3 install git+https://github.com/flyingrub/scdl
 ```
 or
 
