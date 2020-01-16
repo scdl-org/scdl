@@ -13,6 +13,7 @@ setup(
     author_email='flyinggrub@gmail.com',
     description='Download Music from Souncloud',
     long_description="README on github : https://github.com/flyingrub/scdl",
+    python_requires='>3.4.0',
     install_requires=[
         'docopt',
         'mutagen',
