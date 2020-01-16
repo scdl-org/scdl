@@ -53,6 +53,7 @@ Options:
 
 import codecs
 import configparser
+import json
 import logging
 import math
 import os
@@ -133,7 +134,7 @@ def main():
     get_config()
 
     logger.info('Soundcloud Downloader')
-    logger.debug(arguments)
+    logger.debug("Arguments:\n{}\n".format(arguments))
 
     if arguments['-o'] is not None:
         try:
@@ -228,7 +229,7 @@ def get_item(track_url, client_id=CLIENT_ID):
         item_url = url['resolve'].format(track_url)
 
         r = requests.get(item_url, params={'client_id': client_id})
-        logger.debug(r.url)
+        logger.debug("Get item response [{}] for URL: {}".format(r.status_code, r.url))
         if r.status_code == 403:
             return get_item(track_url, ALT_CLIENT_ID)
 
@@ -258,10 +259,10 @@ def parse_url(track_url):
     """
     global arguments
     item = get_item(track_url)
-    logger.debug(item)
     if not item:
         return
-    elif item['kind'] == 'track':
+    logger.debug("Parsed item: {}".format(track_url))
+    if item['kind'] == 'track':
         logger.info('Found a track {}'.format(track_url))
         download_track(item)
     elif item['kind'] == 'playlist':
@@ -325,9 +326,8 @@ def get_track_info(track_id):
     info_url = url["trackinfo"].format(track_id)
     logger.debug('Retrieving more info on the track @ {}'.format(info_url))
     r = requests.get(info_url, params={'client_id': CLIENT_ID}, stream=True)
-    logger.debug('Get track response status: {}'.format(r.status_code))
     item = r.json()
-    logger.debug(item)
+    logger.debug('Get track response status: [{}] json:\n{}'.format(r.status_code, json.dumps(item, indent=2)))
     return item
 
 
@@ -341,10 +341,10 @@ def download(user, dl_type, name):
         'Retrieving all {0} of user {1}...'.format(name, username)
     )
     dl_url = url[dl_type].format(user_id)
-    logger.debug(dl_url)
+    logger.debug("Download URL: {}".format(dl_url))
     resources = client.get_collection(dl_url, token)
     del resources[:offset - 1]
-    logger.debug(resources)
+    logger.debug("Resources:\n{}".format(json.dump(resources, indent=2)))
     total = len(resources)
     logger.info('Retrieved {0} {1}'.format(total, name))
     for counter, item in enumerate(resources, offset):
@@ -499,10 +499,11 @@ def download_original_file(track, title):
 
         # Call ffmpeg
         commands = ['ffmpeg', '-i', old, new, '-loglevel', 'fatal']
-        logger.debug("Commands: {}".format(commands))
+        logger.debug("Attempting Commands: {}".format(commands))
         subprocess.call(commands)
         os.remove(filename)
         filename = newfilename
+        logger.debug("Executed Commands!")
     return filename
 
 
@@ -512,10 +513,11 @@ def get_track_m3u8(track):
         if transcoding['format']['protocol'] == 'hls' \
                 and transcoding['format']['mime_type'] == 'audio/mpeg':
             url = transcoding['url']
+            logger.debug("Got m3u8 track URL: {}".format(url))
 
     if url is not None:
         r = requests.get(url, params={'client_id': CLIENT_ID})
-        logger.debug(r.url)
+        logger.debug("Successfully retrieved m3u8 URL: {}".format(url))
         return r.json()['url']
 
 
@@ -531,7 +533,10 @@ def download_hls_mp3(track, title):
     url = get_track_m3u8(track)
 
     # Call ffmpeg
-    subprocess.call(['ffmpeg', '-i', url, '-c', 'copy', filename, '-loglevel', 'fatal'])
+    commands = ['ffmpeg', '-i', url, '-c', 'copy', filename, '-loglevel', 'fatal']
+    logger.debug("Attempting commands: {}".format(commands))
+    subprocess.call(commands)
+    logger.debug("Executed commands!")
     return filename
 
 
@@ -676,7 +681,7 @@ def set_metadata(track, filename, album=None):
     Sets the mp3 file metadata using the Python module Mutagen
     """
     global arguments
-    logger.debug('Setting tags... track: {} filename: {}'.format(track, filename))
+    logger.debug('Setting tags for filename: {}\ntrack:\n{}'.format(filename, json.dumps(track, indent=2)))
     artwork_url = track['artwork_url']
     user = track['user']
     if not artwork_url:
