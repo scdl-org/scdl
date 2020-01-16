@@ -18,6 +18,7 @@ setup(
         'mutagen',
         'termcolor',
         'requests',
+        'json',
         'clint'
     ],
     url='https://github.com/flyingrub/scdl',
