@@ -7,8 +7,8 @@ Compatible with Windows, OS X, Linux.
 
 ## System requirements
 
-* Python3
-
+* python3
+* ffmpeg
 
 ## Instructions
 ### Installation
