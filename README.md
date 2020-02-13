@@ -13,7 +13,7 @@ Compatible with Windows, OS X, Linux.
 ## Instructions
 ### Installation
 ```
-pip3 install scdl
+pip3 install scdl # not working right now install via the command below.
 ```
 or
 ```
