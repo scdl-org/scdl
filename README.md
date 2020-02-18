@@ -75,6 +75,8 @@ scdl me -f
     -m                          Download all liked and owned playlists of user
     -c                          Continue if a downloaded file already exists
     -o [offset]                 Begin with a custom offset
+    -n [maxnumber]              Max number of tracks downloaded from playlist
+    --sort-playlist-by [attr]   Sort playlist tracks by attribute (newestCreated, oldestCreated, newestAdded, oldestAdded)
     --addtimestamp              Add track creation timestamp to filename, which allows for chronological sorting
     --addtofile                 Add artist to filename if missing
     --debug                     Set log level to DEBUG
@@ -89,6 +91,7 @@ scdl me -f
     --onlymp3                   Download only the streamable mp3 file, even if track has a Downloadable file
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
+    --write-cover               Download track cover art of tracks as seperate image file
 ```
 
 

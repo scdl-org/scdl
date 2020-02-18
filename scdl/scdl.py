@@ -4,9 +4,9 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>]\
+    scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-o <offset>][-n <number>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
-[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
+[--onlymp3][--sort-playlist-by <attr>][--hide-progress][--min-size <size>][--write-cover][--max-size <size>][--remove]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
@@ -30,6 +30,8 @@ Options:
     -m                          Download all liked and owned playlists of user
     -c                          Continue if a downloaded file already exists
     -o [offset]                 Begin with a custom offset
+    -n [maxnumber]              Max number of tracks downloaded from playlist
+    --sort-playlist-by [attr]   Sort playlist tracks by attribute (date) 
     --addtimestamp              Add track creation timestamp to filename,
                                 which allows for chronological sorting
     --addtofile                 Add artist to filename if missing
@@ -49,6 +51,7 @@ Options:
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
+    --write-cover               Download track cover art of tracks as seperate image file
 """
 
 import logging
@@ -361,6 +364,26 @@ def download(user, dl_type, name):
         total, name, username)
     )
 
+def sort_tracks(tracks):
+	"""
+	Sort tracks by attribute
+	"""
+	global arguments
+	sortBy = arguments['--sort-playlist-by']
+
+	if not sortBy:
+		return tracks
+
+	if sortBy == "oldestCreated" or sortBy == "newestCreated":
+		#Sort by song creation date (position in track is irrelevant)
+		return sorted(tracks, key=lambda track: track['created_at'], reverse= (True if sortBy == "newestCreated" else False) )
+	elif sortBy == "newestAdded":
+		return list(reversed(tracks)) #SCD api returns tracks from added oldest to newest, hence reversed()
+	elif sortBy == "oldestAdded":
+		return tracks
+	else:
+		logger.error("Invalid --sort-playlist-by attribute")
+		return tracks
 
 def download_playlist(playlist):
     """
@@ -381,10 +404,15 @@ def download_playlist(playlist):
         with codecs.open(playlist_name + '.m3u', 'w+', 'utf8') as playlist_file:
             playlist_file.write('#EXTM3U' + os.linesep)
             del playlist['tracks'][:offset - 1]
-            for counter, track_raw in enumerate(playlist['tracks'], offset):
-                logger.debug(track_raw)
-                logger.info('Track n°{0}'.format(counter))
-                download_track(track_raw, playlist['title'], playlist_file)
+            for counter, track_raw in enumerate(sort_tracks(playlist['tracks']), offset):
+                if not arguments['-n'] or counter <= int(arguments['-n']): 
+                        logger.debug(track_raw)
+                        logger.info('Track n°{0}'.format(counter))
+                        download_track(track_raw, playlist['title'], playlist_file)
+                else:
+                    #User set max track download limit reached
+                    logger.info('Reached user-defined max track number limit')
+                    break
     finally:
         if not arguments['--no-playlist-folder']:
             os.chdir('..')
@@ -576,7 +604,6 @@ def download_track(track, playlist_name=None, playlist_file=None):
     record_download_archive(track)
     return filename
 
-
 def can_convert(filename):
     ext = os.path.splitext(filename)[1]
     return 'wav' in ext or 'aif' in ext
@@ -665,6 +692,7 @@ def set_metadata(track, filename, album=None):
         artwork_url = user['avatar_url']
     artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
+
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
