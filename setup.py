@@ -5,6 +5,11 @@ from setuptools import setup, find_packages
 
 import scdl
 
+from os import path
+this_directory = path.abspath(path.dirname(__file__))
+with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+
 setup(
     name='scdl',
     version=scdl.__version__,
@@ -12,7 +17,8 @@ setup(
     author='FlyinGrub',
     author_email='flyinggrub@gmail.com',
     description='Download Music from Souncloud',
-    long_description="README on github : https://github.com/flyingrub/scdl",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     install_requires=[
         'docopt',
         'mutagen',
