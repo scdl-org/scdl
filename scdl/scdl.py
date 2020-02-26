@@ -242,7 +242,7 @@ def get_item(track_url, client_id=CLIENT_ID):
         try:
             return get_item(track_url, ALT_CLIENT_ID)
         except Exception as e:
-            logger.error('Could not resolve url {0}'.format(track_url))
+            logger.error(f'Could not resolve url {track_url}')
             logger.exception(e)
             sys.exit(0)
     return item
@@ -281,7 +281,7 @@ def parse_url(track_url):
         else:
             logger.error('Please provide a download type...')
     else:
-        logger.error('Unknown item type {0}'.format(item['kind']))
+        logger.error(f"Unknown item type {item['kind']}")
 
 
 def who_am_i():
@@ -294,7 +294,7 @@ def who_am_i():
     current_user = r.json()
     logger.debug(me)
 
-    logger.info('Hello {0}!'.format(current_user['username']))
+    logger.info(f"Hello {current_user['username']}!")
     return current_user
 
 
@@ -327,22 +327,18 @@ def download(user, dl_type, name):
     """
     username = user['username']
     user_id = user['id']
-    logger.info(
-        'Retrieving all {0} of user {1}...'.format(name, username)
-    )
+    logger.info(f'Retrieving all {name} of user {username}...')
     dl_url = url[dl_type].format(user_id)
     logger.debug(dl_url)
     resources = client.get_collection(dl_url, token)
     del resources[:offset - 1]
     logger.debug(resources)
     total = len(resources)
-    logger.info('Retrieved {0} {1}'.format(total, name))
+    logger.info(f'Retrieved {total} {name}')
     for counter, item in enumerate(resources, offset):
         try:
             logger.debug(item)
-            logger.info('{0} n°{1} of {2}'.format(
-                name.capitalize(), counter, total)
-            )
+            logger.info(f'{name.capitalize()} n°{counter} of {total}')
             if dl_type == 'all':
                 item_name = item['type'].split('-')[0]  # remove the '-repost'
                 uri = item[item_name]['uri']
@@ -357,9 +353,7 @@ def download(user, dl_type, name):
                 download_track(item)
         except Exception as e:
             logger.exception(e)
-    logger.info('Downloaded all {0} {1} of user {2}!'.format(
-        total, name, username)
-    )
+    logger.info(f'Downloaded all {total} {name} of user {username}!')
 
 
 def download_playlist(playlist):
@@ -383,7 +377,7 @@ def download_playlist(playlist):
             del playlist['tracks'][:offset - 1]
             for counter, track_raw in enumerate(playlist['tracks'], offset):
                 logger.debug(track_raw)
-                logger.info('Track n°{0}'.format(counter))
+                logger.info(f'Track n°{counter}')
                 download_track(track_raw, playlist['title'], playlist_file)
     finally:
         if not arguments['--no-playlist-folder']:
@@ -413,8 +407,8 @@ def get_filename(track, original_filename=None):
 
     if arguments['--addtofile']:
         if username not in title and '-' not in title:
-            title = '{0} - {1}'.format(username, title)
-            logger.debug('Adding "{0}" to filename'.format(username))
+            title = f'{username} - {title}'
+            logger.debug(f'Adding "{username}" to filename')
 
     if arguments['--addtimestamp']:
         # created_at sample: 2019-01-30T11:11:37Z
@@ -453,7 +447,7 @@ def download_original_file(track, title):
     d = r.headers.get('content-disposition')
     filename = re.findall("filename=(.+)", d)[0][1:-1]
     filename = get_filename(track, filename)
-    logger.debug("filename : {0}".format(filename))
+    logger.debug(f"filename : {filename}")
 
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename):
@@ -486,7 +480,7 @@ def download_original_file(track, title):
         old = shlex.quote(filename)
         
         commands = ['ffmpeg', '-i', old, new, '-loglevel', 'fatal']
-        logger.debug("Commands: {}".format(commands))
+        logger.debug(f"Commands: {', '.join(commands)}")
         subprocess.call(commands)
         os.remove(filename)
         filename = newfilename
@@ -509,7 +503,7 @@ def get_track_m3u8(track):
 
 def download_hls_mp3(track, title):
     filename = get_filename(track)
-    logger.debug("filename : {0}".format(filename))
+    logger.debug(f"filename : {filename}")
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename):
         return filename
@@ -522,19 +516,25 @@ def download_hls_mp3(track, title):
     return filename
 
 
-def download_track(track, playlist_name=None, playlist_file=None):
+def download_track(original_track, playlist_name=None, playlist_file=None):
     """
     Downloads a track
     """
     global arguments
-    track = get_track_info(track['id'])
+    track = get_track_info(original_track['id'])
+    
+    # If an empty track returns, log an error and continue 
+    if not track:
+        logger.error(f"{original_track.get('title')} is not available...")
+        return
+    
     title = track['title']
     title = title.encode('utf-8', 'ignore').decode('utf8')
-    logger.info('Downloading {0}'.format(title))
+    logger.info(f'Downloading {title}')
 
     # Not streamable
     if not track['streamable']:
-        logger.error('{0} is not streamable...'.format(title))
+        logger.error(f'{title} is not streamable...')
         return
 
     # Downloadable track
@@ -548,11 +548,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     # Add the track to the generated m3u playlist file
     if playlist_file:
         duration = math.floor(track['duration'] / 1000)
-        playlist_file.write(
-            '#EXTINF:{0},{1}{3}{2}{3}'.format(
-                duration, title, filename, os.linesep
-            )
-        )
+        playlist_file.write(f'#EXTINF:{duration},{title}{os.linesep}{filename}{os.linesep}')
 
     if arguments['--remove']:
         fileToKeep.append(filename)
@@ -572,7 +568,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     filetime = int(time.mktime(timestamp.timetuple()))
     try_utime(filename, filetime)
 
-    logger.info('{0} Downloaded.\n'.format(filename))
+    logger.info(f'{filename} Downloaded.\n')
     record_download_archive(track)
     return filename
 
@@ -602,10 +598,10 @@ def already_downloaded(track, title, filename):
 
     if already_downloaded:
         if arguments['-c'] or arguments['--remove']:
-            logger.info('Track "{0}" already downloaded.'.format(title))
+            logger.info(f'Track "{title}" already downloaded.')
             return True
         else:
-            logger.error('Track "{0}" already exists!'.format(title))
+            logger.error(f'Track "{title}" already exists!')
             logger.error('Exiting... (run again with -c to continue)')
             sys.exit(0)
     return False
@@ -622,12 +618,12 @@ def in_download_archive(track):
     archive_filename = arguments.get('--download-archive')
     try:
         with open(archive_filename, 'a+', encoding='utf-8') as file:
-            logger.debug('Contents of {0}:'.format(archive_filename))
+            logger.debug(f'Contents of {archive_filename}:')
             file.seek(0)
-            track_id = '{0}'.format(track['id'])
+
             for line in file:
-                logger.debug('"' + line.strip() + '"')
-                if line.strip() == track_id:
+                logger.debug(f"{line.strip()}")
+                if line.strip() == f"{track['id']}":
                     return True
     except IOError as ioe:
         logger.error('Error trying to read download archive...')
@@ -647,7 +643,7 @@ def record_download_archive(track):
     archive_filename = arguments.get('--download-archive')
     try:
         with open(archive_filename, 'a', encoding='utf-8') as file:
-            file.write('{0}'.format(track['id']) + '\n')
+            file.write(f"{track['id']}\n")
     except IOError as ioe:
         logger.error('Error trying to write to download archive...')
         logger.debug(ioe)
@@ -671,8 +667,8 @@ def set_metadata(track, filename, album=None):
 
         track_created = track['created_at']
         track_date = datetime.strptime(track_created, "%Y-%m-%dT%H:%M:%SZ")
-        debug_extract_dates = '{0} {1}'.format(track_created, track_date)
-        logger.debug('Extracting date: {0}'.format(debug_extract_dates))
+        debug_extract_dates = f'{track_created} {track_date}'
+        logger.debug(f'Extracting date: {debug_extract_dates}')
         track['date'] = track_date.strftime("%Y-%m-%d %H::%M::%S")
 
         track['artist'] = user['username']

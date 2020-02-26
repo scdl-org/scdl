@@ -4,3 +4,4 @@ dist/
 *.egg-info/
 __pycache__/
 *.mp3
+.python-version
