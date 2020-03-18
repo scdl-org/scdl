@@ -91,19 +91,19 @@ offset = 1
 url = {
     'playlists-liked': ('https://api-v2.soundcloud.com/users/{0}/playlists'
                         '/liked_and_owned?limit=200'),
-    'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
+    'favorites': ('https://api-v2.soundcloud.com/users/{0}/favorites?'
                   'limit=200'),
-    'commented': ('https://api.soundcloud.com/users/{0}/comments'),
-    'tracks': ('https://api.soundcloud.com/users/{0}/tracks?'
+    'commented': ('https://api-v2.soundcloud.com/users/{0}/comments'),
+    'tracks': ('https://api-v2.soundcloud.com/users/{0}/tracks?'
                'limit=200'),
     'all': ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0}?'
             'limit=200'),
-    'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
+    'playlists': ('https://api-v2.soundcloud.com/users/{0}/playlists?'
                   'limit=5'),
-    'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
+    'resolve': ('https://api-v2.soundcloud.com/resolve?url={0}'),
     'trackinfo': ('https://api-v2.soundcloud.com/tracks/{0}'),
-    'user': ('https://api.soundcloud.com/users/{0}'),
-    'me': ('https://api.soundcloud.com/me?oauth_token={0}')
+    'user': ('https://api-v2.soundcloud.com/users/{0}'),
+    'me': ('https://api-v2.soundcloud.com/me?oauth_token={0}')
 }
 client = client.Client()
 
@@ -449,7 +449,7 @@ def download_original_file(track, title):
     if r.status_code == 401:
         logger.info('The original file has no download left.')
         return None
-    
+
     if r.status_code == 404:
         logger.info('Could not get name from stream - using basic name')
         return None
@@ -489,7 +489,7 @@ def download_original_file(track, title):
         newfilename = filename[:-4] + ".flac"
         new = shlex.quote(newfilename)
         old = shlex.quote(filename)
-        
+
         commands = ['ffmpeg', '-i', old, new, '-loglevel', 'fatal']
         logger.debug("Commands: {}".format(commands))
         subprocess.call(commands)
