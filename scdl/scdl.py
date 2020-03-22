@@ -25,7 +25,7 @@ Options:
     -s                          Download the stream of a user (token needed)
     -a                          Download all tracks of user (including reposts)
     -t                          Download all uploads of a user (no reposts)
-    -f                          Download all favorites of a user
+    -f                          Download all track_likes of a user
     -C                          Download all commented by a user
     -p                          Download all playlists of a user
     -m                          Download all liked and owned playlists of user
@@ -91,7 +91,7 @@ offset = 1
 url = {
     'playlists-liked': ('https://api-v2.soundcloud.com/users/{0}/playlists'
                         '/liked_and_owned?limit=200'),
-    'favorites': ('https://api-v2.soundcloud.com/users/{0}/favorites?'
+    'track_likes': ('https://api-v2.soundcloud.com/users/{0}/track_likes?'
                   'limit=200'),
     'commented': ('https://api-v2.soundcloud.com/users/{0}/comments'),
     'tracks': ('https://api-v2.soundcloud.com/users/{0}/tracks?'
@@ -181,7 +181,7 @@ def main():
         parse_url(arguments['-l'])
     elif arguments['me']:
         if arguments['-f']:
-            download(who_am_i(), 'favorites', 'likes')
+            download(who_am_i(), 'track_likes', 'likes')
         if arguments['-C']:
             download(who_am_i(), 'commented', 'commented tracks')
         elif arguments['-t']:
@@ -268,7 +268,7 @@ def parse_url(track_url):
     elif item['kind'] == 'user':
         logger.info('Found a user profile')
         if arguments['-f']:
-            download(item, 'favorites', 'likes')
+            download(item, 'track_likes', 'likes')
         elif arguments['-C']:
             download(item, 'commented', 'commented tracks')
         elif arguments['-t']:
