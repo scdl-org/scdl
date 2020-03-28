@@ -21,6 +21,12 @@ pip3 install git+https://github.com/flyingrub/scdl
 ```
 or
 
+### Arch Linux
+
+```
+yay -S soundcloud-dl-git
+```
+
 ### Gentoo
 
 ```
