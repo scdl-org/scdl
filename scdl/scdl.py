@@ -311,10 +311,13 @@ def remove_files():
             os.remove(f)
 
 
-def get_track_info(track_id):
+def get_track_info(track):
     """
     Fetches track info from Soundcloud, given a track_id
     """
+    if 'media' in track:
+        return track
+
     logger.info('Retrieving more info on the track')
     info_url = url["trackinfo"].format(track_id)
     r = requests.get(info_url, params={'client_id': CLIENT_ID}, stream=True)
@@ -534,7 +537,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
     Downloads a track
     """
     global arguments
-    track = get_track_info(track['id'])
+    track = get_track_info(track)
     title = track['title']
     title = title.encode('utf-8', 'ignore').decode('utf8')
     logger.info('Downloading {0}'.format(title))
