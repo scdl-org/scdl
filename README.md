@@ -10,36 +10,10 @@ Compatible with Windows, OS X, Linux.
 * python3
 * ffmpeg
 
-## Instructions
-### Installation
-```
-pip3 install scdl # not working right now install via the command below.
-```
-or
-```
-pip3 install git+https://github.com/flyingrub/scdl
-```
-or
+## Installation Instructions
+https://github.com/flyingrub/scdl/wiki/Installation-Instruction
 
-### Gentoo
-
-```
-layman -fa glicOne
-sudo emerge -av net-misc/scdl
-```
-
-(Optional) Setup your path and your auth_token in `$HOME/.config/scdl/scdl.cfg`
-
-
-### Authentication
-> Soundcloud has banned all our client_id so we cannot use authentication for now.
-
-* This allows scdl to access to your user profile data.
-* You need to have this set to be able to use the `me` option
-
-
-## Help
-### Examples:
+## Examples:
 ```
 # Download track & repost of the user QUANTA
 scdl -l https://soundcloud.com/quanta-uk -a
@@ -60,7 +34,7 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --download-archive ar
 scdl me -f
 ```
 
-### Options:
+## Options:
 ```
     -h --help                   Show this screen
     --version                   Show version
