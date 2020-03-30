@@ -91,19 +91,20 @@ offset = 1
 url = {
     'playlists-liked': ('https://api-v2.soundcloud.com/users/{0}/playlists'
                         '/liked_and_owned?limit=200'),
-    'favorites': ('https://api.soundcloud.com/users/{0}/favorites?'
+    'favorites': ('https://api-v2.soundcloud.com/users/{0}/track_likes?'
                   'limit=200'),
-    'commented': ('https://api.soundcloud.com/users/{0}/comments'),
-    'tracks': ('https://api.soundcloud.com/users/{0}/tracks?'
+    'commented': ('https://api-v2.soundcloud.com/users/{0}/comments'),
+    'tracks': ('https://api-v2.soundcloud.com/users/{0}/tracks?'
                'limit=200'),
     'all': ('https://api-v2.soundcloud.com/profile/soundcloud:users:{0}?'
             'limit=200'),
-    'playlists': ('https://api.soundcloud.com/users/{0}/playlists?'
+    'playlists': ('https://api-v2.soundcloud.com/users/{0}/playlists?'
                   'limit=5'),
-    'resolve': ('https://api.soundcloud.com/resolve?url={0}'),
+    'resolve': ('https://api-v2.soundcloud.com/resolve?url={0}'),
     'trackinfo': ('https://api-v2.soundcloud.com/tracks/{0}'),
-    'user': ('https://api.soundcloud.com/users/{0}'),
-    'me': ('https://api.soundcloud.com/me?oauth_token={0}')
+    'original_download' : ("https://api-v2.soundcloud.com/tracks/{0}/download"),
+    'user': ('https://api-v2.soundcloud.com/users/{0}'),
+    'me': ('https://api-v2.soundcloud.com/me?oauth_token={0}')
 }
 client = client.Client()
 
@@ -352,10 +353,10 @@ def download(user, dl_type, name):
                 download_playlist(item)
             elif dl_type == 'playlists-liked':
                 parse_url(item['playlist']['uri'])
-            elif dl_type == 'commented':
+            elif dl_type == 'tracks':
                 download_track(item)
             else:
-                download_track(item)
+                download_track(item['track'])
         except Exception as e:
             logger.exception(e)
     logger.info('Downloaded all {0} {1} of user {2}!'.format(
@@ -440,12 +441,13 @@ def get_filename(track, original_filename=None):
 
 def download_original_file(track, title):
     logger.info('Downloading the original file.')
-    original_url = track['download_url']
+    original_url = url['original_download'].format(track['id'])
 
     # Get the requests stream
     r = requests.get(
         original_url, params={'client_id': CLIENT_ID}, stream=True
     )
+    r = requests.get(r.json()['redirectUri'])
     if r.status_code == 401:
         logger.info('The original file has no download left.')
         return None
@@ -544,7 +546,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     # Downloadable track
     filename = None
-    if track['downloadable'] and not arguments['--onlymp3']:
+    if track['downloadable'] and track['has_downloads_left'] and not arguments['--onlymp3']:
         filename = download_original_file(track, title)
 
     if filename is None:
