@@ -204,7 +204,16 @@ def get_config():
     """
     global token
     config = configparser.ConfigParser()
-    config.read(os.path.join(os.path.expanduser('~'), '.config/scdl/scdl.cfg'), "utf8")
+
+    if 'XDG_CONFIG_HOME' in os.environ:
+        config_file = os.path.join(
+            os.environ['XDG_CONFIG_HOME'], 'scdl', 'scdl.cfg',
+        )
+    else:
+        config_file = os.path.join(
+            os.path.expanduser('~'), '.config', 'scdl', 'scdl.cfg',
+        )
+    config.read(config_file, 'utf8')
     try:
         token = config['scdl']['auth_token']
         path = config['scdl']['path']
@@ -454,7 +463,7 @@ def download_original_file(track, title):
     if r.status_code == 401:
         logger.info('The original file has no download left.')
         return None
-    
+
     if r.status_code == 404:
         logger.info('Could not get name from stream - using basic name')
         return None
@@ -494,7 +503,7 @@ def download_original_file(track, title):
         newfilename = filename[:-4] + ".flac"
         new = shlex.quote(newfilename)
         old = shlex.quote(filename)
-        
+
         commands = ['ffmpeg', '-i', old, new, '-loglevel', 'fatal']
         logger.debug("Commands: {}".format(commands))
         subprocess.call(commands)
