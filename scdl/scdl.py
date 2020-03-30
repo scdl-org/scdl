@@ -319,7 +319,7 @@ def get_track_info(track):
         return track
 
     logger.info('Retrieving more info on the track')
-    info_url = url["trackinfo"].format(track_id)
+    info_url = url["trackinfo"].format(track['id'])
     r = requests.get(info_url, params={'client_id': CLIENT_ID}, stream=True)
     item = r.json()
     logger.debug(item)
