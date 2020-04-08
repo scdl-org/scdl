@@ -457,9 +457,9 @@ def download_original_file(track, title):
 
     # Get the requests stream
     r = requests.get(
-        original_url, params={'client_id': CLIENT_ID}, stream=True
+        original_url, params={'client_id': CLIENT_ID}
     )
-    r = requests.get(r.json()['redirectUri'])
+    r = requests.get(r.json()['redirectUri'], stream=True)
     if r.status_code == 401:
         logger.info('The original file has no download left.')
         return None
@@ -470,7 +470,7 @@ def download_original_file(track, title):
 
     # Find filename
     d = r.headers.get('content-disposition')
-    filename = re.findall("filename=(.+)", d)[0][1:-1]
+    filename = re.findall("filename=(.+)", d)[0]
     filename = get_filename(track, filename)
     logger.debug("filename : {0}".format(filename))
 
