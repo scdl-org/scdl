@@ -402,7 +402,7 @@ def download_playlist(playlist):
             for counter, track_raw in enumerate(playlist['tracks'], offset):
                 logger.debug(track_raw)
                 logger.info('Track n°{0}'.format(counter))
-                download_track(track_raw, playlist['title'], playlist_file)
+                download_track(track_raw, playlist['title'], playlist_file, counter)
     finally:
         if not arguments['--no-playlist-folder']:
             os.chdir('..')
@@ -541,7 +541,7 @@ def download_hls_mp3(track, title):
     return filename
 
 
-def download_track(track, playlist_name=None, playlist_file=None):
+def download_track(track, playlist_name=None, playlist_file=None, tracknumber=None):
     """
     Downloads a track
     """
@@ -578,7 +578,7 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     if filename.endswith('.mp3') or filename.endswith('.flac'):
         try:
-            set_metadata(track, filename, playlist_name)
+            set_metadata(track, filename, playlist_name, tracknumber)
         except Exception as e:
             logger.error('Error trying to set the tags...')
             logger.debug(e)
@@ -672,7 +672,7 @@ def record_download_archive(track):
         logger.debug(ioe)
 
 
-def set_metadata(track, filename, album=None):
+def set_metadata(track, filename, album=None, tracknumber=None ):
     """
     Sets the mp3 file metadata using the Python module Mutagen
     """
@@ -707,6 +707,7 @@ def set_metadata(track, filename, album=None):
         audio['title'] = track['title']
         audio['artist'] = track['artist']
         if album: audio['album'] = album
+        if tracknumber: audio['tracknumber'] = str(tracknumber)
         if track['genre']: audio['genre'] = track['genre']
         if track['permalink_url']: audio['website'] = track['permalink_url']
         if track['date']: audio['date'] = track['date']
