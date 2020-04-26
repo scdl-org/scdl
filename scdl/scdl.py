@@ -402,7 +402,8 @@ def download_playlist(playlist):
             for counter, track_raw in enumerate(playlist['tracks'], offset):
                 logger.debug(track_raw)
                 logger.info('Track n°{0}'.format(counter))
-                download_track(track_raw, playlist['title'], playlist_file, counter)
+                playlist_info = {'title': playlist['title'], 'file': playlist_file, 'tracknumber': counter}
+                download_track(track_raw, playlist_info)
     finally:
         if not arguments['--no-playlist-folder']:
             os.chdir('..')
@@ -541,7 +542,7 @@ def download_hls_mp3(track, title):
     return filename
 
 
-def download_track(track, playlist_name=None, playlist_file=None, tracknumber=None):
+def download_track(track, playlist_info=None):
     """
     Downloads a track
     """
@@ -565,9 +566,9 @@ def download_track(track, playlist_name=None, playlist_file=None, tracknumber=No
         filename = download_hls_mp3(track, title)
 
     # Add the track to the generated m3u playlist file
-    if playlist_file:
+    if playlist_info:
         duration = math.floor(track['duration'] / 1000)
-        playlist_file.write(
+        playlist_info['file'].write(
             '#EXTINF:{0},{1}{3}{2}{3}'.format(
                 duration, title, filename, os.linesep
             )
@@ -578,7 +579,7 @@ def download_track(track, playlist_name=None, playlist_file=None, tracknumber=No
 
     if filename.endswith('.mp3') or filename.endswith('.flac'):
         try:
-            set_metadata(track, filename, playlist_name, tracknumber)
+            set_metadata(track, filename, playlist_info)
         except Exception as e:
             logger.error('Error trying to set the tags...')
             logger.debug(e)
@@ -672,7 +673,7 @@ def record_download_archive(track):
         logger.debug(ioe)
 
 
-def set_metadata(track, filename, album=None, tracknumber=None ):
+def set_metadata(track, filename, playlist_info=None):
     """
     Sets the mp3 file metadata using the Python module Mutagen
     """
@@ -706,11 +707,13 @@ def set_metadata(track, filename, album=None, tracknumber=None ):
         audio = mutagen.File(filename, easy=True)
         audio['title'] = track['title']
         audio['artist'] = track['artist']
-        if album: audio['album'] = album
-        if tracknumber: audio['tracknumber'] = str(tracknumber)
         if track['genre']: audio['genre'] = track['genre']
         if track['permalink_url']: audio['website'] = track['permalink_url']
         if track['date']: audio['date'] = track['date']
+        if playlist_info:
+            audio['album'] = playlist_info['title']
+            audio['tracknumber'] = str(playlist_info['tracknumber'])
+
         audio.save()
 
         a = mutagen.File(filename)
