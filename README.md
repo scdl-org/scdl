@@ -18,6 +18,7 @@ https://github.com/flyingrub/scdl/wiki/Installation-Instruction
 * Artwork URL Meta-data
 * Track Number Meta-data
 * Album Artist Meta-data
+* Download's Original Artowork Size
 
 ## Examples:
 ```
