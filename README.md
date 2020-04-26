@@ -15,7 +15,7 @@ https://github.com/flyingrub/scdl/wiki/Installation-Instruction
 
 ## My additions
 * Disc Number Meta-data
-* Artwork Meta-data
+* Artwork URL Meta-data
 * Track Number Meta-data
 * Album Artist Meta-data
 
