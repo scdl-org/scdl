@@ -557,6 +557,11 @@ def download_track(track, playlist_info=None):
         logger.error('{0} is not streamable...'.format(title))
         return
 
+    # Geoblocked track
+    if track['policy'] == 'BLOCK':
+        logger.error('{0} is not available in your location...\n'.format(title))
+        return
+
     # Downloadable track
     filename = None
     if track['downloadable'] and track['has_downloads_left'] and not arguments['--onlymp3']:
