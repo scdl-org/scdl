@@ -6,7 +6,7 @@
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-n <maxtracks>][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
-[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
+[--onlymp3][--hide-progress][--min-size <size>][--write-cover][--max-size <size>][--remove]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
     scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
 [--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
@@ -50,6 +50,7 @@ Options:
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
+    --write-cover               Download track cover art of tracks as seperate image file
 """
 
 import logging
@@ -601,7 +602,6 @@ def download_track(track, playlist_info=None):
     record_download_archive(track)
     return filename
 
-
 def can_convert(filename):
     ext = os.path.splitext(filename)[1]
     return 'wav' in ext or 'aif' in ext
@@ -690,6 +690,19 @@ def set_metadata(track, filename, playlist_info=None):
         artwork_url = user['avatar_url']
     artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
+
+    #Write artwork cover to seperate file
+    if artwork_url and arguments['--write-cover']:  
+        invalid_chars = '\/:*?|<>"'
+        title = track['title']
+        title = title.encode('utf-8', 'ignore').decode('utf8')
+        title = ''.join(c for c in title if c not in invalid_chars)
+        
+        logger.info('Downloading track art...')
+        with open(title + '.jpg', 'wb') as img_file:
+            response.raw.decode_content = True
+            shutil.copyfileobj(response.raw, img_file)
+
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
