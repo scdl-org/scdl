@@ -140,7 +140,7 @@ def main():
                 raise
         except:
             logger.error('Offset should be a positive integer...')
-            sys.exit()
+            sys.exit(-1)
         logger.debug('offset: %d', offset)
 
     if arguments['--min-size'] is not None:
@@ -152,7 +152,7 @@ def main():
             logger.exception(
                 'Min size should be an integer with a possible unit suffix'
             )
-            sys.exit()
+            sys.exit(-1)
         logger.debug('min-size: %d', arguments['--min-size'])
 
     if arguments['--max-size'] is not None:
@@ -164,7 +164,7 @@ def main():
             logger.error(
                 'Max size should be an integer with a possible unit suffix'
             )
-            sys.exit()
+            sys.exit(-1)
         logger.debug('max-size: %d', arguments['--max-size'])
 
     if arguments['--hidewarnings']:
@@ -175,7 +175,7 @@ def main():
             os.chdir(arguments['--path'])
         else:
             logger.error('Invalid path in arguments...')
-            sys.exit()
+            sys.exit(-1)
     logger.debug('Downloading to ' + os.getcwd() + '...')
 
     if arguments['-l']:
@@ -220,12 +220,12 @@ def get_config():
     except:
         logger.error('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?')
         logger.error('Are both "auth_token" and "path" defined there?')
-        sys.exit()
+        sys.exit(-1)
     if os.path.exists(path):
         os.chdir(path)
     else:
         logger.error('Invalid path in scdl.cfg...')
-        sys.exit()
+        sys.exit(-1)
 
 
 def get_item(track_url, client_id=CLIENT_ID):
@@ -255,7 +255,7 @@ def get_item(track_url, client_id=CLIENT_ID):
         except Exception as e:
             logger.error('Could not resolve url {0}'.format(track_url))
             logger.exception(e)
-            sys.exit(0)
+            sys.exit(-1)
     return item
 
 
@@ -422,7 +422,7 @@ def try_utime(path, filetime):
     try:
         os.utime(path, (time.time(), filetime))
     except:
-        logger.warn("Cannot update utime of file")
+        logger.error("Cannot update utime of file")
 
 
 def get_filename(track, original_filename=None):
@@ -463,11 +463,11 @@ def download_original_file(track, title):
     r = requests.get(r.json()['redirectUri'], stream=True)
     if r.status_code == 401:
         logger.info('The original file has no download left.')
-        return None
+        return (None, False)
 
     if r.status_code == 404:
         logger.info('Could not get name from stream - using basic name')
-        return None
+        return (None, False)
 
     # Find filename
     d = r.headers.get('content-disposition')
@@ -477,7 +477,7 @@ def download_original_file(track, title):
 
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename):
-        return filename
+        return (filename, True)
 
     # Write file
     total_length = int(r.headers.get('content-length'))
@@ -496,22 +496,20 @@ def download_original_file(track, title):
 
     if received != total_length:
         logger.error('connection closed prematurely, download incomplete')
-        sys.exit()
+        sys.exit(-1)
 
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
     if arguments['--flac'] and can_convert(filename):
         logger.info('Converting to .flac...')
         newfilename = filename[:-4] + ".flac"
-        new = shlex.quote(newfilename)
-        old = shlex.quote(filename)
 
-        commands = ['ffmpeg', '-i', old, new, '-loglevel', 'fatal']
+        commands = ['ffmpeg', '-i', filename, newfilename, '-loglevel', 'error']
         logger.debug("Commands: {}".format(commands))
         subprocess.call(commands)
         os.remove(filename)
         filename = newfilename
 
-    return filename
+    return (filename, False)
 
 
 def get_track_m3u8(track):
@@ -532,14 +530,14 @@ def download_hls_mp3(track, title):
     logger.debug("filename : {0}".format(filename))
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename):
-        return filename
+        return (filename, True)
 
     # Get the requests stream
     url = get_track_m3u8(track)
     filename_path = os.path.abspath(filename)
 
     subprocess.call(['ffmpeg', '-i', url, '-c', 'copy', filename_path, '-loglevel', 'fatal'])
-    return filename
+    return (filename, False)
 
 
 def download_track(track, playlist_info=None):
@@ -564,11 +562,12 @@ def download_track(track, playlist_info=None):
 
     # Downloadable track
     filename = None
+    is_already_downloaded = False
     if track['downloadable'] and track['has_downloads_left'] and not arguments['--onlymp3']:
-        filename = download_original_file(track, title)
+        filename, is_already_downloaded = download_original_file(track, title)
 
     if filename is None:
-        filename = download_hls_mp3(track, title)
+        filename, is_already_downloaded = download_hls_mp3(track, title)
 
     # Add the track to the generated m3u playlist file
     if playlist_info:
@@ -582,11 +581,20 @@ def download_track(track, playlist_info=None):
     if arguments['--remove']:
         fileToKeep.append(filename)
 
+    record_download_archive(track)
+
     # Skip if file ID or filename already exists
-    if already_downloaded(track, title, filename):
+    if is_already_downloaded:
         logger.info('Track "{0}" already downloaded.'.format(title))
         return
 
+    # If file does not exist an error occured
+    if not os.path.isfile(filename):
+        logger.error('An error occured downloading {0}.\n'.format(filename))
+        logger.error('Exiting...')
+        sys.exit(-1)
+
+    # Try to set the metadata
     if filename.endswith('.mp3') or filename.endswith('.flac'):
         try:
             set_metadata(track, filename, playlist_info)
@@ -603,7 +611,6 @@ def download_track(track, playlist_info=None):
     try_utime(filename, filetime)
 
     logger.info('{0} Downloaded.\n'.format(filename))
-    record_download_archive(track)
 
 
 def can_convert(filename):
@@ -635,7 +642,7 @@ def already_downloaded(track, title, filename):
         else:
             logger.error('Track "{0}" already exists!'.format(title))
             logger.error('Exiting... (run again with -c to continue)')
-            sys.exit(0)
+            sys.exit(-1)
     return False
 
 
@@ -650,11 +657,9 @@ def in_download_archive(track):
     archive_filename = arguments.get('--download-archive')
     try:
         with open(archive_filename, 'a+', encoding='utf-8') as file:
-            logger.debug('Contents of {0}:'.format(archive_filename))
             file.seek(0)
             track_id = '{0}'.format(track['id'])
             for line in file:
-                logger.debug('"' + line.strip() + '"')
                 if line.strip() == track_id:
                     return True
     except IOError as ioe:
