@@ -576,6 +576,11 @@ def download_track(track, playlist_name=None, playlist_file=None):
     if arguments['--remove']:
         fileToKeep.append(filename)
 
+    # Skip if file ID or filename already exists
+    if already_downloaded(track, title, filename):
+        logger.info('Track "{0}" already downloaded.'.format(title))
+        return
+
     if filename.endswith('.mp3') or filename.endswith('.flac'):
         try:
             set_metadata(track, filename, playlist_name)
@@ -593,7 +598,6 @@ def download_track(track, playlist_name=None, playlist_file=None):
 
     logger.info('{0} Downloaded.\n'.format(filename))
     record_download_archive(track)
-    return filename
 
 
 def can_convert(filename):
@@ -621,7 +625,6 @@ def already_downloaded(track, title, filename):
 
     if already_downloaded:
         if arguments['-c'] or arguments['--remove']:
-            logger.info('Track "{0}" already downloaded.'.format(title))
             return True
         else:
             logger.error('Track "{0}" already exists!'.format(title))
