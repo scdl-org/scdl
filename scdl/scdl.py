@@ -6,12 +6,12 @@
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
-[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
+[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
     scdl me (-s | -a | -f | -t | -p | -m)[-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag]
     scdl -h | --help
     scdl --version
 
@@ -30,6 +30,7 @@ Options:
     -p                          Download all playlists of a user
     -m                          Download all liked and owned playlists of user
     -c                          Continue if a downloaded file already exists
+    --force-metadata            This will set metadata on already downloaded track
     -o [offset]                 Begin with a custom offset
     --addtimestamp              Add track creation timestamp to filename,
                                 which allows for chronological sorting
@@ -50,6 +51,7 @@ Options:
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
+    --no-album-tag              On some player track get the same cover art if from the same album, this prevent it
 """
 
 import logging
@@ -726,7 +728,8 @@ def set_metadata(track, filename, playlist_info=None):
         if track['permalink_url']: audio['website'] = track['permalink_url']
         if track['date']: audio['date'] = track['date']
         if playlist_info:
-            audio['album'] = playlist_info['title']
+            if not arguments['--no-album-tag']:
+                audio['album'] = playlist_info['title']
             audio['tracknumber'] = str(playlist_info['tracknumber'])
 
         audio.save()
