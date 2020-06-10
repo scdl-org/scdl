@@ -4,12 +4,12 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-n <maxtracks>][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
+    scdl -l <track_url> [-a | -f | -C | -t | -p][-c | --force-metadata][-n <maxtracks>]\
+[-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
-    scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
+    scdl me (-s | -a | -f | -t | -p | -m)[-c | --force-metadata][-n <maxtracks>]\
+[-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
     scdl -h | --help
@@ -477,6 +477,8 @@ def download_original_file(track, title):
 
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename):
+        if arguments['--flac'] and can_convert(filename):
+            filename = filename[:-4] + ".flac"
         return (filename, True)
 
     # Write file
@@ -584,7 +586,7 @@ def download_track(track, playlist_info=None):
     record_download_archive(track)
 
     # Skip if file ID or filename already exists
-    if is_already_downloaded:
+    if is_already_downloaded and not arguments['--force-metadata']:
         logger.info('Track "{0}" already downloaded.'.format(title))
         return
 
@@ -637,7 +639,7 @@ def already_downloaded(track, title, filename):
         already_downloaded = False
 
     if already_downloaded:
-        if arguments['-c'] or arguments['--remove']:
+        if arguments['-c'] or arguments['--remove'] or arguments['--force-metadata']:
             return True
         else:
             logger.error('Track "{0}" already exists!'.format(title))
