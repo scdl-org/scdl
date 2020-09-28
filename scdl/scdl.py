@@ -67,6 +67,7 @@ import re
 import tempfile
 import codecs
 import shlex
+import shutil
 
 import configparser
 import mutagen
@@ -341,6 +342,10 @@ def download(user, dl_type, name):
     """
     Download user items of dl_type (ie. all, playlists, liked, commented, etc.)
     """
+    if not is_ffmpeg_available():
+        logger.error('ffmpeg is not available and download cannot continue. Please install ffmpeg and re-run the program.')
+        return
+    
     username = user['username']
     user_id = user['id']
     logger.info(
@@ -765,6 +770,11 @@ def signal_handler(signal, frame):
     logger.info('\nGood bye!')
     sys.exit(0)
 
+def is_ffmpeg_available():
+    """
+    Returns true if ffmpeg is available in the operating system
+    """
+    return shutil.which('ffmpeg') is not None
 
 if __name__ == '__main__':
     main()
