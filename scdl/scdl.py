@@ -433,7 +433,7 @@ def get_filename(track, original_filename=None):
     title = track['title'].encode('utf-8', 'ignore').decode('utf8')
 
     if arguments['--addtofile']:
-        if username not in title and '-' not in title:
+        #if username not in title and '-' not in title:
             title = '{0} - {1}'.format(username, title)
             logger.debug('Adding "{0}" to filename'.format(username))
 
@@ -724,17 +724,30 @@ def set_metadata(track, filename, playlist_info=None):
         audio = mutagen.File(filename, easy=True)
         audio['title'] = track['title']
         audio['artist'] = track['artist']
+        audio['discnumber'] = ["1" "/" "1"]
         if track['genre']: audio['genre'] = track['genre']
+        if not track['genre']: audio['genre'] = track['tag_list']
         if track['permalink_url']: audio['website'] = track['permalink_url']
         if track['date']: audio['date'] = track['date']
+        if user['avatar_url']: audio['copyright'] = user['avatar_url']
+        if track['artwork_url']: audio['copyright'] = track['artwork_url']
         if playlist_info:
             if not arguments['--no-album-tag']:
                 audio['album'] = playlist_info['title']
             audio['tracknumber'] = str(playlist_info['tracknumber'])
 
+
         audio.save()
 
         a = mutagen.File(filename)
+        
+        if a.__class__ == mutagen.flac.FLAC:
+                a['publisher'] = track['permalink_url']
+                #a['discnumber'] = ["1" "/" "1"]
+        elif a.__class__ == mutagen.mp3.MP3:
+                a['TPUB'] = mutagen.id3.TPUB(
+                encoding=3, lang=u'ENG', text=track['permalink_url']
+                )
         if track['description']:
             if a.__class__ == mutagen.flac.FLAC:
                 a['description'] = track['description']
@@ -748,13 +761,28 @@ def set_metadata(track, filename, playlist_info=None):
                 p.data = out_file.read()
                 p.width = 500
                 p.height = 500
+                p.desc = track['artwork_url']
                 p.type = mutagen.id3.PictureType.COVER_FRONT
                 a.add_picture(p)
             elif a.__class__ == mutagen.mp3.MP3:
                 a['APIC'] = mutagen.id3.APIC(
                     encoding=3, mime='image/jpeg', type=3,
-                    desc='Cover', data=out_file.read()
+                    desc=track['artwork_url'],  data=out_file.read()
                 )
+        #if user['avatar_url']:
+           # if a.__class__ == mutagen.flac.FLAC:
+            #    p = mutagen.flac.Picture()
+            #    p.data = out_file.read()
+            #    p.width = 500
+            #    p.height = 500
+            #    p.desc = user['avatar_url']
+            #    p.type = mutagen.id3.PictureType.COVER_FRONT
+            #    a.add_picture(p)
+            #elif a.__class__ == mutagen.mp3.MP3:
+            #    a['APIC'] = mutagen.id3.APIC(
+            #        encoding=3, mime='image/jpeg', type=3,
+            #        desc=user['avatar_url'],  data=out_file.read()
+            #    )
         a.save()
 
 
