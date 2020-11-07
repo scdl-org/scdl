@@ -79,9 +79,6 @@ from scdl import client, utils
 from datetime import datetime
 import subprocess
 
-import warnings 
-warnings.filterwarnings(action= 'ignore')
-
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logging.getLogger('requests').setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
