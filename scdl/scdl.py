@@ -724,6 +724,7 @@ def set_metadata(track, filename, playlist_info=None):
         audio = mutagen.File(filename, easy=True)
         audio['title'] = track['title']
         audio['artist'] = track['artist']
+        audio['albumartist'] = track['artist']
         audio['discnumber'] = ["1" "/" "1"]
         if track['genre']: audio['genre'] = track['genre']
         if not track['genre']: audio['genre'] = track['tag_list']
