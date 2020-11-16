@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 
 """scdl allows you to download music from Soundcloud
+
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
@@ -13,6 +14,8 @@ Usage:
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag]
     scdl -h | --help
     scdl --version
+
+
 Options:
     -h --help                   Show this screen
     --version                   Show version
@@ -64,6 +67,7 @@ import re
 import tempfile
 import codecs
 import shlex
+import shutil
 
 import configparser
 import mutagen
@@ -338,6 +342,10 @@ def download(user, dl_type, name):
     """
     Download user items of dl_type (ie. all, playlists, liked, commented, etc.)
     """
+    if not is_ffmpeg_available():
+        logger.error('ffmpeg is not available and download cannot continue. Please install ffmpeg and re-run the program.')
+        return
+    
     username = user['username']
     user_id = user['id']
     logger.info(
@@ -430,7 +438,7 @@ def get_filename(track, original_filename=None):
     title = track['title'].encode('utf-8', 'ignore').decode('utf8')
 
     if arguments['--addtofile']:
-        #if username not in title and '-' not in title:
+        if username not in title and '-' not in title:
             title = '{0} - {1}'.format(username, title)
             logger.debug('Adding "{0}" to filename'.format(username))
 
@@ -686,7 +694,6 @@ def record_download_archive(track):
         logger.error('Error trying to write to download archive...')
         logger.debug(ioe)
 
-
 def set_metadata(track, filename, playlist_info=None):
     """
     Sets the mp3 file metadata using the Python module Mutagen
@@ -697,9 +704,13 @@ def set_metadata(track, filename, playlist_info=None):
     user = track['user']
     if not artwork_url:
         artwork_url = user['avatar_url']
-    artwork_url = artwork_url.replace('large', 'original')
     #artwork_url = artwork_url.replace('large', 't500x500')
+    artwork_url = artwork_url.replace('large', 'original') 
     response = requests.get(artwork_url, stream=True)
+    if response.status_code == 404: 
+        #artwork_url = artwork_url.replace('large', 't500x500')
+        logger.error('The original cover art was not found.')
+        #return False
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
@@ -722,7 +733,6 @@ def set_metadata(track, filename, playlist_info=None):
         audio = mutagen.File(filename, easy=True)
         audio['title'] = track['title']
         audio['artist'] = track['artist']
-        audio['albumartist'] = track['artist']
         audio['discnumber'] = ["1" "/" "1"]
         if track['genre']: audio['genre'] = track['genre']
         if not track['genre']: audio['genre'] = track['tag_list']
