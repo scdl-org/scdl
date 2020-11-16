@@ -803,6 +803,11 @@ def signal_handler(signal, frame):
     logger.info('\nGood bye!')
     sys.exit(0)
 
+def is_ffmpeg_available():
+    """
+    Returns true if ffmpeg is available in the operating system
+    """
+    return shutil.which('ffmpeg') is not None
 
 if __name__ == '__main__':
     main()
