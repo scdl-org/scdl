@@ -2,7 +2,6 @@
 # -*- encoding: utf-8 -*-
 
 """scdl allows you to download music from Soundcloud
-
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
@@ -11,11 +10,9 @@ Usage:
     scdl me (-s | -a | -f | -t | -p | -m)[-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--m4atomp3][--no-album-tag]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag]
     scdl -h | --help
     scdl --version
-
-
 Options:
     -h --help                   Show this screen
     --version                   Show version
@@ -631,11 +628,9 @@ def already_downloaded(track, title, filename):
 
     if os.path.isfile(filename):
         already_downloaded = True
-   
-   if arguments['--flac'] and can_convert(filename)
+    if arguments['--flac'] and can_convert(filename) \
             and os.path.isfile(filename[:-4] + ".flac"):
         already_downloaded = True
-        
     if arguments['--download-archive'] and in_download_archive(track):
         already_downloaded = True
 
@@ -702,13 +697,9 @@ def set_metadata(track, filename, playlist_info=None):
     user = track['user']
     if not artwork_url:
         artwork_url = user['avatar_url']
+    artwork_url = artwork_url.replace('large', 'original')
     #artwork_url = artwork_url.replace('large', 't500x500')
-    artwork_url = artwork_url.replace('large', 'original') 
     response = requests.get(artwork_url, stream=True)
-    if response.status_code == 404: 
-        #artwork_url = artwork_url.replace('large', 't500x500')
-        logger.error('The original cover art was not found.')
-        #return False
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
@@ -731,6 +722,7 @@ def set_metadata(track, filename, playlist_info=None):
         audio = mutagen.File(filename, easy=True)
         audio['title'] = track['title']
         audio['artist'] = track['artist']
+        audio['albumartist'] = track['artist']
         audio['discnumber'] = ["1" "/" "1"]
         if track['genre']: audio['genre'] = track['genre']
         if not track['genre']: audio['genre'] = track['tag_list']
