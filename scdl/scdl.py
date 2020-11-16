@@ -632,7 +632,7 @@ def already_downloaded(track, title, filename):
     if os.path.isfile(filename):
         already_downloaded = True
    
-   if arguments['--flac'] and can_convert(filename) \
+   if arguments['--flac'] and can_convert(filename)
             and os.path.isfile(filename[:-4] + ".flac"):
         already_downloaded = True
         
