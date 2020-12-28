@@ -597,9 +597,9 @@ def download_track(track, playlist_info=None):
         logger.info('Track "{0}" already downloaded.'.format(title))
         return
 
-    # If file does not exist an error occured
+    # If file does not exist an error occurred
     if not os.path.isfile(filename):
-        logger.error('An error occured downloading {0}.\n'.format(filename))
+        logger.error('An error occurred downloading {0}.\n'.format(filename))
         logger.error('Exiting...')
         sys.exit(-1)
 
