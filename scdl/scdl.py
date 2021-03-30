@@ -73,6 +73,7 @@ import configparser
 import mutagen
 
 from mutagen.easymp4 import EasyMP4
+#EasyMP4.RegisterTextKey('website', '\xa9cmt')
 
 from docopt import docopt
 from clint.textui import progress
@@ -717,7 +718,7 @@ def set_metadata(track, filename, playlist_info=None):
     artwork_url = artwork_url.replace('large', 'original') 
     response = requests.get(artwork_url, stream=True)
     if response.status_code == 404: 
-        artwork_url = artwork_url.replace('large', 't500x500')
+        #artwork_url = artwork_url.replace('large', 't500x500')
         logger.error('The original cover art was not found.')
         #return False
     with tempfile.NamedTemporaryFile() as out_file:
@@ -738,8 +739,7 @@ def set_metadata(track, filename, playlist_info=None):
                     track['artist'] = artist_title[0].strip()
                     track['title'] = artist_title[1].strip()
                     break
-        
-        EasyMP4.RegisterTextKey('website', 'purl')
+
         audio = mutagen.File(filename, easy=True)
         audio['title'] = track['title']
         audio['artist'] = track['artist']
@@ -748,7 +748,6 @@ def set_metadata(track, filename, playlist_info=None):
         if track['genre']: audio['genre'] = track['genre']
         if not track['genre']: audio['genre'] = track['tag_list']
         if track['permalink_url']: audio['website'] = track['permalink_url']
-        if track['permalink_url']: audio['publisher'] = track['permalink_url']
         if track['date']: audio['date'] = track['date']
         if user['avatar_url']: audio['copyright'] = user['avatar_url']
         if track['artwork_url']: audio['copyright'] = track['artwork_url']
