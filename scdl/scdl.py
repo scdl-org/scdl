@@ -775,7 +775,7 @@ def set_metadata(track, filename, playlist_info=None):
                 a['COMM'] = mutagen.id3.COMM(
                     encoding=3, lang=u'ENG', text=track['description']
             elif a.__class__ == mutagen.mp4.MP4:
-                a['desc'] = track['description']
+                a['\xa9cmt'] = track['description']
                 )
 
         if artwork_url:
