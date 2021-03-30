@@ -791,8 +791,7 @@ def set_metadata(track, filename, playlist_info=None):
                 a['APIC'] = mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc=track['artwork_url'],  data=out_file.read()
                 )
             elif a.__class__ == mutagen.mp4.MP4:
-                a['covr'] = mutagen.mp4.MP4Cover[(out_file.read()]
-                )
+                a['covr'] = [mutagen.mp4.MP4Cover(out_file.read())]
         a.save()
 
 
