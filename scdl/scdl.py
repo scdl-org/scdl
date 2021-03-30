@@ -73,7 +73,7 @@ import configparser
 import mutagen
 
 from mutagen.easymp4 import EasyMP4
-EasyMP4.RegisterTextKey('website', 'purl')
+EasyMP4.RegisterTextKey('website', 'www')
 
 from docopt import docopt
 from clint.textui import progress
