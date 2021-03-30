@@ -796,7 +796,7 @@ def set_metadata(track, filename, playlist_info=None):
                 a['covr'] = mutagen.mp4.MP4Cover(
                     encoding=3, mime='image/jpeg', type=3,
                     desc=track['artwork_url'], 
-                    out_file.read()
+                    data=out_file.read()
                 )
         a.save()
 
