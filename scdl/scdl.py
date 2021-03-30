@@ -794,7 +794,7 @@ def set_metadata(track, filename, playlist_info=None):
                 )
             elif a.__class__ == mutagen.mp4.MP4:
                 a['covr'] = mutagen.mp4.MP4Cover(
-                    desc=track['artwork_url'], out_file.read()
+                    desc=track['artwork_url'], out_file.read())
         a.save()
 
 
