@@ -716,7 +716,7 @@ def set_metadata(track, filename, playlist_info=None):
     #artwork_url = artwork_url.replace('large', 't500x500')
     artwork_url = artwork_url.replace('large', 'original') 
     response = requests.get(artwork_url, stream=True)
-    except response.status_code == 404: 
+    if response.status_code == 404: 
         artwork_url = artwork_url.replace('large', 't500x500')
         logger.error('The original cover art was not found.')
         #return False
