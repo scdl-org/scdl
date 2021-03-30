@@ -739,7 +739,7 @@ def set_metadata(track, filename, playlist_info=None):
                     track['title'] = artist_title[1].strip()
                     break
         
-        EasyMP4.RegisterTextKey('website', 'wwwartist')
+        EasyMP4.RegisterTextKey('website', 'purl')
         audio = mutagen.File(filename, easy=True)
         audio['title'] = track['title']
         audio['artist'] = track['artist']
