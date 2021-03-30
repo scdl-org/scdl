@@ -788,12 +788,11 @@ def set_metadata(track, filename, playlist_info=None):
                 p.type = mutagen.id3.PictureType.COVER_FRONT
                 a.add_picture(p)
             elif a.__class__ == mutagen.mp3.MP3:
-                a['APIC'] = mutagen.id3.APIC(
-                    encoding=3, mime='image/jpeg', type=3,
-                    desc=track['artwork_url'],  data=out_file.read()
+                a['APIC'] = mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc=track['artwork_url'],  data=out_file.read()
                 )
             elif a.__class__ == mutagen.mp4.MP4:
-                a['covr'] = mutagen.mp4.MP4Cover(desc=track['artwork_url'], data=out_file.read())
+                a['covr'] = mutagen.mp4.MP4Cover[(out_file.read()]
+                )
         a.save()
 
 
