@@ -74,6 +74,9 @@ import mutagen
 
 from mutagen.easymp4 import EasyMP4
 EasyMP4.RegisterTextKey('website', 'purl')
+EasyMP4.RegisterTextKey('description', 'xa9cmt')
+
+xa9cmt
 
 from docopt import docopt
 from clint.textui import progress
