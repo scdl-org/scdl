@@ -73,7 +73,6 @@ import configparser
 import mutagen
 
 from mutagen.easymp4 import EasyMP4
-EasyMP4.RegisterTextKey('website', '\xa9cmt')
 
 from docopt import docopt
 from clint.textui import progress
@@ -739,7 +738,8 @@ def set_metadata(track, filename, playlist_info=None):
                     track['artist'] = artist_title[0].strip()
                     track['title'] = artist_title[1].strip()
                     break
-
+        
+        EasyMP4.RegisterTextKey('website', 'website')
         audio = mutagen.File(filename, easy=True)
         audio['title'] = track['title']
         audio['artist'] = track['artist']
