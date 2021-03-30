@@ -717,8 +717,8 @@ def set_metadata(track, filename, playlist_info=None):
     #artwork_url = artwork_url.replace('large', 't500x500')
     artwork_url = artwork_url.replace('large', 'original') 
     response = requests.get(artwork_url, stream=True)
-    if response.status_code == 404: 
-        #artwork_url = artwork_url.replace('large', 't500x500')
+    except response.status_code == 404: 
+        artwork_url = artwork_url.replace('large', 't500x500')
         logger.error('The original cover art was not found.')
         #return False
     with tempfile.NamedTemporaryFile() as out_file:
@@ -748,6 +748,7 @@ def set_metadata(track, filename, playlist_info=None):
         if track['genre']: audio['genre'] = track['genre']
         if not track['genre']: audio['genre'] = track['tag_list']
         if track['permalink_url']: audio['website'] = track['permalink_url']
+        if track['permalink_url']: audio['publisher'] = track['permalink_url']
         if track['date']: audio['date'] = track['date']
         if user['avatar_url']: audio['copyright'] = user['avatar_url']
         if track['artwork_url']: audio['copyright'] = track['artwork_url']
