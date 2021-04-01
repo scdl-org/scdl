@@ -753,6 +753,7 @@ def set_metadata(track, filename, playlist_info=None):
                 p.data = out_file.read()
                 p.width = 500
                 p.height = 500
+                p.mime = 'image/jpeg'
                 p.type = mutagen.id3.PictureType.COVER_FRONT
                 a.add_picture(p)
             elif a.__class__ == mutagen.mp3.MP3:
