@@ -7,11 +7,11 @@ Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--original-art]
     scdl me (-s | -a | -f | -t | -p | -m)[-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag][--original-art]
     scdl -h | --help
     scdl --version
 
@@ -52,6 +52,7 @@ Options:
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
     --no-album-tag              On some player track get the same cover art if from the same album, this prevent it
+    --original-art              Download original cover art
 """
 
 import logging
@@ -705,7 +706,10 @@ def set_metadata(track, filename, playlist_info=None):
     user = track['user']
     if not artwork_url:
         artwork_url = user['avatar_url']
-    artwork_url = artwork_url.replace('large', 't500x500')
+    if arguments['--original-art']:
+        artwork_url = artwork_url.replace('large', 'original')
+    else:
+        artwork_url = artwork_url.replace('large', 't500x500')
     response = requests.get(artwork_url, stream=True)
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
@@ -751,8 +755,6 @@ def set_metadata(track, filename, playlist_info=None):
             if a.__class__ == mutagen.flac.FLAC:
                 p = mutagen.flac.Picture()
                 p.data = out_file.read()
-                p.width = 500
-                p.height = 500
                 p.type = mutagen.id3.PictureType.COVER_FRONT
                 a.add_picture(p)
             elif a.__class__ == mutagen.mp3.MP3:
