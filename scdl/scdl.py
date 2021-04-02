@@ -107,7 +107,9 @@ url = {
     'trackinfo': ('https://api-v2.soundcloud.com/tracks/{0}'),
     'original_download' : ("https://api-v2.soundcloud.com/tracks/{0}/download"),
     'user': ('https://api-v2.soundcloud.com/users/{0}'),
-    'me': ('https://api-v2.soundcloud.com/me?oauth_token={0}')
+    'me': ('https://api-v2.soundcloud.com/me?oauth_token={0}'),
+    'stream': ('https://api-v2.soundcloud.com/stream?'
+               'limit=200')
 }
 client = client.Client()
 
@@ -196,6 +198,8 @@ def main():
             download(who_am_i(), 'playlists', 'playlists')
         elif arguments['-m']:
             download(who_am_i(), 'playlists-liked', 'my and liked playlists')
+        elif arguments['-s']:
+            download(who_am_i(), 'stream', 'stream entries')
 
     if arguments['--remove']:
         remove_files()
@@ -364,7 +368,7 @@ def download(user, dl_type, name):
             logger.info('{0} n°{1} of {2}'.format(
                 name.capitalize(), counter, total)
             )
-            if dl_type == 'all':
+            if dl_type == 'all' or dl_type == 'stream':
                 item_name = item['type'].split('-')[0]  # remove the '-repost'
                 uri = item[item_name]['uri']
                 parse_url(uri)
@@ -414,16 +418,6 @@ def download_playlist(playlist):
     finally:
         if not arguments['--no-playlist-folder']:
             os.chdir('..')
-
-
-def download_my_stream():
-    """
-    DONT WORK FOR NOW
-    Download the stream of the current user
-    """
-    # TODO
-    # Use Token
-
 
 def try_utime(path, filetime):
     try:
