@@ -543,7 +543,10 @@ def get_track_m3u8(track, aac=False):
 
 def download_hls(track, title):
 
-    aac = any(t['format']['mime_type'].startswith('audio/mp4') for t in track['media']['transcodings'])
+    if arguments['--onlymp3']:
+        aac = False
+    else:
+        aac = any(t['format']['mime_type'].startswith('audio/mp4') for t in track['media']['transcodings'])
 
     filename = get_filename(track, None, aac)
     logger.debug("filename : {0}".format(filename))
