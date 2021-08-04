@@ -12,6 +12,10 @@ ALT2_CLIENT_ID = 'NONE'
 default_config = """[scdl]
 auth_token =
 path = .
+download_archive =
+
+[arguments]
+args =
 """
 
 if 'XDG_CONFIG_HOME' in os.environ:

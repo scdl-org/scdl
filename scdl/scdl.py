@@ -87,6 +87,7 @@ logger.addFilter(utils.ColorizeFilter())
 arguments = None
 token = ''
 path = ''
+dl_ar = ''
 offset = 1
 
 url = {
@@ -123,13 +124,13 @@ def main():
     # Parse argument
     arguments = docopt(__doc__, version=__version__)
 
+    # import conf file
+    get_config()
+
     if arguments['--debug']:
         logger.level = logging.DEBUG
     elif arguments['--error']:
         logger.level = logging.ERROR
-
-    # import conf file
-    get_config()
 
     logger.info('Soundcloud Downloader')
     logger.debug(arguments)
@@ -204,8 +205,9 @@ def get_config():
     Reads the music download filepath from scdl.cfg
     """
     global token
+    global arguments
+    global dl_ar
     config = configparser.ConfigParser()
-
     if 'XDG_CONFIG_HOME' in os.environ:
         config_file = os.path.join(
             os.environ['XDG_CONFIG_HOME'], 'scdl', 'scdl.cfg',
@@ -218,9 +220,23 @@ def get_config():
     try:
         token = config['scdl']['auth_token']
         path = config['scdl']['path']
+        dl_ar = config['scdl']['download_archive']
+        args = config['arguments']['args'].strip().split()
+        config_args = {}
+
+        for key in args:
+            if '=' in key:
+                key = key.split('=')
+                config_args[key[0]] = key[1]
+            else:
+                config_args[key] = True
+
+        # merge arguments
+        arguments = dict([(str(key),arguments.get(key) or config_args.get(key)) \
+                for key in set(config_args) | set(arguments)])
     except:
         logger.error('Are you sure scdl.cfg is in $HOME/.config/scdl/ ?')
-        logger.error('Are both "auth_token" and "path" defined there?')
+        logger.error('Are all variables defined there?')
         sys.exit(-1)
     if os.path.exists(path):
         os.chdir(path)
@@ -642,7 +658,7 @@ def already_downloaded(track, title, filename):
     if arguments['--flac'] and can_convert(filename) \
             and os.path.isfile(filename[:-4] + ".flac"):
         already_downloaded = True
-    if arguments['--download-archive'] and in_download_archive(track):
+    if (arguments['--download-archive'] or dl_ar!='') and in_download_archive(track):
         already_downloaded = True
 
     if arguments['--flac'] and can_convert(filename) and os.path.isfile(filename):
@@ -663,10 +679,10 @@ def in_download_archive(track):
     Returns True if a track_id exists in the download archive
     """
     global arguments
-    if not arguments['--download-archive']:
+    if not arguments['--download-archive'] and not dl_ar:
         return
 
-    archive_filename = arguments.get('--download-archive')
+    archive_filename = dl_ar if not arguments['--download-archive'] else arguments.get('--download-archive')
     try:
         with open(archive_filename, 'a+', encoding='utf-8') as file:
             file.seek(0)
@@ -686,10 +702,10 @@ def record_download_archive(track):
     Write the track_id in the download archive
     """
     global arguments
-    if not arguments['--download-archive']:
+    if not arguments['--download-archive'] and not dl_ar:
         return
 
-    archive_filename = arguments.get('--download-archive')
+    archive_filename = dl_ar if not arguments['--download-archive'] else arguments.get('--download-archive')
     try:
         with open(archive_filename, 'a', encoding='utf-8') as file:
             file.write('{0}'.format(track['id']) + '\n')

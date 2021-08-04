@@ -13,6 +13,21 @@ Compatible with Windows, OS X, Linux.
 ## Installation Instructions
 https://github.com/flyingrub/scdl/wiki/Installation-Instruction
 
+## Configuration
+There is a configuration file left in `~/.config/scdl/scdl.cfg`
+
+When typing arguments that take a value, use `=` to separate.
+Example Configuration:
+```
+[scdl]
+auth_token =
+path = 'my/folder/for/music'
+download_archive = 'my/folder/for/music/downloaded.txt'
+
+[arguments]
+args = --onlymp3 -c --max-size=5m
+```
+
 ## Examples:
 ```
 # Download track & repost of the user QUANTA
