@@ -61,12 +61,10 @@ import sys
 import time
 import warnings
 import math
-import shutil
 import requests
 import re
 import tempfile
 import codecs
-import shlex
 import shutil
 
 import configparser
@@ -74,8 +72,8 @@ import mutagen
 from docopt import docopt
 from clint.textui import progress
 
-from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
-from scdl import client, utils
+from __init__ import __version__, CLIENT_ID, ALT_CLIENT_ID
+import client, utils
 
 from datetime import datetime
 import subprocess
