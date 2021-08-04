@@ -236,6 +236,11 @@ def get_item(track_url, client_id=CLIENT_ID):
     try:
         item_url = url['resolve'].format(track_url)
 
+        if 'm.' in item_url: # mobile links
+            item_url.replace('m.','')
+        elif '.app' in item_url:
+            item_url = requests.get(item_url).url.split("?")[0]
+
         r = requests.get(item_url, params={'client_id': client_id})
         logger.debug(r.url)
         if r.status_code == 403:
