@@ -45,6 +45,9 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
 # Download only new tracks from a playlist
 scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --download-archive archive.txt -c
 
+# Sync playlist
+scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --sync archive.txt
+
 # Download your likes (with authentification token)
 scdl me -f
 ```
@@ -78,6 +81,9 @@ scdl me -f
     --onlymp3                   Download only the streamable mp3 file, even if track has a Downloadable file
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
+    --sync [file]		Compare an archive file to a playlist and downloads/removes any changed tracks
+    --flac			Convert original files to .flac
+    --no-album-tag		On some players tracks get the same cover art if it is from the same album, this prevents it
 ```
 
 
@@ -89,6 +95,7 @@ scdl me -f
 * Download all songs from all playlists from a user
 * Download all songs from a user's favorites
 * Download only new tracks from a list (playlist, favorites, etc.)
+* Sync Playlist
 * Set the tags with mutagen (Title / Artist / Album / Artwork)
 * Create playlist files when downloading a playlist
 

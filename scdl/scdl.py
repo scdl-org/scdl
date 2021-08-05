@@ -7,11 +7,11 @@ Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+[--no-playlist-folder][--download-archive <file>][--sync <file>][--extract-artist][--flac]
     scdl me (-s | -a | -f | -t | -p | -m)[-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag]
+[--no-playlist-folder][--download-archive <file>][--sync <file>][--extract-artist][--flac][--no-album-tag]
     scdl -h | --help
     scdl --version
 
@@ -50,6 +50,7 @@ Options:
                                 even if track has a Downloadable file
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
+    --sync [file]               Compares an archive file to a playlist and downloads/removes any changed tracks
     --flac                      Convert original files to .flac
     --no-album-tag              On some player track get the same cover art if from the same album, this prevent it
 """
@@ -199,7 +200,6 @@ def main():
     if arguments['--remove']:
         remove_files()
 
-
 def get_config():
     """
     Reads the music download filepath from scdl.cfg
@@ -296,6 +296,14 @@ def parse_url(track_url):
         download_track(item)
     elif item['kind'] == 'playlist':
         logger.info('Found a playlist')
+
+        if arguments['--sync'] is not None:
+            if os.path.exists(arguments['--sync']) and os.path.isfile(arguments['--sync']):
+                item = sync(item)
+            else:
+                logger.error('Invalid sync archive file...')
+                sys.exit(-1)
+
         download_playlist(item)
     elif item['kind'] == 'user':
         logger.info('Found a user profile')
@@ -341,6 +349,49 @@ def remove_files():
         if f not in fileToKeep:
             os.remove(f)
 
+def sync(playlist):
+    """
+    Downloads tracks that have been changed on playlist since last archive file
+    """
+    logger.info("Comparing tracks...")
+    with open(arguments['--sync'], encoding='utf8') as f:
+        try:
+            old = [int(i) for i in ''.join(f.readlines()).strip().split('\n')]
+        except IOError as ioe:
+            logger.error('Error trying to read download archive...')
+            logger.debug(ioe)
+    new = [track['id'] for track in playlist['tracks']]
+    add = set(new).difference(old) # find tracks to download
+    rem = set(old).difference(new) # find tracks to remove
+
+    invalid_chars = '\/:*?|<>"'
+    playlist_name = playlist['title'].encode('utf-8', 'ignore')
+    playlist_name = playlist_name.decode('utf8')
+    playlist_name = ''.join(c for c in playlist_name if c not in invalid_chars)
+
+    if not arguments['--no-playlist-folder']:
+        os.chdir(playlist_name)
+
+    if not (add or rem):
+        logger.info("No changes found. Exiting...")
+        sys.exit(0)
+
+    if rem:
+        for t in rem:
+            info_url = url["trackinfo"].format(t)
+            r = requests.get(info_url, params={'client_id': CLIENT_ID}, stream=True)
+            track = r.json()
+            logger.debug(track)
+            name = get_filename(track)
+            if name in os.listdir('.') and os.path.isfile(name):
+                os.remove(name)
+                logger.info('Removed {0}'.format(name))
+            else:
+                logger.info('Could not find {0} to remove'.format(name))
+
+    playlist['tracks'] = [i for i in playlist['tracks'] if i['id'] in add]
+
+    return playlist
 
 def get_track_info(track):
     """
@@ -658,7 +709,7 @@ def already_downloaded(track, title, filename):
     if arguments['--flac'] and can_convert(filename) \
             and os.path.isfile(filename[:-4] + ".flac"):
         already_downloaded = True
-    if (arguments['--download-archive'] or dl_ar!='') and in_download_archive(track):
+    if (arguments['--download-archive'] or dl_ar != '') and in_download_archive(track):
         already_downloaded = True
 
     if arguments['--flac'] and can_convert(filename) and os.path.isfile(filename):
