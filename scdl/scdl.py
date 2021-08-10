@@ -73,8 +73,8 @@ import mutagen
 from docopt import docopt
 from clint.textui import progress
 
-from __init__ import __version__, CLIENT_ID, ALT_CLIENT_ID
-import client, utils
+from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
+from scdl import client, utils
 
 from datetime import datetime
 import subprocess
@@ -417,7 +417,7 @@ def download(user, dl_type, name):
     if not is_ffmpeg_available():
         logger.error('ffmpeg is not available and download cannot continue. Please install ffmpeg and re-run the program.')
         return
-    
+
     username = user['username']
     user_id = user['id']
     logger.info(
