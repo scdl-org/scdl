@@ -354,7 +354,7 @@ def sync(playlist):
     Downloads tracks that have been changed on playlist since last archive file
     """
     logger.info("Comparing tracks...")
-    with open(arguments['--sync'], encoding='utf8') as f:
+    with open(arguments['--sync']) as f:
         try:
             old = [int(i) for i in ''.join(f.readlines()).strip().split('\n')]
         except IOError as ioe:
@@ -389,6 +389,11 @@ def sync(playlist):
                 logger.info('Removed {0}'.format(name))
             else:
                 logger.info('Could not find {0} to remove'.format(name))
+                rem.remove(t)
+        with open(arguments['--sync'],'w') as f:
+          for t in old:
+            if t not in rem:
+              f.write(str(t)+'\n')
 
     os.chdir(cwd)
     playlist['tracks'] = [i for i in playlist['tracks'] if i['id'] in add]
