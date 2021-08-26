@@ -11,26 +11,12 @@ Compatible with Windows, OS X, Linux.
 * ffmpeg
 
 # Installation Instructions
-### Windows
 ```
-pip install git+https://github.com/flyingrub/scdl
-```
-
-#### Arch Linux
-
-```
-yay -S soundcloud-dl-git
-```
-
-#### Gentoo
-
-```
-layman -fa glicOne
-sudo emerge -av net-misc/scdl
+pip install git+https://github.com/HeartbeatingForCenturies/scdl
 ```
 
 ### Update
- `pip install git+https://github.com/flyingrub/scdl --upgrade`
+ `pip install git+https://github.com/HeartbeatingForCenturies/scdl --upgrade`
 
 ## Configuration
 There is a configuration file left in `~/.config/scdl/scdl.cfg`
