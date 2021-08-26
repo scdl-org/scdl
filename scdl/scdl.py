@@ -718,13 +718,14 @@ def set_metadata(track, filename, playlist_info=None):
     user = track['user']
     if not artwork_url:
         artwork_url = user['avatar_url']
-    artwork_url = artwork_url.replace('large', 'original')
-    try:
-        response = requests.get(new_artwork_url, stream=True)
-        if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
-            response = None
-    except:
-        pass
+    response = None
+        new_artwork_url = artwork_url.replace('large', 'original')
+        try:
+            response = requests.get(new_artwork_url, stream=True)
+            if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
+                response = None
+        except:
+            pass
     if response is None:
         new_artwork_url = artwork_url.replace('large', 't500x500')
         response = requests.get(new_artwork_url, stream=True)
