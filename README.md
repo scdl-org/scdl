@@ -9,6 +9,7 @@ Compatible with Windows, OS X, Linux.
 
 * python3
 * ffmpeg
+* pip
 
 # Installation Instructions
 ```
@@ -27,7 +28,7 @@ Example Configuration:
 [scdl]
 auth_token =
 path = {MusicFolder}
-download_archive = 'my/folder/for/music/downloaded.txt'
+download_archive = my/folder/for/music/downloaded.txt
 
 [arguments]
 args = --original-art --addtofile --flac -t -c
