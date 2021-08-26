@@ -2,7 +2,6 @@
 # -*- encoding: utf-8 -*-
 
 """scdl allows you to download music from Soundcloud
-
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
@@ -14,8 +13,6 @@ Usage:
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag]
     scdl -h | --help
     scdl --version
-
-
 Options:
     -h --help                   Show this screen
     --version                   Show version
@@ -714,22 +711,13 @@ def set_metadata(track, filename, playlist_info=None):
     user = track['user']
     if not artwork_url:
         artwork_url = user['avatar_url']
-    response = None
-    if arguments['--originalart']:
-        artwork_url = artwork_url.replace('large', 'original')
-        try:
-            response = requests.get(new_artwork_url, stream=True)
-            if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
-                response = None
-        except:
-            pass
-    if response is None:
-        artwork_url = artwork_url.replace('large', 't500x500')
-        response = requests.get(artwork_url, stream=True)
-        if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
-            response = None
-    if response is None:
-        raise Exception(f"Could not get cover art at {artwork_url}")
+    #artwork_url = artwork_url.replace('large', 't500x500')
+    artwork_url = artwork_url.replace('large', 'original') 
+    response = requests.get(artwork_url, stream=True)
+    if response.status_code == 404: 
+        #artwork_url = artwork_url.replace('large', 't500x500')
+        logger.error('The original cover art was not found.')
+        #return False
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
