@@ -460,10 +460,6 @@ def get_filename(track, original_filename=None, aac=False):
         original_filename.encode('utf-8', 'ignore').decode('utf8')
         ext = os.path.splitext(original_filename)[1]
     filename = title[:251] + ext.lower()
-    # get filename to 255 bytes
-    while len(title.encode('utf-8')) > 255 - len(ext.encode('utf-8')):
-        title = title[:-1]
-    filename = title + ext.lower()
     filename = ''.join(c for c in filename if c not in invalid_chars)
     return filename
 
@@ -718,21 +714,13 @@ def set_metadata(track, filename, playlist_info=None):
     user = track['user']
     if not artwork_url:
         artwork_url = user['avatar_url']
-    response = None
-    artwork_url = artwork_url.replace('large', 'original')
-    try:
-        response = requests.get(new_artwork_url, stream=True)
-        if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
-            response = None
-    except:
-        pass
-    if response is None:
-        artwork_url = artwork_url.replace('large', 't500x500')
-        response = requests.get(artwork_url, stream=True)
-        if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
-            response = None
-    if response is None:
-        raise Exception(f"Could not get cover art at {artwork_url}")
+    #artwork_url = artwork_url.replace('large', 't500x500')
+    artwork_url = artwork_url.replace('large', 'original') 
+    response = requests.get(artwork_url, stream=True)
+    if response.status_code == 404: 
+        #artwork_url = artwork_url.replace('large', 't500x500')
+        logger.error('The original cover art was not found.')
+        #return False
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
@@ -794,7 +782,8 @@ def set_metadata(track, filename, playlist_info=None):
             if a.__class__ == mutagen.flac.FLAC:
                 p = mutagen.flac.Picture()
                 p.data = out_file.read()
-                p.mime = 'image/jpeg'
+                p.width = 500
+                p.height = 500
                 p.desc = track['artwork_url']
                 p.type = mutagen.id3.PictureType.COVER_FRONT
                 a.add_picture(p)
