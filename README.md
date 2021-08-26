@@ -89,7 +89,7 @@ scdl me -f
     --remove                    Remove any files not downloaded from execution
     --flac			               Convert original files to .flac
     --no-album-tag		On some players tracks get the same cover art if it is from the same album, this prevents it
-    --original-art            Downloads the original artwork from the soundcloud CDN
+    --original-art              Downloads the original artwork from the soundcloud CDN
 ```
 
 
