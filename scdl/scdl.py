@@ -446,7 +446,7 @@ def get_filename(track, original_filename=None, aac=False):
     title = track['title'].encode('utf-8', 'ignore').decode('utf8')
 
     if arguments['--addtofile']:
-        if username not in title and '-' not in title:
+        #if username not in title and '-' not in title:
             title = '{0} - {1}'.format(username, title)
             logger.debug('Adding "{0}" to filename'.format(username))
 
