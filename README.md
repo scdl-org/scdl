@@ -87,7 +87,7 @@ scdl me -f
     --onlymp3                   Download only the streamable mp3 file, even if track has a Downloadable file
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
-    --flac			   Convert original files to .flac
+    --flac			Convert original files to .flac
     --no-album-tag		On some players tracks get the same cover art if it is from the same album, this prevents it
     --original-art              Downloads the original artwork from the soundcloud CDN
 ```
