@@ -2,17 +2,20 @@
 # -*- encoding: utf-8 -*-
 
 """scdl allows you to download music from Soundcloud
+
 Usage:
     scdl -l <track_url> [-a | -f | -C | -t | -p][-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--original-art][--no-original]
     scdl me (-s | -a | -f | -t | -p | -m)[-c | --force-metadata][-n <maxtracks>]\
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag]
+[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--no-album-tag][--original-art][--no-original]
     scdl -h | --help
     scdl --version
+
+
 Options:
     -h --help                   Show this screen
     --version                   Show version
@@ -48,7 +51,9 @@ Options:
     --path [path]               Use a custom path for downloaded files
     --remove                    Remove any files not downloaded from execution
     --flac                      Convert original files to .flac
-    --no-album-tag              On some player track get the same cover art if from the same album, this prevent it
+    --no-album-tag              On some players tracks get the same cover art if from the same album, this prevent's it
+    --original-art              Download original cover art
+    --no-original               Do not download original file; only mp3 or m4a
 """
 
 import logging
@@ -70,6 +75,7 @@ import configparser
 import mutagen
 
 from mutagen.easymp4 import EasyMP4
+#EasyMP4.RegisterTextKey('website', '\xa9cmt')
 EasyMP4.RegisterTextKey('website', 'purl')
 
 from docopt import docopt
@@ -440,7 +446,7 @@ def get_filename(track, original_filename=None, aac=False):
     title = track['title'].encode('utf-8', 'ignore').decode('utf8')
 
     if arguments['--addtofile']:
-        #if username not in title and '-' not in title:
+        if username not in title and '-' not in title:
             title = '{0} - {1}'.format(username, title)
             logger.debug('Adding "{0}" to filename'.format(username))
 
@@ -456,7 +462,10 @@ def get_filename(track, original_filename=None, aac=False):
     if original_filename is not None:
         original_filename.encode('utf-8', 'ignore').decode('utf8')
         ext = os.path.splitext(original_filename)[1]
-    filename = title[:251] + ext.lower()
+    # get filename to 255 bytes
+    while len(title.encode('utf-8')) > 255 - len(ext.encode('utf-8')):
+        title = title[:-1]
+    filename = title + ext.lower()
     filename = ''.join(c for c in filename if c not in invalid_chars)
     return filename
 
@@ -540,7 +549,10 @@ def get_track_m3u8(track, aac=False):
 
 def download_hls(track, title):
 
-    aac = any(t['format']['mime_type'].startswith('audio/mp4') for t in track['media']['transcodings'])
+    if arguments['--onlymp3']:
+        aac = False
+    else:
+        aac = any(t['format']['mime_type'].startswith('audio/mp4') for t in track['media']['transcodings'])
 
     filename = get_filename(track, None, aac)
     logger.debug("filename : {0}".format(filename))
@@ -579,7 +591,7 @@ def download_track(track, playlist_info=None):
     # Downloadable track
     filename = None
     is_already_downloaded = False
-    if track['downloadable'] and track['has_downloads_left'] and not arguments['--onlymp3']:
+    if track['downloadable'] and track['has_downloads_left'] and not arguments['--onlymp3'] and not arguments['--no-original']:
         filename, is_already_downloaded = download_original_file(track, title)
 
     if filename is None:
@@ -604,9 +616,9 @@ def download_track(track, playlist_info=None):
         logger.info('Track "{0}" already downloaded.'.format(title))
         return
 
-    # If file does not exist an error occured
+    # If file does not exist an error occurred
     if not os.path.isfile(filename):
-        logger.error('An error occured downloading {0}.\n'.format(filename))
+        logger.error('An error occurred downloading {0}.\n'.format(filename))
         logger.error('Exiting...')
         sys.exit(-1)
 
@@ -701,6 +713,7 @@ def record_download_archive(track):
         logger.error('Error trying to write to download archive...')
         logger.debug(ioe)
 
+
 def set_metadata(track, filename, playlist_info=None):
     """
     Sets the mp3 file metadata using the Python module Mutagen
@@ -711,13 +724,22 @@ def set_metadata(track, filename, playlist_info=None):
     user = track['user']
     if not artwork_url:
         artwork_url = user['avatar_url']
-    #artwork_url = artwork_url.replace('large', 't500x500')
-    artwork_url = artwork_url.replace('large', 'original') 
-    response = requests.get(artwork_url, stream=True)
-    if response.status_code == 404: 
-        #artwork_url = artwork_url.replace('large', 't500x500')
-        logger.error('The original cover art was not found.')
-        #return False
+    response = None
+    if arguments['--original-art']:
+        new_artwork_url = artwork_url.replace('large', 'original')
+        try:
+            response = requests.get(new_artwork_url, stream=True)
+            if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
+                response = None
+        except:
+            pass
+    if response is None:
+        new_artwork_url = artwork_url.replace('large', 't500x500')
+        response = requests.get(new_artwork_url, stream=True)
+        if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
+            response = None
+    if response is None:
+        raise Exception(f"Could not get cover art at {new_artwork_url}")
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
@@ -753,15 +775,17 @@ def set_metadata(track, filename, playlist_info=None):
                 audio['album'] = playlist_info['title']
             audio['tracknumber'] = str(playlist_info['tracknumber'])
 
-
         audio.save()
 
         a = mutagen.File(filename)
-        
         if a.__class__ == mutagen.flac.FLAC:
                 a['publisher'] = track['permalink_url']
                 #a['discnumber'] = ["1" "/" "1"]
         elif a.__class__ == mutagen.mp3.MP3:
+                a['TPUB'] = mutagen.id3.TPUB(
+                encoding=3, lang=u'ENG', text=track['permalink_url']
+                )
+        elif a.__class__ == mutagen.mp4.MP4:
                 a['TPUB'] = mutagen.id3.TPUB(
                 encoding=3, lang=u'ENG', text=track['permalink_url']
                 )
@@ -774,18 +798,18 @@ def set_metadata(track, filename, playlist_info=None):
                 )
             elif a.__class__ == mutagen.mp4.MP4:
                 a['\xa9cmt'] = track['description']
-
         if artwork_url:
             if a.__class__ == mutagen.flac.FLAC:
                 p = mutagen.flac.Picture()
                 p.data = out_file.read()
-                p.width = 500
-                p.height = 500
+                p.mime = 'image/jpeg'
                 p.desc = track['artwork_url']
                 p.type = mutagen.id3.PictureType.COVER_FRONT
                 a.add_picture(p)
             elif a.__class__ == mutagen.mp3.MP3:
-                a['APIC'] = mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc=track['artwork_url'],  data=out_file.read()
+                a['APIC'] = mutagen.id3.APIC(
+                    encoding=3, mime='image/jpeg', type=3,
+                    desc=track['artwork_url'],  data=out_file.read()
                 )
             elif a.__class__ == mutagen.mp4.MP4:
                 a['covr'] = [mutagen.mp4.MP4Cover(out_file.read())]
