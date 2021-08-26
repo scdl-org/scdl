@@ -715,8 +715,8 @@ def set_metadata(track, filename, playlist_info=None):
     if not artwork_url:
         artwork_url = user['avatar_url']
     response = None
-    if arguments['--original-art']:
-        new_artwork_url = artwork_url.replace('large', 'original')
+    if arguments['--originalart']:
+        artwork_url = artwork_url.replace('large', 'original')
         try:
             response = requests.get(new_artwork_url, stream=True)
             if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
@@ -724,12 +724,12 @@ def set_metadata(track, filename, playlist_info=None):
         except:
             pass
     if response is None:
-        new_artwork_url = artwork_url.replace('large', 't500x500')
-        response = requests.get(new_artwork_url, stream=True)
+        artwork_url = artwork_url.replace('large', 't500x500')
+        response = requests.get(artwork_url, stream=True)
         if response.headers["Content-Type"] not in ("image/png", "image/jpeg", "image/jpg"):
             response = None
     if response is None:
-        raise Exception(f"Could not get cover art at {new_artwork_url}")
+        raise Exception(f"Could not get cover art at {artwork_url}")
     with tempfile.NamedTemporaryFile() as out_file:
         shutil.copyfileobj(response.raw, out_file)
         out_file.seek(0)
