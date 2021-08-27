@@ -71,6 +71,7 @@ import shutil
 
 import configparser
 import mutagen
+from pathvalidate import sanitize_filename
 
 from mutagen.easymp4 import EasyMP4
 #EasyMP4.RegisterTextKey('website', '\xa9cmt')
@@ -477,7 +478,7 @@ def get_filename(track, original_filename=None, aac=False):
     while len(title.encode('utf-8')) > 255 - len(ext.encode('utf-8')):
         title = title[:-1]
     filename = title + ext.lower()
-    filename = ''.join(c for c in filename if c not in invalid_chars)
+    filename = sanitize_filename(filename)
     return filename
 
 
