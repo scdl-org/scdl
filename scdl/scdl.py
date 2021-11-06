@@ -371,7 +371,7 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False):
     title = track.title.encode("utf-8", "ignore").decode("utf-8")
 
     if arguments["--addtofile"]:
-        if username not in title and "-" not in title:
+        #HB4C-EDIT if username not in title and "-" not in title:
             title = "{0} - {1}".format(username, title)
             logger.debug('Adding "{0}" to filename'.format(username))
 
