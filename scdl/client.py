@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import requests
-from scdl import CLIENT_ID
+from scdl import CLIENT_ID, USER_AGENT
 
 
 class Client():
@@ -15,7 +15,7 @@ class Client():
             params['oauth_token'] = token
         resources = list()
         while url:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, headers={'User-Agent': USER_AGENT})
             response.raise_for_status()
             json_data = response.json()
             if 'collection' in json_data:

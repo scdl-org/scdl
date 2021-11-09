@@ -74,7 +74,7 @@ import mutagen
 from docopt import docopt
 from clint.textui import progress
 
-from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID
+from scdl import __version__, CLIENT_ID, ALT_CLIENT_ID, USER_AGENT
 from scdl import client, utils
 
 from datetime import datetime
@@ -238,7 +238,7 @@ def get_item(track_url, client_id=CLIENT_ID):
     try:
         item_url = url['resolve'].format(track_url)
 
-        r = requests.get(item_url, params={'client_id': client_id})
+        r = requests.get(item_url, params={'client_id': client_id}, headers={'User-Agent': USER_AGENT})
         logger.debug(r.url)
         if r.status_code == 403:
             return get_item(track_url, ALT_CLIENT_ID)
@@ -303,7 +303,7 @@ def who_am_i():
     Display username from current token and check for validity
     """
     me = url['me'].format(token)
-    r = requests.get(me, params={'client_id': CLIENT_ID})
+    r = requests.get(me, params={'client_id': CLIENT_ID}, headers={'User-Agent': USER_AGENT})
     r.raise_for_status()
     current_user = r.json()
     logger.debug(me)
@@ -332,7 +332,7 @@ def get_track_info(track):
 
     logger.info('Retrieving more info on the track')
     info_url = url["trackinfo"].format(track['id'])
-    r = requests.get(info_url, params={'client_id': CLIENT_ID}, stream=True)
+    r = requests.get(info_url, params={'client_id': CLIENT_ID}, stream=True, headers={'User-Agent': USER_AGENT})
     item = r.json()
     logger.debug(item)
     return item
@@ -465,9 +465,9 @@ def download_original_file(track, title):
 
     # Get the requests stream
     r = requests.get(
-        original_url, params={'client_id': CLIENT_ID}
+        original_url, params={'client_id': CLIENT_ID}, headers={'User-Agent': USER_AGENT}
     )
-    r = requests.get(r.json()['redirectUri'], stream=True)
+    r = requests.get(r.json()['redirectUri'], stream=True, headers={'User-Agent': USER_AGENT})
     if r.status_code == 401:
         logger.info('The original file has no download left.')
         return (None, False)
@@ -529,7 +529,7 @@ def get_track_m3u8(track):
             url = transcoding['url']
 
     if url is not None:
-        r = requests.get(url, params={'client_id': CLIENT_ID})
+        r = requests.get(url, params={'client_id': CLIENT_ID}, headers={'User-Agent': USER_AGENT})
         logger.debug(r.url)
         return r.json()['url']
 
