@@ -9,6 +9,9 @@ CLIENT_ID = 'a3e059563d7fd3372b49b37f00a00bcf'
 ALT_CLIENT_ID = '2t9loNQH90kzJcsFCODdigxfp325aq4z'
 ALT2_CLIENT_ID = 'NONE'
 
+USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36'
+
+
 default_config = """[scdl]
 auth_token =
 path = .
