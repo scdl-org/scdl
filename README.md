@@ -55,6 +55,7 @@ scdl me -f
     --download-archive [file]   Keep track of track IDs in an archive file, and skip already-downloaded files
     --error                     Set log level to ERROR
     --extract-artist            Set artist tag from title instead of username
+    --flac                      Convert WAV files to FLAC
     --hide-progress             Hide the wget progress bar
     --hidewarnings              Hide Warnings. (use with precaution)
     --max-size [max-size]       Skip tracks larger than size (k/m/g)
