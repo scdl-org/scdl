@@ -4,7 +4,7 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl -l <track_url> [-a | -f | -C | -t | -p | -r][-c | --force-metadata][-n <maxtracks>]
+    scdl (-l <track_url> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata][-n <maxtracks>]
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--original-art]
@@ -64,6 +64,8 @@ import configparser
 import logging
 import mimetypes
 import pathlib
+
+import soundcloud
 
 mimetypes.init()
 
@@ -148,7 +150,7 @@ def main():
     if not client.is_client_id_valid():
         raise ValueError(f"client_id is not valid")
     
-    if token and not client.is_auth_token_valid():
+    if (token or arguments["me"]) and not client.is_auth_token_valid():
         raise ValueError(f"auth_token is not valid")
 
     if arguments["-o"] is not None:
@@ -196,13 +198,16 @@ def main():
     if not arguments["--playlist-name-format"]:
         arguments["--playlist-name-format"] = config["scdl"]["playlist_name_format"]
         
+    if arguments["me"]:
+        # set url to profile associated with auth token
+        arguments["-l"] = client.get_me().permalink_url
+        
     # convert arguments dict to python_args (kwargs-friendly args)
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
 
-    if arguments["-l"]:
-        download_url(client, **python_args)
+    download_url(client, **python_args)
 
     if arguments["--remove"]:
         remove_files()
