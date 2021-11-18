@@ -221,11 +221,11 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     default_config_file = pathlib.Path(__file__).with_name("scdl.cfg")
 
     # load default config first
-    config.read(default_config_file)
+    config.read_file(open(default_config_file, encoding="UTF-8"))
     
     # load config file if it exists
     if config_file.exists():
-        config.read(config_file)
+        config.read_file(open(config_file, encoding="UTF-8"))
     
     # save config to disk
     config_file.parent.mkdir(parents=True, exist_ok=True)
