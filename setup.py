@@ -15,6 +15,7 @@ setup(
     name="scdl",
     version=scdl.__version__,
     packages=find_packages(),
+    include_package_data=True,
     author="FlyinGrub",
     author_email="flyinggrub@gmail.com",
     description="Download Music from Souncloud",
