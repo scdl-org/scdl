@@ -76,6 +76,7 @@ import sys
 import tempfile
 import time
 import traceback
+import urllib.parse
 import warnings
 from dataclasses import asdict
 
@@ -218,16 +219,41 @@ def main():
     if arguments["me"]:
         # set url to profile associated with auth token
         arguments["-l"] = client.get_me().permalink_url
+    
+    arguments["-l"] = validate_url(arguments["-l"])
         
     # convert arguments dict to python_args (kwargs-friendly args)
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
-
     download_url(client, **python_args)
 
     if arguments["--remove"]:
         remove_files()
+
+def validate_url(url: str):
+    """
+    If url is a valid soundcloud.com url, return it.
+    Otherwise, try to fix the url so that it is valid.
+    If it cannot be fixed, exit the program.
+    """
+    if url.startswith("https://m.soundcloud.com") or url.startswith("http://m.soundcloud.com") or url.startswith("m.soundcloud.com"):
+        url = url.replace("m.", "", 1)
+    if url.startswith("https://www.soundcloud.com") or url.startswith("http://www.soundcloud.com") or url.startswith("www.soundcloud.com"):
+        url = url.replace("www.", "", 1)
+    if url.startswith("soundcloud.com"):
+        url = "https://" + url
+    if url.startswith("https://soundcloud.com") or url.startswith("http://soundcloud.com"):
+        return url
+    
+    # see if link redirects to soundcloud.com
+    resp = requests.get(url)
+    url = urllib.parse.urljoin(resp.url, urllib.parse.urlparse(resp.url).path)
+    if url.startswith("https://soundcloud.com") or url.startswith("http://soundcloud.com"):
+        return url
+    
+    logger.error("URL is not valid")
+    sys.exit(1)
 
 def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     """
