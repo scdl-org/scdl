@@ -8,7 +8,7 @@ Usage:
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--original-art]
-[--original-name][--no-original][--only-original][--name-format <format>][--strict]
+[--original-name][--no-original][--only-original][--name-format <format>][--strict-playlist]
 [--playlist-name-format <format>][--client-id <id>][--auth-token <token>][--overwrite]
     scdl -h | --help
     scdl --version
@@ -58,7 +58,7 @@ Options:
     --client-id [id]                Specify the client_id to use
     --auth-token [token]            Specify the auth token to use
     --overwrite                     Overwrite file if it already exists
-    --strict                        Fail if setting metadata fails
+    --strict-playlist               Abort playlist downloading if one track fails to download
 """
 
 import configparser
@@ -71,11 +71,11 @@ mimetypes.init()
 import os
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import warnings
 from dataclasses import asdict
 
@@ -100,12 +100,22 @@ logger.addFilter(utils.ColorizeFilter())
 
 fileToKeep = []
 
+class SoundCloudException(Exception):
+    pass
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        logger.error("\nGoodbye!")
+    else:
+        logger.error("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+    sys.exit(1)
+
+sys.excepthook = handle_exception
 
 def main():
     """
     Main function, parses the URL from command line arguments
     """
-    signal.signal(signal.SIGINT, signal_handler)
 
     # exit if ffmpeg not installed
     if not is_ffmpeg_available():
@@ -153,10 +163,12 @@ def main():
     client = SoundCloud(client_id, token if token else None)
     
     if not client.is_client_id_valid():
-        raise ValueError(f"client_id is not valid")
+        logger.error(f"Invalid client_id in {config_file}")
+        sys.exit(1)
     
     if (token or arguments["me"]) and not client.is_auth_token_valid():
-        raise ValueError(f"auth_token is not valid")
+        logger.error(f"Invalid auth_token in {config_file}")
+        sys.exit(1)
 
     if arguments["-o"] is not None:
         try:
@@ -249,7 +261,8 @@ def download_url(client: SoundCloud, **kwargs):
     item = client.resolve(url)
     logger.debug(item)
     if not item:
-        return
+        logger.error("URL is not valid")
+        sys.exit(1)
     elif item.kind == "track":
         logger.info("Found a track")
         download_track(client, item, **kwargs)
@@ -265,25 +278,27 @@ def download_url(client: SoundCloud, **kwargs):
             for i, like in enumerate(resources, 1):
                 logger.info(f"like n°{i} of {user.likes_count}")
                 if hasattr(like, "track"):
-                    download_track(client, like.track, **kwargs)
+                    download_track(client, like.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
                 elif hasattr(like, "playlist"):
                     download_playlist(client, client.get_playlist(like.playlist.id), **kwargs)
                 else:
-                    raise ValueError(f"Unknown like type {like}")
+                    logger.error(f"Unknown like type {like}")
+                    if kwargs.get("strict_playlist"):
+                        sys.exit(1)
             logger.info(f"Downloaded all likes of user {user.username}!")
         elif kwargs.get("C"):
             logger.info(f"Retrieving all commented tracks of user {user.username}...")
             resources = client.get_user_comments(user.id, limit=1000)
             for i, comment in enumerate(resources, 1):
                 logger.info(f"comment n°{i} of {user.comments_count}")
-                download_track(client, client.get_track(comment.track.id), **kwargs)
+                download_track(client, client.get_track(comment.track.id), exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
             logger.info(f"Downloaded all commented tracks of user {user.username}!")
         elif kwargs.get("t"):
             logger.info(f"Retrieving all tracks of user {user.username}...")
             resources = client.get_user_tracks(user.id, limit=1000)
             for i, track in enumerate(resources, 1):
                 logger.info(f"track n°{i} of {user.track_count}")
-                download_track(client, track, **kwargs)
+                download_track(client, track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
             logger.info(f"Downloaded all tracks of user {user.username}!")
         elif kwargs.get("a"):
             logger.info(f"Retrieving all tracks & reposts of user {user.username}...")
@@ -291,11 +306,13 @@ def download_url(client: SoundCloud, **kwargs):
             for i, item in enumerate(resources, 1):
                 logger.info(f"item n°{i} of {user.track_count + user.reposts_count if user.reposts_count else '?'}")
                 if item.type in ("track", "track-repost"):
-                    download_track(client, item.track, **kwargs)
+                    download_track(client, item.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
                 elif item.type in ("playlist", "playlist-repost"):
                     download_playlist(client, item.playlist, **kwargs)
                 else:
-                    raise ValueError(f"Unknown item type {item.type}")
+                    logger.error(f"Unknown item type {item.type}")
+                    if kwargs.get("strict_playlist"):
+                        sys.exit(1)
             logger.info(f"Downloaded all tracks & reposts of user {user.username}!")
         elif kwargs.get("p"):
             logger.info(f"Retrieving all playlists of user {user.username}...")
@@ -310,16 +327,20 @@ def download_url(client: SoundCloud, **kwargs):
             for i, item in enumerate(resources, 1):
                 logger.info(f"item n°{i} of {user.reposts_count or '?'}")
                 if item.type == "track-repost":
-                    download_track(client, item.track, **kwargs)
+                    download_track(client, item.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
                 elif item.type == "playlist-repost":
                     download_playlist(client, item.playlist, **kwargs)
                 else:
-                    raise ValueError(f"Unknown item type {item.type}")
+                    logger.error(f"Unknown item type {item.type}")
+                    if kwargs.get("strict_playlist"):
+                        sys.exit(1)
             logger.info(f"Downloaded all reposts of user {user.username}!")
         else:
             logger.error("Please provide a download type...")
+            sys.exit(1)
     else:
-        logger.error("Unknown item type {0}".format(item.kind))
+        logger.error(f"Unknown item type {item.kind}")
+        sys.exit(1)
 
 def remove_files():
     """
@@ -363,7 +384,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
             }
             if isinstance(track, MiniTrack):
                 track = client.get_track(track.id)
-            download_track(client, track, playlist_info, **kwargs)
+            download_track(client, track, playlist_info, kwargs.get("strict_playlist"), **kwargs)
     finally:
         if not kwargs.get("no_playlist_folder"):
             os.chdir("..")
@@ -497,6 +518,9 @@ def get_track_m3u8(client: SoundCloud, track: BasicTrack, aac=False):
 
 def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
 
+    if not track.media.transcodings:
+        raise SoundCloudException(f"Track {track.permalink_url} has no transcodings available")
+
     if kwargs["onlymp3"]:
         aac = False
     else:
@@ -524,78 +548,76 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
     return (filename, False)
 
 
-def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, **kwargs):
+def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, exit_on_fail=True, **kwargs):
     """
     Downloads a track
     """
-    title = track.title
-    title = title.encode("utf-8", "ignore").decode("utf8")
-    logger.info(f"Downloading {title}")
+    try:
+        title = track.title
+        title = title.encode("utf-8", "ignore").decode("utf8")
+        logger.info(f"Downloading {title}")
 
-    # Not streamable
-    if not track.streamable:
-        logger.error(f"{title} is not streamable...")
-        return
+        # Not streamable
+        if not track.streamable:
+            raise SoundCloudException(f"{title} is not streamable...")
 
-    # Geoblocked track
-    if track.policy == "BLOCK":
-        logger.error(f"{title} is not available in your location...\n")
-        return
+        # Geoblocked track
+        if track.policy == "BLOCK":
+            raise SoundCloudException(f"{title} is not available in your location...")
 
-    # Downloadable track
-    filename = None
-    is_already_downloaded = False
-    if (
-        track.downloadable
-        and track.has_downloads_left
-        and not kwargs["onlymp3"]
-        and not kwargs.get("no_original")
-    ):
-        filename, is_already_downloaded = download_original_file(client, track, title, playlist_info, **kwargs)
+        # Downloadable track
+        filename = None
+        is_already_downloaded = False
+        if (
+            track.downloadable
+            and track.has_downloads_left
+            and not kwargs["onlymp3"]
+            and not kwargs.get("no_original")
+        ):
+            filename, is_already_downloaded = download_original_file(client, track, title, playlist_info, **kwargs)
 
-    if filename is None:
-        if kwargs.get("only_original"):
-            logger.info(f'Track "{title}" does not have original file available. Skipping...')
-            return
-        filename, is_already_downloaded = download_hls(client, track, title, playlist_info, **kwargs)
+        if filename is None:
+            if kwargs.get("only_original"):
+                raise SoundCloudException(f'Track "{track.permalink_url}" does not have original file available. Not downloading...')
+            filename, is_already_downloaded = download_hls(client, track, title, playlist_info, **kwargs)
 
-    if kwargs.get("remove"):
-        fileToKeep.append(filename)
+        if kwargs.get("remove"):
+            fileToKeep.append(filename)
 
-    record_download_archive(track, **kwargs)
+        record_download_archive(track, **kwargs)
 
-    # Skip if file ID or filename already exists
-    if is_already_downloaded and not kwargs.get("force_metadata"):
-        logger.info(f'Track "{title}" already downloaded.')
-        return
+        # Skip if file ID or filename already exists
+        if is_already_downloaded and not kwargs.get("force_metadata"):
+            raise SoundCloudException(f"{filename} already downloaded.")
 
-    # If file does not exist an error occurred
-    if not os.path.isfile(filename):
-        logger.error(f"An error occurred downloading {filename}.\n")
-        logger.error("Exiting...")
-        sys.exit(1)
+        # If file does not exist an error occurred
+        if not os.path.isfile(filename):
+            raise SoundCloudException(f"An error occurred downloading {filename}.")
 
-    # Try to set the metadata
-    if (
-        filename.endswith(".mp3")
-        or filename.endswith(".flac")
-        or filename.endswith(".m4a")
-    ):
-        try:
-            set_metadata(track, filename, playlist_info, **kwargs)
-        except:
-            logger.exception("Error trying to set the tags...")
-            if kwargs.get("strict"):
+        # Try to set the metadata
+        if (
+            filename.endswith(".mp3")
+            or filename.endswith(".flac")
+            or filename.endswith(".m4a")
+        ):
+            try:
+                set_metadata(track, filename, playlist_info, **kwargs)
+            except:
                 os.remove(filename)
-                sys.exit(1)
-    else:
-        logger.error("This type of audio doesn't support tagging...")
+                logger.exception("Error trying to set the tags...")
+                raise SoundCloudException("Error trying to set the tags...")
+        else:
+            logger.error("This type of audio doesn't support tagging...")
 
-    # Try to change the real creation date
-    filetime = int(time.mktime(track.created_at.timetuple()))
-    try_utime(filename, filetime)
+        # Try to change the real creation date
+        filetime = int(time.mktime(track.created_at.timetuple()))
+        try_utime(filename, filetime)
 
-    logger.info(f"{filename} Downloaded.\n")
+        logger.info(f"{filename} Downloaded.\n")
+    except SoundCloudException as err:
+        logger.error(err)
+        if exit_on_fail:
+            sys.exit(1)
 
 
 def can_convert(filename):
@@ -776,13 +798,6 @@ def limit_filename_length(name: str, ext: str, max_bytes=255):
     while len(name.encode("utf-8")) + len(ext.encode("utf-8")) > max_bytes:
         name = name[:-1]
     return name + ext
-
-def signal_handler(signal, frame):
-    """
-    Handle keyboard interrupt
-    """
-    logger.info("\nGood bye!")
-    sys.exit(0)
 
 def is_ffmpeg_available():
     """
