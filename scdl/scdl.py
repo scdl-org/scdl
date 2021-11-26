@@ -65,8 +65,6 @@ import logging
 import mimetypes
 import pathlib
 
-import soundcloud
-
 mimetypes.init()
 
 import os
@@ -84,6 +82,7 @@ import mutagen
 from mutagen.easymp4 import EasyMP4
 
 EasyMP4.RegisterTextKey("website", "purl")
+
 import requests
 from clint.textui import progress
 from docopt import docopt
@@ -106,6 +105,11 @@ def main():
     Main function, parses the URL from command line arguments
     """
     signal.signal(signal.SIGINT, signal_handler)
+
+    # exit if ffmpeg not installed
+    if not is_ffmpeg_available():
+        logger.error("ffmpeg is not installed")
+        sys.exit(1)
 
     # Parse arguments
     arguments = docopt(__doc__, version=__version__)
@@ -132,7 +136,7 @@ def main():
         os.chdir(path)
     else:
         logger.error(f"Invalid download path '{path}' in {config_file}")
-        sys.exit(-1)
+        sys.exit(1)
     
     logger.info("Soundcloud Downloader")
     logger.debug(arguments)
@@ -160,7 +164,7 @@ def main():
                 raise ValueError()
         except:
             logger.error("Offset should be a positive integer...")
-            sys.exit(-1)
+            sys.exit(1)
         logger.debug("offset: %d", python_args["offset"])
 
     if arguments["--min-size"] is not None:
@@ -170,7 +174,7 @@ def main():
             logger.exception(
                 "Min size should be an integer with a possible unit suffix"
             )
-            sys.exit(-1)
+            sys.exit(1)
         logger.debug("min-size: %d", arguments["--min-size"])
 
     if arguments["--max-size"] is not None:
@@ -178,7 +182,7 @@ def main():
             arguments["--max-size"] = utils.size_in_bytes(arguments["--max-size"])
         except:
             logger.error("Max size should be an integer with a possible unit suffix")
-            sys.exit(-1)
+            sys.exit(1)
         logger.debug("max-size: %d", arguments["--max-size"])
 
     if arguments["--hidewarnings"]:
@@ -189,7 +193,7 @@ def main():
             os.chdir(arguments["--path"])
         else:
             logger.error("Invalid path in arguments...")
-            sys.exit(-1)
+            sys.exit(1)
     logger.debug("Downloading to " + os.getcwd() + "...")
     
     if not arguments["--name-format"]:
@@ -459,7 +463,7 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
 
     if received != total_length:
         logger.error("connection closed prematurely, download incomplete")
-        sys.exit(-1)
+        sys.exit(1)
 
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
     if kwargs.get("flac") and can_convert(filename):
@@ -571,7 +575,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, **
     if not os.path.isfile(filename):
         logger.error(f"An error occurred downloading {filename}.\n")
         logger.error("Exiting...")
-        sys.exit(-1)
+        sys.exit(1)
 
     # Try to set the metadata
     if (
@@ -630,7 +634,7 @@ def already_downloaded(track: BasicTrack, title: str, filename: str, **kwargs):
         else:
             logger.error(f'Track "{title}" already exists!')
             logger.error("Exiting... (run again with -c to continue)")
-            sys.exit(-1)
+            sys.exit(1)
     return False
 
 
