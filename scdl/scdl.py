@@ -8,7 +8,7 @@ Usage:
 [-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--original-art]
-[--original-name][--no-original][--only-original][--name-format <format>]
+[--original-name][--no-original][--only-original][--name-format <format>][--strict]
 [--playlist-name-format <format>][--client-id <id>][--auth-token <token>][--overwrite]
     scdl -h | --help
     scdl --version
@@ -58,6 +58,7 @@ Options:
     --client-id [id]                Specify the client_id to use
     --auth-token [token]            Specify the auth token to use
     --overwrite                     Overwrite file if it already exists
+    --strict                        Fail if setting metadata fails
 """
 
 import configparser
@@ -398,12 +399,9 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
 
     ext = ".m4a" if aac else ".mp3"  # contain aac in m4a to write metadata
     if original_filename is not None:
-        original_filename.encode("utf-8", "ignore").decode("utf8")
+        original_filename = original_filename.encode("utf-8", "ignore").decode("utf-8")
         ext = os.path.splitext(original_filename)[1]
-    # get filename to 255 bytes
-    while len(title.encode("utf-8")) > 255 - len(ext.encode("utf-8")):
-        title = title[:-1]
-    filename = title + ext.lower()
+    filename = limit_filename_length(title, ext)
     filename = sanitize_filename(filename)
     return filename
 
@@ -468,7 +466,7 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
     if kwargs.get("flac") and can_convert(filename):
         logger.info("Converting to .flac...")
-        newfilename = filename[:-4] + ".flac"
+        newfilename = limit_filename_length(filename[:-4], ".flac")
 
         commands = ["ffmpeg", "-i", filename, newfilename, "-loglevel", "error"]
         logger.debug(f"Commands: {commands}")
@@ -587,6 +585,9 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, **
             set_metadata(track, filename, playlist_info, **kwargs)
         except:
             logger.exception("Error trying to set the tags...")
+            if kwargs.get("strict"):
+                os.remove(filename)
+                sys.exit(1)
     else:
         logger.error("This type of audio doesn't support tagging...")
 
@@ -771,6 +772,10 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
                 a["covr"] = [mutagen.mp4.MP4Cover(out_file.read())]
         a.save()
 
+def limit_filename_length(name: str, ext: str, max_bytes=255):
+    while len(name.encode("utf-8")) + len(ext.encode("utf-8")) > max_bytes:
+        name = name[:-1]
+    return name + ext
 
 def signal_handler(signal, frame):
     """
@@ -779,13 +784,11 @@ def signal_handler(signal, frame):
     logger.info("\nGood bye!")
     sys.exit(0)
 
-
 def is_ffmpeg_available():
     """
     Returns true if ffmpeg is available in the operating system
     """
     return shutil.which("ffmpeg") is not None
-
 
 if __name__ == "__main__":
     main()

@@ -79,6 +79,7 @@ scdl me -f
 --client-id [id]                Specify the client_id to use
 --auth-token [token]            Specify the auth token to use
 --overwrite                     Overwrite file if it already exists
+--strict                        Fail if setting metadata fails
 ```
 
 
