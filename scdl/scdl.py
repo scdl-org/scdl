@@ -452,7 +452,7 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
 
 def download_original_file(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
     logger.info("Downloading the original file.")
-    
+
     # Get the requests stream
     url = client.get_track_original_download(track.id, track.secret_token)
     
@@ -472,19 +472,17 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
     # Find filename
     header = r.headers.get("content-disposition")
     _, params = cgi.parse_header(header)
-    print(header)
     if "filename" in params:
         filename = urllib.parse.unquote(params["filename"], encoding="utf-8")
     else:
         raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
-    print(filename)
     
     if not kwargs.get("original_name"):
         filename, ext = os.path.splitext(filename)
 
         # Find file extension
         mime = r.headers.get("content-type")
-        ext = mimetypes.guess_extension(mime) or ext
+        ext = ext or mimetypes.guess_extension(mime)
         filename += ext
 
         filename = get_filename(track, filename, playlist_info=playlist_info, **kwargs)
