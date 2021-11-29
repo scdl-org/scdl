@@ -565,12 +565,14 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
     url = get_track_m3u8(client, track, aac)
     filename_path = os.path.abspath(filename)
 
-    p = subprocess.run(
+    p = subprocess.Popen(
         ["ffmpeg", "-i", url, "-c", "copy", filename_path, "-loglevel", "error"],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
     )
-    if p.stderr:
-        logger.error(p.stderr.decode("utf-8"))
+    stdout, stderr = p.communicate()
+    if stderr:
+        logger.error(stderr.decode("utf-8"))
     return (filename, False)
 
 
