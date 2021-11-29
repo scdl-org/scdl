@@ -61,6 +61,7 @@ Options:
     --strict-playlist               Abort playlist downloading if one track fails to download
 """
 
+import cgi
 import configparser
 import logging
 import mimetypes
@@ -69,7 +70,6 @@ import pathlib
 mimetypes.init()
 
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -383,7 +383,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
     Downloads a playlist
     """
     playlist_name = playlist.title.encode("utf-8", "ignore")
-    playlist_name = playlist_name.decode("utf8")
+    playlist_name = playlist_name.decode("utf-8")
     playlist_name = sanitize_filename(playlist_name)
 
     if not kwargs.get("no_playlist_folder"):
@@ -423,9 +423,6 @@ def try_utime(path, filetime):
 
 def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_info=None, **kwargs):
     
-    if kwargs.get("original_name") and original_filename:
-        return original_filename
-    
     username = track.user.username
     title = track.title.encode("utf-8", "ignore").decode("utf-8")
 
@@ -455,9 +452,9 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
 
 def download_original_file(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
     logger.info("Downloading the original file.")
-
+    
     # Get the requests stream
-    url = client.get_track_original_download(track.id)
+    url = client.get_track_original_download(track.id, track.secret_token)
     
     if not url:
         logger.info("Could not get original download link")
@@ -473,16 +470,25 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
         return (None, False)
 
     # Find filename
-    d = r.headers.get("content-disposition")
-    filename = re.findall("filename=(.+)", d)[0]
-    filename, ext = os.path.splitext(filename)
+    header = r.headers.get("content-disposition")
+    _, params = cgi.parse_header(header)
+    print(header)
+    if "filename" in params:
+        filename = urllib.parse.unquote(params["filename"], encoding="utf-8")
+    else:
+        raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
+    print(filename)
+    
+    if not kwargs.get("original_name"):
+        filename, ext = os.path.splitext(filename)
 
-    # Find file extension
-    mime = r.headers.get("content-type")
-    ext = mimetypes.guess_extension(mime) or ext
-    filename += ext
+        # Find file extension
+        mime = r.headers.get("content-type")
+        ext = mimetypes.guess_extension(mime) or ext
+        filename += ext
 
-    filename = get_filename(track, filename, playlist_info=playlist_info, **kwargs)
+        filename = get_filename(track, filename, playlist_info=playlist_info, **kwargs)
+
     logger.debug(f"filename : {filename}")
 
     # Skip if file ID or filename already exists
@@ -582,7 +588,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
     """
     try:
         title = track.title
-        title = title.encode("utf-8", "ignore").decode("utf8")
+        title = title.encode("utf-8", "ignore").decode("utf-8")
         logger.info(f"Downloading {title}")
 
         # Not streamable
