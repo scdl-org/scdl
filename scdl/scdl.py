@@ -591,7 +591,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
 
         # Not streamable
         if not track.streamable:
-            raise SoundCloudException(f"{title} is not streamable...")
+            logger.warning("Track is not streamable...")
 
         # Geoblocked track
         if track.policy == "BLOCK":
