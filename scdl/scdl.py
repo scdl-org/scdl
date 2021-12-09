@@ -221,6 +221,7 @@ def main():
         arguments["-l"] = client.get_me().permalink_url
     
     arguments["-l"] = validate_url(arguments["-l"])
+    arguments["-l"]
         
     # convert arguments dict to python_args (kwargs-friendly args)
     for key, value in arguments.items():
@@ -244,12 +245,13 @@ def validate_url(url: str):
     if url.startswith("soundcloud.com"):
         url = "https://" + url
     if url.startswith("https://soundcloud.com") or url.startswith("http://soundcloud.com"):
+        url = urllib.parse.urljoin(url, urllib.parse.urlparse(url).path)
         return url
     
     # see if link redirects to soundcloud.com
     resp = requests.get(url)
-    url = urllib.parse.urljoin(resp.url, urllib.parse.urlparse(resp.url).path)
     if url.startswith("https://soundcloud.com") or url.startswith("http://soundcloud.com"):
+        url = urllib.parse.urljoin(resp.url, urllib.parse.urlparse(resp.url).path)
         return url
     
     logger.error("URL is not valid")
