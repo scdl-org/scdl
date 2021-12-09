@@ -221,7 +221,6 @@ def main():
         arguments["-l"] = client.get_me().permalink_url
     
     arguments["-l"] = validate_url(arguments["-l"])
-    arguments["-l"]
         
     # convert arguments dict to python_args (kwargs-friendly args)
     for key, value in arguments.items():
