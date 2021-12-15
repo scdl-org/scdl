@@ -395,7 +395,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
     try:
         if kwargs.get("n"):  # Order by creation date and get the n lasts tracks
             playlist.tracks.sort(
-                key=lambda track: track.created_at, reverse=True
+                key=lambda track: track.id, reverse=True
             )
             playlist.tracks = playlist.tracks[: int(kwargs.get("n"))]
         else:
