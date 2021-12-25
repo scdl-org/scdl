@@ -142,33 +142,29 @@ def main():
     # import conf file
     config = get_config(config_file)
     
-    # change download path
-    path = config["scdl"]["path"]
-    if os.path.exists(path):
-        os.chdir(path)
-    else:
-        logger.error(f"Invalid download path '{path}' in {config_file}")
-        sys.exit(1)
-    
     logger.info("Soundcloud Downloader")
     logger.debug(arguments)
-
-    if not arguments["--client-id"]:
-        arguments["--client-id"] = config["scdl"]["client_id"]
-
-    if not arguments["--auth-token"]:
-        arguments["--auth-token"] = config["scdl"]["auth_token"]
-    
-    client_id, token = arguments["--client-id"], arguments["--auth-token"]
+        
+    client_id = arguments["--client-id"] or config["scdl"]["client_id"]
+    token = arguments["--auth-token"] or config["scdl"]["auth_token"]
     
     client = SoundCloud(client_id, token if token else None)
     
     if not client.is_client_id_valid():
-        logger.error(f"Invalid client_id in {config_file}")
-        sys.exit(1)
+        if arguments["--client-id"]:
+            logger.error(f"Invalid client_id specified by --client-id argument. Using a dynamically generated client_id...")
+        elif config["scdl"]["client_id"]:
+            logger.error(f"Invalid client_id in {config_file}. Using a dynamically generated client_id...")
+        client = SoundCloud(None, token if token else None)
+        if not client.is_client_id_valid():
+            logger.error("Dynamically generated client_id is not valid")
+            sys.exit(1)
     
     if (token or arguments["me"]) and not client.is_auth_token_valid():
-        logger.error(f"Invalid auth_token in {config_file}")
+        if arguments["--auth-token"]:
+            logger.error(f"Invalid auth_token specified by --auth-token argument")
+        else:
+            logger.error(f"Invalid auth_token in {config_file}")
         sys.exit(1)
 
     if arguments["-o"] is not None:
@@ -201,14 +197,6 @@ def main():
 
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
-
-    if arguments["--path"] is not None:
-        if os.path.exists(arguments["--path"]):
-            os.chdir(arguments["--path"])
-        else:
-            logger.error("Invalid path in arguments...")
-            sys.exit(1)
-    logger.debug("Downloading to " + os.getcwd() + "...")
     
     if not arguments["--name-format"]:
         arguments["--name-format"] = config["scdl"]["name_format"]
@@ -226,6 +214,19 @@ def main():
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
+        
+    # change download path
+    path = arguments["--path"] or config["scdl"]["path"]
+    if os.path.exists(path):
+        os.chdir(path)
+    else:
+        if arguments["--path"]:
+            logger.error(f"Invalid download path '{path}' specified by --path argument")
+        else:
+            logger.error(f"Invalid download path '{path}' in {config_file}")
+        sys.exit(1)
+    logger.debug("Downloading to " + os.getcwd() + "...")
+    
     download_url(client, **python_args)
 
     if arguments["--remove"]:

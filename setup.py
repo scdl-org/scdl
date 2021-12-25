@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
-from setuptools import setup, find_packages
+from os import path
+
+from setuptools import find_packages, setup
 
 import scdl
-
-from os import path
 
 this_directory = path.abspath(path.dirname(__file__))
 with open(path.join(this_directory, "README.md"), encoding="utf-8") as f:
@@ -28,7 +28,7 @@ setup(
         "requests",
         "clint",
         "pathvalidate",
-        "soundcloud-v2>=1.1.6"
+        "soundcloud-v2>=1.2.0"
     ],
     url="https://github.com/flyingrub/scdl",
     classifiers=[
