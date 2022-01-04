@@ -9,7 +9,7 @@ Usage:
 [--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
 [--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--original-art]
 [--original-name][--no-original][--only-original][--name-format <format>][--strict-playlist]
-[--playlist-name-format <format>][--client-id <id>][--auth-token <token>][--overwrite]
+[--playlist-name-format <format>][--client-id <id>][--auth-token <token>][--overwrite][--no-playlist]
     scdl -h | --help
     scdl --version
 
@@ -59,6 +59,7 @@ Options:
     --auth-token [token]            Specify the auth token to use
     --overwrite                     Overwrite file if it already exists
     --strict-playlist               Abort playlist downloading if one track fails to download
+    --no-playlist                   Skip downloading playlists
 """
 
 import cgi
@@ -384,6 +385,9 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
     """
     Downloads a playlist
     """
+    if kwargs.get("no_playlist"):
+        logger.info("Skipping playlist...")
+        return
     playlist_name = playlist.title.encode("utf-8", "ignore")
     playlist_name = playlist_name.decode("utf-8")
     playlist_name = sanitize_filename(playlist_name)
