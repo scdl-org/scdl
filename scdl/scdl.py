@@ -65,6 +65,7 @@ Options:
 import cgi
 import configparser
 import logging
+import math
 import mimetypes
 import pathlib
 
@@ -175,7 +176,7 @@ def main():
             python_args["offset"] = int(arguments["-o"])
             if python_args["offset"] < 1:
                 raise ValueError()
-        except:
+        except Exception:
             logger.error("Offset should be a positive integer...")
             sys.exit(1)
         logger.debug("offset: %d", python_args["offset"])
@@ -183,7 +184,7 @@ def main():
     if arguments["--min-size"] is not None:
         try:
             arguments["--min-size"] = utils.size_in_bytes(arguments["--min-size"])
-        except:
+        except Exception:
             logger.exception(
                 "Min size should be an integer with a possible unit suffix"
             )
@@ -193,7 +194,7 @@ def main():
     if arguments["--max-size"] is not None:
         try:
             arguments["--max-size"] = utils.size_in_bytes(arguments["--max-size"])
-        except:
+        except Exception:
             logger.error("Max size should be an integer with a possible unit suffix")
             sys.exit(1)
         logger.debug("max-size: %d", arguments["--max-size"])
@@ -430,7 +431,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
 def try_utime(path, filetime):
     try:
         os.utime(path, (time.time(), filetime))
-    except:
+    except Exception:
         logger.error("Cannot update utime of file")
 
 def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_info=None, **kwargs):
@@ -509,6 +510,13 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
 
     # Write file
     total_length = int(r.headers.get("content-length"))
+    
+    min_size = kwargs.get("min_size") or 0
+    max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
+    
+    if not min_size <= total_length <= max_size:
+        raise SoundCloudException("File not within --min-size and --max-size bounds")
+    
     temp = tempfile.NamedTemporaryFile(delete=False)
     received = 0
     with temp as f:
@@ -540,14 +548,26 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
     return (filename, False)
 
 
-def get_track_m3u8(client: SoundCloud, track: BasicTrack, aac=False):
+def get_track_m3u8(client: SoundCloud, track: BasicTrack, aac=False, **kwargs):
     url = None
     for transcoding in track.media.transcodings:
         if transcoding.format.protocol == "hls":
             if (not aac and transcoding.format.mime_type == "audio/mpeg") or (
-                aac and transcoding.format.mime_type.startswith("audio/mp4")
+                aac and transcoding.format.mime_type == "audio/mp4"
             ):
                 url = transcoding.url
+                bitrate_KBps = 256 / 8 if aac else 128 / 8
+                total_bytes = bitrate_KBps * transcoding.duration
+                break
+            
+    if not url:
+        raise SoundCloudException("Could not find mp3 or aac transcoding")
+    
+    min_size = kwargs.get("min_size") or 0
+    max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
+    
+    if not min_size <= total_bytes <= max_size:
+        raise SoundCloudException("File not within --min-size and --max-size bounds")
 
     if url is not None:
         headers = client.get_default_headers()
@@ -578,7 +598,7 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
         return (filename, True)
 
     # Get the requests stream
-    url = get_track_m3u8(client, track, aac)
+    url = get_track_m3u8(client, track, aac, **kwargs)
     filename_path = os.path.abspath(filename)
 
     p = subprocess.Popen(
@@ -646,7 +666,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
         ):
             try:
                 set_metadata(track, filename, playlist_info, **kwargs)
-            except:
+            except Exception:
                 os.remove(filename)
                 logger.exception("Error trying to set the tags...")
                 raise SoundCloudException("Error trying to set the tags...")
@@ -763,7 +783,7 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
                 "image/jpg",
             ):
                 response = None
-        except:
+        except Exception:
             pass
     if response is None:
         new_artwork_url = artwork_url.replace("large", "t500x500")
