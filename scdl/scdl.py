@@ -68,6 +68,8 @@ import logging
 import mimetypes
 import pathlib
 
+import soundcloud
+
 mimetypes.init()
 
 import os
@@ -209,7 +211,7 @@ def main():
         # set url to profile associated with auth token
         arguments["-l"] = client.get_me().permalink_url
     
-    arguments["-l"] = validate_url(arguments["-l"])
+    arguments["-l"] = validate_url(client, arguments["-l"])
         
     # convert arguments dict to python_args (kwargs-friendly args)
     for key, value in arguments.items():
@@ -233,7 +235,7 @@ def main():
     if arguments["--remove"]:
         remove_files()
 
-def validate_url(url: str):
+def validate_url(client: SoundCloud, url: str):
     """
     If url is a valid soundcloud.com url, return it.
     Otherwise, try to fix the url so that it is valid.
@@ -250,10 +252,14 @@ def validate_url(url: str):
         return url
     
     # see if link redirects to soundcloud.com
-    resp = requests.get(url)
-    if url.startswith("https://soundcloud.com") or url.startswith("http://soundcloud.com"):
-        url = urllib.parse.urljoin(resp.url, urllib.parse.urlparse(resp.url).path)
-        return url
+    try:
+        resp = requests.get(url)
+        if url.startswith("https://soundcloud.com") or url.startswith("http://soundcloud.com"):
+            return urllib.parse.urljoin(resp.url, urllib.parse.urlparse(resp.url).path)
+    except Exception:
+        # see if given a username instead of url
+        if client.resolve(f"https://soundcloud.com/{url}"):
+            return f"https://soundcloud.com/{url}"
     
     logger.error("URL is not valid")
     sys.exit(1)
