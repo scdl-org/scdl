@@ -69,8 +69,6 @@ import math
 import mimetypes
 import pathlib
 
-import soundcloud
-
 mimetypes.init()
 
 import os
@@ -93,7 +91,8 @@ import requests
 from clint.textui import progress
 from docopt import docopt
 from pathvalidate import sanitize_filename
-from soundcloud import BasicAlbumPlaylist, BasicTrack, MiniTrack, SoundCloud
+from soundcloud import (BasicAlbumPlaylist, BasicTrack, MiniTrack, SoundCloud,
+                        Transcoding)
 
 from scdl import __version__, utils
 
@@ -548,20 +547,10 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
     return (filename, False)
 
 
-def get_track_m3u8(client: SoundCloud, track: BasicTrack, aac=False, **kwargs):
-    url = None
-    for transcoding in track.media.transcodings:
-        if transcoding.format.protocol == "hls":
-            if (not aac and transcoding.format.mime_type == "audio/mpeg") or (
-                aac and transcoding.format.mime_type == "audio/mp4"
-            ):
-                url = transcoding.url
-                bitrate_KBps = 256 / 8 if aac else 128 / 8
-                total_bytes = bitrate_KBps * transcoding.duration
-                break
-            
-    if not url:
-        raise SoundCloudException("Could not find mp3 or aac transcoding")
+def get_track_m3u8(client: SoundCloud, track: BasicTrack, transcoding: Transcoding, **kwargs):
+    url = transcoding.url
+    bitrate_KBps = 256 / 8 if transcoding.preset == "aac_hq" else 128 / 8
+    total_bytes = bitrate_KBps * transcoding.duration
     
     min_size = kwargs.get("min_size") or 0
     max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
@@ -582,14 +571,20 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
 
     if not track.media.transcodings:
         raise SoundCloudException(f"Track {track.permalink_url} has no transcodings available")
-
-    if kwargs["onlymp3"]:
-        aac = False
-    else:
-        aac = any(
-            t.format.mime_type.startswith("audio/mp4")
-            for t in track.media.transcodings
-        )
+    
+    logger.debug(f"Trancodings: {track.media.transcodings}")
+    
+    transcodings = {t.preset: t for t in track.media.transcodings if t.format.protocol == "hls"}
+    transcoding = None
+    aac = False
+    if not kwargs.get("onlymp3") and "aac_hq" in transcodings:
+        transcoding = transcodings["aac_hq"]
+        aac = True
+    elif "mp3_0_0" in transcodings:
+        transcoding = transcodings["mp3_0_0"]
+                
+    if not transcoding:
+        raise SoundCloudException(f"Could not find mp3_0_0 or aac_hq transcoding. Available transcodings: {list(transcodings)}")
 
     filename = get_filename(track, None, aac, playlist_info, **kwargs)
     logger.debug(f"filename : {filename}")
@@ -598,7 +593,7 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
         return (filename, True)
 
     # Get the requests stream
-    url = get_track_m3u8(client, track, aac, **kwargs)
+    url = get_track_m3u8(client, track, transcoding, **kwargs)
     filename_path = os.path.abspath(filename)
 
     p = subprocess.Popen(
