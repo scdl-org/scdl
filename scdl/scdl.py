@@ -547,9 +547,9 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
     return (filename, False)
 
 
-def get_track_m3u8(client: SoundCloud, track: BasicTrack, transcoding: Transcoding, **kwargs):
+def get_transcoding_m3u8(client: SoundCloud, transcoding: Transcoding, **kwargs):
     url = transcoding.url
-    bitrate_KBps = 256 / 8 if transcoding.preset == "aac_hq" else 128 / 8
+    bitrate_KBps = 256 / 8 if "aac" in transcoding.preset else 128 / 8
     total_bytes = bitrate_KBps * transcoding.duration
     
     min_size = kwargs.get("min_size") or 0
@@ -601,7 +601,7 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
         return (filename, True)
 
     # Get the requests stream
-    url = get_track_m3u8(client, track, transcoding, **kwargs)
+    url = get_transcoding_m3u8(client, transcoding, **kwargs)
     filename_path = os.path.abspath(filename)
 
     p = subprocess.Popen(
