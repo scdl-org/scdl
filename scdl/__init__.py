@@ -2,4 +2,4 @@
 
 """Python Soundcloud Music Downloader."""
 
-__version__ = "v2.5.1"
+__version__ = "v2.5.2"
