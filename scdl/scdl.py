@@ -574,17 +574,25 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
     
     logger.debug(f"Trancodings: {track.media.transcodings}")
     
-    transcodings = {t.preset: t for t in track.media.transcodings if t.format.protocol == "hls"}
-    transcoding = None
+    aac_transcoding = None
+    mp3_transcoding = None
+    
+    for t in track.media.transcodings:
+        if t.format.protocol == "hls" and "aac" in t.preset:
+            aac_transcoding = t
+        elif t.format.protocol == "hls" and "mp3" in t.preset:
+            mp3_transcoding = t
+    
     aac = False
-    if not kwargs.get("onlymp3") and "aac_hq" in transcodings:
-        transcoding = transcodings["aac_hq"]
+    transcoding = None
+    if not kwargs.get("onlymp3") and aac_transcoding:
+        transcoding = aac_transcoding
         aac = True
-    elif "mp3_0_0" in transcodings:
-        transcoding = transcodings["mp3_0_0"]
+    elif mp3_transcoding:
+        transcoding = mp3_transcoding
                 
     if not transcoding:
-        raise SoundCloudException(f"Could not find mp3_0_0 or aac_hq transcoding. Available transcodings: {list(transcodings)}")
+        raise SoundCloudException(f"Could not find mp3 or aac transcoding. Available transcodings: {[t.preset for t in track.media.transcodings if t.format.protocol == 'hls']}")
 
     filename = get_filename(track, None, aac, playlist_info, **kwargs)
     logger.debug(f"filename : {filename}")
