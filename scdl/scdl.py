@@ -64,14 +64,15 @@ Options:
 
 import cgi
 import configparser
+import itertools
 import logging
 import math
 import mimetypes
-import pathlib
 
 mimetypes.init()
 
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -128,9 +129,6 @@ def main():
 
     # Parse arguments
     arguments = docopt(__doc__, version=__version__)
-    python_args = {
-        "offset": 1
-    }
 
     if arguments["--debug"]:
         logger.level = logging.DEBUG
@@ -172,13 +170,13 @@ def main():
 
     if arguments["-o"] is not None:
         try:
-            python_args["offset"] = int(arguments["-o"])
-            if python_args["offset"] < 1:
+            arguments["--offset"] = int(arguments["-o"]) - 1
+            if arguments["--offset"] < 0:
                 raise ValueError()
         except Exception:
             logger.error("Offset should be a positive integer...")
             sys.exit(1)
-        logger.debug("offset: %d", python_args["offset"])
+        logger.debug("offset: %d", arguments["--offset"])
 
     if arguments["--min-size"] is not None:
         try:
@@ -214,6 +212,7 @@ def main():
     arguments["-l"] = validate_url(client, arguments["-l"])
         
     # convert arguments dict to python_args (kwargs-friendly args)
+    python_args = {}
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
@@ -295,6 +294,7 @@ def download_url(client: SoundCloud, **kwargs):
     url = kwargs.get("l")
     item = client.resolve(url)
     logger.debug(item)
+    offset = kwargs.get("offset", 0)
     if not item:
         logger.error("URL is not valid")
         sys.exit(1)
@@ -303,14 +303,14 @@ def download_url(client: SoundCloud, **kwargs):
         download_track(client, item, **kwargs)
     elif item.kind == "playlist":
         logger.info("Found a playlist")
-        download_playlist(client, item, **kwargs)
+        download_playlist(client, item, playlist_offset=offset, **kwargs)
     elif item.kind == "user":
         user = item
         logger.info("Found a user profile")
         if kwargs.get("f"):
             logger.info(f"Retrieving all likes of user {user.username}...")
             resources = client.get_user_likes(user.id, limit=1000)
-            for i, like in enumerate(resources, 1):
+            for i, like in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"like n°{i} of {user.likes_count}")
                 if hasattr(like, "track"):
                     download_track(client, like.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
@@ -324,21 +324,21 @@ def download_url(client: SoundCloud, **kwargs):
         elif kwargs.get("C"):
             logger.info(f"Retrieving all commented tracks of user {user.username}...")
             resources = client.get_user_comments(user.id, limit=1000)
-            for i, comment in enumerate(resources, 1):
+            for i, comment in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"comment n°{i} of {user.comments_count}")
                 download_track(client, client.get_track(comment.track.id), exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
             logger.info(f"Downloaded all commented tracks of user {user.username}!")
         elif kwargs.get("t"):
             logger.info(f"Retrieving all tracks of user {user.username}...")
             resources = client.get_user_tracks(user.id, limit=1000)
-            for i, track in enumerate(resources, 1):
+            for i, track in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"track n°{i} of {user.track_count}")
                 download_track(client, track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
             logger.info(f"Downloaded all tracks of user {user.username}!")
         elif kwargs.get("a"):
             logger.info(f"Retrieving all tracks & reposts of user {user.username}...")
             resources = client.get_user_stream(user.id, limit=1000)
-            for i, item in enumerate(resources, 1):
+            for i, item in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"item n°{i} of {user.track_count + user.reposts_count if user.reposts_count else '?'}")
                 if item.type in ("track", "track-repost"):
                     download_track(client, item.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
@@ -352,14 +352,14 @@ def download_url(client: SoundCloud, **kwargs):
         elif kwargs.get("p"):
             logger.info(f"Retrieving all playlists of user {user.username}...")
             resources = client.get_user_playlists(user.id, limit=1000)
-            for i, playlist in enumerate(resources, 1):
+            for i, playlist in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"playlist n°{i} of {user.playlist_count}")
                 download_playlist(client, playlist, **kwargs)
             logger.info(f"Downloaded all playlists of user {user.username}!")
         elif kwargs.get("r"):
             logger.info(f"Retrieving all reposts of user {user.username}...")
             resources = client.get_user_reposts(user.id, limit=1000)
-            for i, item in enumerate(resources, 1):
+            for i, item in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"item n°{i} of {user.reposts_count or '?'}")
                 if item.type == "track-repost":
                     download_track(client, item.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
@@ -410,9 +410,9 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
             )
             playlist.tracks = playlist.tracks[: int(kwargs.get("n"))]
         else:
-            del playlist.tracks[: kwargs.get("offset") - 1]
+            del playlist.tracks[: kwargs.get("playlist_offset", 0)]
         tracknumber_digits = len(str(len(playlist.tracks)))
-        for counter, track in enumerate(playlist.tracks, kwargs.get("offset")):
+        for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
             logger.debug(track)
             logger.info(f"Track n°{counter}")
             playlist_info = {
