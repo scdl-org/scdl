@@ -28,7 +28,7 @@ setup(
         "requests",
         "clint",
         "pathvalidate",
-        "soundcloud-v2>=1.2.0"
+        "soundcloud-v2>=1.3.0"
     ],
     url="https://github.com/flyingrub/scdl",
     classifiers=[

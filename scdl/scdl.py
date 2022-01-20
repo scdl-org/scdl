@@ -417,11 +417,15 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
             logger.info(f"Track n°{counter}")
             playlist_info = {
                 "author": playlist.user.username,
+                "id": playlist.id,
                 "title": playlist.title,
                 "tracknumber": str(counter).zfill(tracknumber_digits),
             }
             if isinstance(track, MiniTrack):
-                track = client.get_track(track.id)
+                if playlist.secret_token:
+                    track = client.get_tracks([track.id], playlist.id, playlist.secret_token)[0]
+                else:
+                    track = client.get_track(track.id)
             download_track(client, track, playlist_info, kwargs.get("strict_playlist"), **kwargs)
     finally:
         if not kwargs.get("no_playlist_folder"):
