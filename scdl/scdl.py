@@ -134,7 +134,7 @@ def main():
         logger.level = logging.DEBUG
     elif arguments["--error"]:
         logger.level = logging.ERROR
-        
+
     if "XDG_CONFIG_HOME" in os.environ:
         config_file = pathlib.Path(os.environ["XDG_CONFIG_HOME"], "scdl", "scdl.cfg")
     else:
@@ -142,15 +142,15 @@ def main():
 
     # import conf file
     config = get_config(config_file)
-    
+
     logger.info("Soundcloud Downloader")
     logger.debug(arguments)
-        
+
     client_id = arguments["--client-id"] or config["scdl"]["client_id"]
     token = arguments["--auth-token"] or config["scdl"]["auth_token"]
-    
+
     client = SoundCloud(client_id, token if token else None)
-    
+
     if not client.is_client_id_valid():
         if arguments["--client-id"]:
             logger.error(f"Invalid client_id specified by --client-id argument. Using a dynamically generated client_id...")
@@ -160,7 +160,7 @@ def main():
         if not client.is_client_id_valid():
             logger.error("Dynamically generated client_id is not valid")
             sys.exit(1)
-    
+
     if (token or arguments["me"]) and not client.is_auth_token_valid():
         if arguments["--auth-token"]:
             logger.error(f"Invalid auth_token specified by --auth-token argument")
@@ -198,25 +198,25 @@ def main():
 
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
-    
+
     if not arguments["--name-format"]:
         arguments["--name-format"] = config["scdl"]["name_format"]
-    
+
     if not arguments["--playlist-name-format"]:
         arguments["--playlist-name-format"] = config["scdl"]["playlist_name_format"]
-        
+
     if arguments["me"]:
         # set url to profile associated with auth token
         arguments["-l"] = client.get_me().permalink_url
-    
+
     arguments["-l"] = validate_url(client, arguments["-l"])
-        
+
     # convert arguments dict to python_args (kwargs-friendly args)
     python_args = {}
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
-        
+
     # change download path
     path = arguments["--path"] or config["scdl"]["path"]
     if os.path.exists(path):
@@ -228,11 +228,8 @@ def main():
             logger.error(f"Invalid download path '{path}' in {config_file}")
         sys.exit(1)
     logger.debug("Downloading to " + os.getcwd() + "...")
-    
-    download_url(client, **python_args)
 
-    if arguments["--remove"]:
-        remove_files()
+    download_url(client, **python_args)
 
 def validate_url(client: SoundCloud, url: str):
     """
@@ -249,7 +246,7 @@ def validate_url(client: SoundCloud, url: str):
     if url.startswith("https://soundcloud.com") or url.startswith("http://soundcloud.com"):
         url = urllib.parse.urljoin(url, urllib.parse.urlparse(url).path)
         return url
-    
+
     # see if link redirects to soundcloud.com
     try:
         resp = requests.get(url)
@@ -259,7 +256,7 @@ def validate_url(client: SoundCloud, url: str):
         # see if given a username instead of url
         if client.resolve(f"https://soundcloud.com/{url}"):
             return f"https://soundcloud.com/{url}"
-    
+
     logger.error("URL is not valid")
     sys.exit(1)
 
@@ -268,21 +265,21 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     Gets config from scdl.cfg
     """
     config = configparser.ConfigParser()
-    
+
     default_config_file = pathlib.Path(__file__).with_name("scdl.cfg")
 
     # load default config first
     config.read_file(open(default_config_file, encoding="UTF-8"))
-    
+
     # load config file if it exists
     if config_file.exists():
         config.read_file(open(config_file, encoding="UTF-8"))
-    
+
     # save config to disk
     config_file.parent.mkdir(parents=True, exist_ok=True)
     with open(config_file, "w", encoding="UTF-8") as f:
         config.write(f)
-        
+
     return config
 
 
@@ -427,7 +424,11 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
                 else:
                     track = client.get_track(track.id)
             download_track(client, track, playlist_info, kwargs.get("strict_playlist"), **kwargs)
+
     finally:
+        if kwargs.get("remove"):
+            remove_files()
+
         if not kwargs.get("no_playlist_folder"):
             os.chdir("..")
 
@@ -438,7 +439,7 @@ def try_utime(path, filetime):
         logger.error("Cannot update utime of file")
 
 def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_info=None, **kwargs):
-    
+
     username = track.user.username
     title = track.title.encode("utf-8", "ignore").decode("utf-8")
 
@@ -450,7 +451,7 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
     timestamp = str(int(track.created_at.timestamp()))
     if kwargs.get("addtimestamp"):
         title = timestamp + "_" + title
-    
+
     if not kwargs.get("addtofile") and not kwargs.get("addtimestamp"):
         if playlist_info:
             title = kwargs.get("playlist_name_format").format(**asdict(track), playlist=playlist_info, timestamp=timestamp)
@@ -471,11 +472,11 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
 
     # Get the requests stream
     url = client.get_track_original_download(track.id, track.secret_token)
-    
+
     if not url:
         logger.info("Could not get original download link")
         return (None, False)
-    
+
     r = requests.get(url, stream=True)
     if r.status_code == 401:
         logger.info("The original file has no download left.")
@@ -492,7 +493,7 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
         filename = urllib.parse.unquote(params["filename"], encoding="utf-8")
     else:
         raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
-    
+
     if not kwargs.get("original_name"):
         filename, ext = os.path.splitext(filename)
 
@@ -513,13 +514,13 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
 
     # Write file
     total_length = int(r.headers.get("content-length"))
-    
+
     min_size = kwargs.get("min_size") or 0
     max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
-    
+
     if not min_size <= total_length <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
-    
+
     temp = tempfile.NamedTemporaryFile(delete=False)
     received = 0
     with temp as f:
@@ -555,10 +556,10 @@ def get_transcoding_m3u8(client: SoundCloud, transcoding: Transcoding, **kwargs)
     url = transcoding.url
     bitrate_KBps = 256 / 8 if "aac" in transcoding.preset else 128 / 8
     total_bytes = bitrate_KBps * transcoding.duration
-    
+
     min_size = kwargs.get("min_size") or 0
     max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
-    
+
     if not min_size <= total_bytes <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
 
@@ -575,18 +576,18 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
 
     if not track.media.transcodings:
         raise SoundCloudException(f"Track {track.permalink_url} has no transcodings available")
-    
+
     logger.debug(f"Trancodings: {track.media.transcodings}")
-    
+
     aac_transcoding = None
     mp3_transcoding = None
-    
+
     for t in track.media.transcodings:
         if t.format.protocol == "hls" and "aac" in t.preset:
             aac_transcoding = t
         elif t.format.protocol == "hls" and "mp3" in t.preset:
             mp3_transcoding = t
-    
+
     aac = False
     transcoding = None
     if not kwargs.get("onlymp3") and aac_transcoding:
@@ -594,7 +595,7 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
         aac = True
     elif mp3_transcoding:
         transcoding = mp3_transcoding
-                
+
     if not transcoding:
         raise SoundCloudException(f"Could not find mp3 or aac transcoding. Available transcodings: {[t.preset for t in track.media.transcodings if t.format.protocol == 'hls']}")
 
