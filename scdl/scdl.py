@@ -409,8 +409,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
                 key=lambda track: track.id, reverse=True
             )
             playlist.tracks = playlist.tracks[: int(kwargs.get("n"))]
-        else:
-            del playlist.tracks[: kwargs.get("playlist_offset", 0)]
+            kwargs["playlist_offset"] = 0
         tracknumber_digits = len(str(len(playlist.tracks)))
         for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
             logger.debug(track)
