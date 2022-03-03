@@ -4,12 +4,15 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl (-l <track_url> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata][-n <maxtracks>]
-[-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
-[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--original-art]
-[--original-name][--no-original][--only-original][--name-format <format>][--strict-playlist]
-[--playlist-name-format <format>][--client-id <id>][--auth-token <token>][--overwrite][--no-playlist]
+    scdl (-l <track_url> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata]
+    [-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error][--path <path>]
+    [--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
+    [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
+    [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
+    [--original-name][--no-original][--only-original][--name-format <format>]
+    [--strict-playlist][--playlist-name-format <format>][--client-id <id>]
+    [--auth-token <token>][--overwrite][--no-playlist]
+    
     scdl -h | --help
     scdl --version
 
@@ -47,6 +50,7 @@ Options:
                                     even if track has a Downloadable file
     --path [path]                   Use a custom path for downloaded files
     --remove                        Remove any files not downloaded from execution
+    --sync [file]               Compares an archive file to a playlist and downloads/removes any changed tracks
     --flac                          Convert original files to .flac
     --no-album-tag                  On some player track get the same cover art if from the same album, this prevent it
     --original-art                  Download original cover art
@@ -387,6 +391,52 @@ def remove_files():
         if f not in fileToKeep:
             os.remove(f)
 
+def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, archive):
+    """
+    Downloads/Removes tracks that have been changed on playlist since last archive file
+    """
+    
+    logger.info("Comparing tracks...")
+    with open(archive) as f:
+        try:
+            old = [int(i) for i in ''.join(f.readlines()).strip().split('\n')]
+        except IOError as ioe:
+            logger.error(f'Error trying to read download archive {archive}')
+            logger.debug(ioe)
+            
+    kwargs["download_archive"] = archive
+    
+    new = [track.id for track in playlist.tracks]
+    add = set(new).difference(old) # find tracks to download
+    rem = set(old).difference(new) # find tracks to remove
+
+    if not (add or rem):
+        logger.info("No changes found. Exiting...")
+        sys.exit(0)
+
+    if rem:
+        for track_id in rem:
+            track_name = client.get_track(track_id)
+            if os.path.isfile(track_name):
+                os.remove(track_name)
+                logger.info(f'Removed {track_name}')
+            else:
+                logger.info('Could not find {track_name} to remove')
+                rem.remove(track_id)
+        with open(archive,'w') as f:
+          for track_id in old:
+            if track_id not in rem:
+              f.write(str(track_id)+'\n')
+    else:
+        logger.info('No tracks to remove.')
+              
+    if add:
+        playlist.tracks = [track for track in playlist.tracks if track.id in add]
+        return playlist.tracks
+    else:
+        logger.info('No tracks to download. Exiting...')
+        sys.exit(0)
+
 def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs):
     """
     Downloads a playlist
@@ -402,6 +452,14 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
         if not os.path.exists(playlist_name):
             os.makedirs(playlist_name)
         os.chdir(playlist_name)
+        
+    if kwargs.get("sync"):
+          archive = kwargs.get("sync")
+          if os.path.isfile(archive):
+                playlist.tracks = sync(client, playlist, archive)
+          else:
+                logger.error(f"Invalid sync archive file {archive}")
+                sys.exit(-1)
 
     try:
         if kwargs.get("n"):  # Order by creation date and get the n lasts tracks

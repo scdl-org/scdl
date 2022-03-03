@@ -13,6 +13,9 @@ Compatible with Windows, OS X, Linux.
 ## Installation Instructions
 https://github.com/flyingrub/scdl/wiki/Installation-Instruction
 
+## Configuration
+There is a configuration file left in `~/.config/scdl/scdl.cfg`
+
 ## Examples:
 ```
 # Download track & repost of the user QUANTA
@@ -29,6 +32,9 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
 
 # Download only new tracks from a playlist
 scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --download-archive archive.txt -c
+
+# Sync playlist
+scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --sync archive.txt
 
 # Download your likes (with authentification token)
 scdl me -f
@@ -68,6 +74,7 @@ scdl me -f
                                 even if track has a Downloadable file
 --path [path]                   Use a custom path for downloaded files
 --remove                        Remove any files not downloaded from execution
+--sync [file]		Compare an archive file to a playlist and downloads/removes any changed tracks
 --flac                          Convert original files to .flac
 --no-album-tag                  On some player track get the same cover art if from the same album, this prevent it
 --original-art                  Download original cover art
@@ -91,6 +98,7 @@ scdl me -f
 * Download all songs from all playlists from a user
 * Download all songs from a user's favorites
 * Download only new tracks from a list (playlist, favorites, etc.)
+* Sync Playlist
 * Set the tags with mutagen (Title / Artist / Album / Artwork)
 * Create playlist files when downloading a playlist
 
