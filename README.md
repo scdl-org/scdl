@@ -74,7 +74,7 @@ scdl me -f
                                 even if track has a Downloadable file
 --path [path]                   Use a custom path for downloaded files
 --remove                        Remove any files not downloaded from execution
---sync [file]		Compare an archive file to a playlist and downloads/removes any changed tracks
+--sync [file]	                	Compare an archive file to a playlist and downloads/removes any changed tracks
 --flac                          Convert original files to .flac
 --no-album-tag                  On some player track get the same cover art if from the same album, this prevent it
 --original-art                  Download original cover art
