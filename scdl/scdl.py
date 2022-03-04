@@ -214,6 +214,9 @@ def main():
         arguments["-l"] = client.get_me().permalink_url
     
     arguments["-l"] = validate_url(client, arguments["-l"])
+
+    if arguments["--sync"]:
+        arguments["--download-archive"] = arguments["--sync"]
         
     # convert arguments dict to python_args (kwargs-friendly args)
     python_args = {}
@@ -237,6 +240,7 @@ def main():
 
     if arguments["--remove"]:
         remove_files()
+
 
 def validate_url(client: SoundCloud, url: str):
     """
@@ -391,21 +395,19 @@ def remove_files():
         if f not in fileToKeep:
             os.remove(f)
 
-def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, archive):
+def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwargs):
     """
     Downloads/Removes tracks that have been changed on playlist since last archive file
     """
-    
     logger.info("Comparing tracks...")
+    archive = kwargs.get("sync")
     with open(archive) as f:
         try:
             old = [int(i) for i in ''.join(f.readlines()).strip().split('\n')]
         except IOError as ioe:
             logger.error(f'Error trying to read download archive {archive}')
             logger.debug(ioe)
-            
-    kwargs["download_archive"] = archive
-    
+
     new = [track.id for track in playlist.tracks]
     add = set(new).difference(old) # find tracks to download
     rem = set(old).difference(new) # find tracks to remove
@@ -416,13 +418,12 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, archive):
 
     if rem:
         for track_id in rem:
-            track_name = client.get_track(track_id)
-            if os.path.isfile(track_name):
-                os.remove(track_name)
-                logger.info(f'Removed {track_name}')
+            filename = get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs)
+            if filename in os.listdir('.'):
+                os.remove(filename)
+                logger.info(f'Removed {filename}')
             else:
-                logger.info('Could not find {track_name} to remove')
-                rem.remove(track_id)
+                logger.info(f'Could not find {filename} to remove')
         with open(archive,'w') as f:
           for track_id in old:
             if track_id not in rem:
@@ -431,8 +432,7 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, archive):
         logger.info('No tracks to remove.')
               
     if add:
-        playlist.tracks = [track for track in playlist.tracks if track.id in add]
-        return playlist.tracks
+        return [track for track in playlist.tracks if track.id in add]
     else:
         logger.info('No tracks to download. Exiting...')
         sys.exit(0)
@@ -447,19 +447,16 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
     playlist_name = playlist.title.encode("utf-8", "ignore")
     playlist_name = playlist_name.decode("utf-8")
     playlist_name = sanitize_filename(playlist_name)
+    playlist_info = {
+                "author": playlist.user.username,
+                "id": playlist.id,
+                "title": playlist.title
+    }
 
     if not kwargs.get("no_playlist_folder"):
         if not os.path.exists(playlist_name):
             os.makedirs(playlist_name)
         os.chdir(playlist_name)
-        
-    if kwargs.get("sync"):
-          archive = kwargs.get("sync")
-          if os.path.isfile(archive):
-                playlist.tracks = sync(client, playlist, archive)
-          else:
-                logger.error(f"Invalid sync archive file {archive}")
-                sys.exit(-1)
 
     try:
         if kwargs.get("n"):  # Order by creation date and get the n lasts tracks
@@ -468,21 +465,24 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
             )
             playlist.tracks = playlist.tracks[: int(kwargs.get("n"))]
             kwargs["playlist_offset"] = 0
+        if kwargs.get("sync"):
+                  if os.path.isfile(kwargs.get("sync")):
+                        playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
+                  else:
+                        logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
+                        sys.exit(-1)
+
         tracknumber_digits = len(str(len(playlist.tracks)))
         for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
             logger.debug(track)
             logger.info(f"Track n°{counter}")
-            playlist_info = {
-                "author": playlist.user.username,
-                "id": playlist.id,
-                "title": playlist.title,
-                "tracknumber": str(counter).zfill(tracknumber_digits),
-            }
+            playlist_info["tracknumber"] = str(counter).zfill(tracknumber_digits)
             if isinstance(track, MiniTrack):
                 if playlist.secret_token:
                     track = client.get_tracks([track.id], playlist.id, playlist.secret_token)[0]
                 else:
                     track = client.get_track(track.id)
+
             download_track(client, track, playlist_info, kwargs.get("strict_playlist"), **kwargs)
     finally:
         if not kwargs.get("no_playlist_folder"):
