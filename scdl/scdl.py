@@ -407,6 +407,11 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
         except IOError as ioe:
             logger.error(f'Error trying to read download archive {archive}')
             logger.debug(ioe)
+            sys.exit(1)
+        except ValueError as verr:
+            logger.error(f'Error trying to convert track ids. Verify archive file is not empty.')
+            logger.debug(verr)
+            sys.exit(1)
 
     new = [track.id for track in playlist.tracks]
     add = set(new).difference(old) # find tracks to download
@@ -470,7 +475,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
                         playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
                   else:
                         logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
-                        sys.exit(-1)
+                        sys.exit(1)
 
         tracknumber_digits = len(str(len(playlist.tracks)))
         for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
