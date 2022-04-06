@@ -4,12 +4,15 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl (-l <track_url> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata][-n <maxtracks>]
-[-o <offset>][--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
-[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove][--no-album-tag]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac][--original-art]
-[--original-name][--no-original][--only-original][--name-format <format>][--strict-playlist]
-[--playlist-name-format <format>][--client-id <id>][--auth-token <token>][--overwrite][--no-playlist]
+    scdl (-l <track_url> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata]
+    [-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error][--path <path>]
+    [--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
+    [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
+    [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
+    [--original-name][--no-original][--only-original][--name-format <format>]
+    [--strict-playlist][--playlist-name-format <format>][--client-id <id>]
+    [--auth-token <token>][--overwrite][--no-playlist]
+    
     scdl -h | --help
     scdl --version
 
@@ -47,6 +50,7 @@ Options:
                                     even if track has a Downloadable file
     --path [path]                   Use a custom path for downloaded files
     --remove                        Remove any files not downloaded from execution
+    --sync [file]                   Compares an archive file to a playlist and downloads/removes any changed tracks
     --flac                          Convert original files to .flac
     --no-album-tag                  On some player track get the same cover art if from the same album, this prevent it
     --original-art                  Download original cover art
@@ -210,6 +214,9 @@ def main():
         arguments["-l"] = client.get_me().permalink_url
     
     arguments["-l"] = validate_url(client, arguments["-l"])
+
+    if arguments["--sync"]:
+        arguments["--download-archive"] = arguments["--sync"]
         
     # convert arguments dict to python_args (kwargs-friendly args)
     python_args = {}
@@ -233,6 +240,7 @@ def main():
 
     if arguments["--remove"]:
         remove_files()
+
 
 def validate_url(client: SoundCloud, url: str):
     """
@@ -387,6 +395,53 @@ def remove_files():
         if f not in fileToKeep:
             os.remove(f)
 
+def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwargs):
+    """
+    Downloads/Removes tracks that have been changed on playlist since last archive file
+    """
+    logger.info("Comparing tracks...")
+    archive = kwargs.get("sync")
+    with open(archive) as f:
+        try:
+            old = [int(i) for i in ''.join(f.readlines()).strip().split('\n')]
+        except IOError as ioe:
+            logger.error(f'Error trying to read download archive {archive}')
+            logger.debug(ioe)
+            sys.exit(1)
+        except ValueError as verr:
+            logger.error(f'Error trying to convert track ids. Verify archive file is not empty.')
+            logger.debug(verr)
+            sys.exit(1)
+
+    new = [track.id for track in playlist.tracks]
+    add = set(new).difference(old) # find tracks to download
+    rem = set(old).difference(new) # find tracks to remove
+
+    if not (add or rem):
+        logger.info("No changes found. Exiting...")
+        sys.exit(0)
+
+    if rem:
+        for track_id in rem:
+            filename = get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs)
+            if filename in os.listdir('.'):
+                os.remove(filename)
+                logger.info(f'Removed {filename}')
+            else:
+                logger.info(f'Could not find {filename} to remove')
+        with open(archive,'w') as f:
+          for track_id in old:
+            if track_id not in rem:
+              f.write(str(track_id)+'\n')
+    else:
+        logger.info('No tracks to remove.')
+              
+    if add:
+        return [track for track in playlist.tracks if track.id in add]
+    else:
+        logger.info('No tracks to download. Exiting...')
+        sys.exit(0)
+
 def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs):
     """
     Downloads a playlist
@@ -397,6 +452,11 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
     playlist_name = playlist.title.encode("utf-8", "ignore")
     playlist_name = playlist_name.decode("utf-8")
     playlist_name = sanitize_filename(playlist_name)
+    playlist_info = {
+                "author": playlist.user.username,
+                "id": playlist.id,
+                "title": playlist.title
+    }
 
     if not kwargs.get("no_playlist_folder"):
         if not os.path.exists(playlist_name):
@@ -410,21 +470,24 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
             )
             playlist.tracks = playlist.tracks[: int(kwargs.get("n"))]
             kwargs["playlist_offset"] = 0
+        if kwargs.get("sync"):
+                  if os.path.isfile(kwargs.get("sync")):
+                        playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
+                  else:
+                        logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
+                        sys.exit(1)
+
         tracknumber_digits = len(str(len(playlist.tracks)))
         for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
             logger.debug(track)
             logger.info(f"Track n°{counter}")
-            playlist_info = {
-                "author": playlist.user.username,
-                "id": playlist.id,
-                "title": playlist.title,
-                "tracknumber": str(counter).zfill(tracknumber_digits),
-            }
+            playlist_info["tracknumber"] = str(counter).zfill(tracknumber_digits)
             if isinstance(track, MiniTrack):
                 if playlist.secret_token:
                     track = client.get_tracks([track.id], playlist.id, playlist.secret_token)[0]
                 else:
                     track = client.get_track(track.id)
+
             download_track(client, track, playlist_info, kwargs.get("strict_playlist"), **kwargs)
     finally:
         if not kwargs.get("no_playlist_folder"):
