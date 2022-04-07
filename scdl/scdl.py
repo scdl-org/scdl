@@ -550,7 +550,10 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
     # Find filename
     header = r.headers.get("content-disposition")
     _, params = cgi.parse_header(header)
-    if "filename" in params:
+    if "filename*" in params:
+        encoding, filename = params["filename*"].split("''")
+        filename = urllib.parse.unquote(filename, encoding=encoding)
+    else if "filename" in params:
         filename = urllib.parse.unquote(params["filename"], encoding="utf-8")
     else:
         raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
