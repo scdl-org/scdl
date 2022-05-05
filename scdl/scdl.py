@@ -732,6 +732,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
             filename.endswith(".mp3")
             or filename.endswith(".flac")
             or filename.endswith(".m4a")
+            or filename.endswith(".wav")
         ):
             try:
                 set_metadata(track, filename, playlist_info, **kwargs)
@@ -880,52 +881,66 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
                     track.artist = artist_title[0].strip()
                     track.title = artist_title[1].strip()
                     break
-
-        audio = mutagen.File(filename, easy=True)
-        audio.delete()
-        audio["title"] = track.title
-        audio["artist"] = track.artist
-        if track.genre:
-            audio["genre"] = track.genre
-        if track.permalink_url:
-            audio["website"] = track.permalink_url
-        if track.date:
-            audio["date"] = track.date
-        if playlist_info:
-            if not kwargs.get("no_album_tag"):
-                audio["album"] = playlist_info["title"]
-            audio["tracknumber"] = str(playlist_info["tracknumber"])
-
-        audio.save()
-
-        a = mutagen.File(filename)
+        mutagen_file = mutagen.File(filename)
+        mutagen_file.delete()
         if track.description:
-            if a.__class__ == mutagen.flac.FLAC:
-                a["description"] = track.description
-            elif a.__class__ == mutagen.mp3.MP3:
-                a["COMM"] = mutagen.id3.COMM(
+            if mutagen_file.__class__ == mutagen.flac.FLAC:
+                mutagen_file["description"] = track.description
+            elif mutagen_file.__class__ == mutagen.mp3.MP3 or mutagen_file.__class__ == mutagen.wave.WAVE:
+                mutagen_file["COMM"] = mutagen.id3.COMM(
                     encoding=3, lang="ENG", text=track.description
                 )
-            elif a.__class__ == mutagen.mp4.MP4:
-                a["\xa9cmt"] = track.description
+            elif mutagen_file.__class__ == mutagen.mp4.MP4:
+                mutagen_file["\xa9cmt"] = track.description
         if response:
-            if a.__class__ == mutagen.flac.FLAC:
+            if mutagen_file.__class__ == mutagen.flac.FLAC:
                 p = mutagen.flac.Picture()
                 p.data = out_file.read()
                 p.mime = "image/jpeg"
                 p.type = mutagen.id3.PictureType.COVER_FRONT
-                a.add_picture(p)
-            elif a.__class__ == mutagen.mp3.MP3:
-                a["APIC"] = mutagen.id3.APIC(
+                mutagen_file.add_picture(p)
+            elif mutagen_file.__class__ == mutagen.mp3.MP3 or mutagen_file.__class__ == mutagen.wave.WAVE:
+                mutagen_file["APIC"] = mutagen.id3.APIC(
                     encoding=3,
                     mime="image/jpeg",
                     type=3,
                     desc="Cover",
                     data=out_file.read(),
                 )
-            elif a.__class__ == mutagen.mp4.MP4:
-                a["covr"] = [mutagen.mp4.MP4Cover(out_file.read())]
-        a.save()
+            elif mutagen_file.__class__ == mutagen.mp4.MP4:
+                mutagen_file["covr"] = [mutagen.mp4.MP4Cover(out_file.read())]
+
+        if mutagen_file.__class__ == mutagen.wave.WAVE:
+            mutagen_file["TIT2"] = mutagen.id3.TIT2(encoding=3, text=track.title)
+            mutagen_file["TPE1"] = mutagen.id3.TPE1(encoding=3, text=track.artist)
+            if track.genre:
+                mutagen_file["TCON"] = mutagen.id3.TCON(encoding=3, text=track.genre)
+            if track.permalink_url:
+                mutagen_file["WOAS"] = mutagen.id3.WOAS(url=track.permalink_url)
+            if track.date:
+                mutagen_file["TDAT"] = mutagen.id3.TDAT(encoding=3, text=track.date)
+            if playlist_info:
+                if not kwargs.get("no_album_tag"):
+                    mutagen_file["TALB"] = mutagen.id3.TALB(encoding=3, text=playlist_info["title"])
+                mutagen_file["TRCK"] = mutagen.id3.TRCK(encoding=3, text=str(playlist_info["tracknumber"]))
+            mutagen_file.save()
+        else:
+            mutagen_file.save()
+            audio = mutagen.File(filename, easy=True)
+            audio["title"] = track.title
+            audio["artist"] = track.artist
+            if track.genre:
+                audio["genre"] = track.genre
+            if track.permalink_url:
+                audio["website"] = track.permalink_url
+            if track.date:
+                audio["date"] = track.date
+            if playlist_info:
+                if not kwargs.get("no_album_tag"):
+                    audio["album"] = playlist_info["title"]
+                audio["tracknumber"] = str(playlist_info["tracknumber"])
+
+            audio.save()
 
 def limit_filename_length(name: str, ext: str, max_bytes=255):
     while len(name.encode("utf-8")) + len(ext.encode("utf-8")) > max_bytes:
