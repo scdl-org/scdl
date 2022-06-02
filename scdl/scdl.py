@@ -11,7 +11,7 @@ Usage:
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
     [--original-name][--no-original][--only-original][--name-format <format>]
     [--strict-playlist][--playlist-name-format <format>][--client-id <id>]
-    [--auth-token <token>][--overwrite][--no-playlist]
+    [--auth-token <token>][--overwrite][--no-playlist][--onlyhq]
     
     scdl -h | --help
     scdl --version
@@ -64,6 +64,7 @@ Options:
     --overwrite                     Overwrite file if it already exists
     --strict-playlist               Abort playlist downloading if one track fails to download
     --no-playlist                   Skip downloading playlists
+    --onlyhq                        Skip downloading track if it is only available in 128kbps mp3
 """
 
 import cgi
@@ -657,7 +658,7 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
     if not kwargs.get("onlymp3") and aac_transcoding:
         transcoding = aac_transcoding
         aac = True
-    elif mp3_transcoding:
+    elif not kwargs.get("onlyhq") and mp3_transcoding:
         transcoding = mp3_transcoding
                 
     if not transcoding:
