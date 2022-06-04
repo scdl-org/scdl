@@ -424,11 +424,14 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
 
     if rem:
         for track_id in rem:
-            filename = get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs)
-            if filename in os.listdir('.'):
-                os.remove(filename)
-                logger.info(f'Removed {filename}')
-            else:
+            rem_file = get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs)
+            removed = False
+            for file in os.listdir('.'):
+                if os.path.splitext(rem_file)[0] == os.path.splitext(file)[0]:
+                    os.remove(file)
+                    removed = True
+                    logger.info(f'Removed {filename}')
+            if not removed:
                 logger.info(f'Could not find {filename} to remove')
         with open(archive,'w') as f:
           for track_id in old:
