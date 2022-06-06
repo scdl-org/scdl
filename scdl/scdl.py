@@ -478,7 +478,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
                         playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
                   else:
                         logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
-                        sys.exit(1)
+                        return
 
         if playlist.tracks is not None:
             tracknumber_digits = len(str(len(playlist.tracks)))
