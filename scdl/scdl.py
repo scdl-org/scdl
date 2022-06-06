@@ -480,18 +480,19 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
                         logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
                         sys.exit(1)
 
-        tracknumber_digits = len(str(len(playlist.tracks)))
-        for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
-            logger.debug(track)
-            logger.info(f"Track n°{counter}")
-            playlist_info["tracknumber"] = str(counter).zfill(tracknumber_digits)
-            if isinstance(track, MiniTrack):
-                if playlist.secret_token:
-                    track = client.get_tracks([track.id], playlist.id, playlist.secret_token)[0]
-                else:
-                    track = client.get_track(track.id)
+        if playlist.tracks is not None:
+            tracknumber_digits = len(str(len(playlist.tracks)))
+            for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
+                logger.debug(track)
+                logger.info(f"Track n°{counter}")
+                playlist_info["tracknumber"] = str(counter).zfill(tracknumber_digits)
+                if isinstance(track, MiniTrack):
+                    if playlist.secret_token:
+                        track = client.get_tracks([track.id], playlist.id, playlist.secret_token)[0]
+                    else:
+                        track = client.get_track(track.id)
 
-            download_track(client, track, playlist_info, kwargs.get("strict_playlist"), **kwargs)
+                download_track(client, track, playlist_info, kwargs.get("strict_playlist"), **kwargs)
     finally:
         if not kwargs.get("no_playlist_folder"):
             os.chdir("..")
