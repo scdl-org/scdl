@@ -418,8 +418,8 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
     rem = set(old).difference(new) # find tracks to remove
 
     if not (add or rem):
-        logger.info("No changes found. Exiting...")
-        sys.exit(0)
+        logger.info("No changes found")
+        return
 
     if rem:
         for track_id in rem:
@@ -439,8 +439,7 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
     if add:
         return [track for track in playlist.tracks if track.id in add]
     else:
-        logger.info('No tracks to download. Exiting...')
-        sys.exit(0)
+        logger.info('No tracks to download')
 
 def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs):
     """
