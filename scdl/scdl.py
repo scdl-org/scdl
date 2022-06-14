@@ -452,8 +452,8 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
     if kwargs.get("no_playlist"):
         logger.info("Skipping playlist...")
         return
-    playlist_name = playlist.title.encode("utf-8", "ignore")
-    playlist_name = playlist_name.decode("utf-8")
+    playlist_name = playlist.title.encode("ascii", "ignore")
+    playlist_name = playlist_name.decode("ascii")
     playlist_name = sanitize_filename(playlist_name)
     playlist_info = {
                 "author": playlist.user.username,
@@ -506,7 +506,7 @@ def try_utime(path, filetime):
 def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_info=None, **kwargs):
     
     username = track.user.username
-    title = track.title.encode("utf-8", "ignore").decode("utf-8")
+    title = track.title.encode("ascii", "ignore").decode("ascii")
 
     if kwargs.get("addtofile"):
         if username not in title and "-" not in title:
@@ -525,7 +525,7 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
 
     ext = ".m4a" if aac else ".mp3"  # contain aac in m4a to write metadata
     if original_filename is not None:
-        original_filename = original_filename.encode("utf-8", "ignore").decode("utf-8")
+        original_filename = original_filename.encode("ascii", "ignore").decode("ascii")
         ext = os.path.splitext(original_filename)[1]
     filename = limit_filename_length(title, ext)
     filename = sanitize_filename(filename)
@@ -694,7 +694,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
     """
     try:
         title = track.title
-        title = title.encode("utf-8", "ignore").decode("utf-8")
+        title = title.encode("ascii", "ignore").decode("ascii")
         logger.info(f"Downloading {title}")
 
         # Not streamable
@@ -950,7 +950,7 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             audio.save()
 
 def limit_filename_length(name: str, ext: str, max_bytes=255):
-    while len(name.encode("utf-8")) + len(ext.encode("utf-8")) > max_bytes:
+    while len(name.encode("ascii")) + len(ext.encode("ascii")) > max_bytes:
         name = name[:-1]
     return name + ext
 
