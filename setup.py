@@ -23,7 +23,7 @@ setup(
     long_description_content_type="text/markdown",
     install_requires=[
         "docopt",
-        "mutagen",
+        "mutagen>=1.45.0",
         "termcolor",
         "requests",
         "clint",
