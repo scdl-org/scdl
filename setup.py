@@ -20,13 +20,13 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     install_requires=[
-        'docopt',
-        'mutagen',
-        'termcolor',
-        'requests',
-        'clint',
-        'pathvalidate'
-        'soundcloud',
+        "docopt",
+        "mutagen>=1.45.0",
+        "termcolor",
+        "requests",
+        "clint",
+        "pathvalidate",
+        "soundcloud-v2>=1.3.0"
     ],
     url='https://github.com/flyingrub/scdl',
     classifiers=[
