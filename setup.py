@@ -25,7 +25,8 @@ setup(
         'termcolor',
         'requests',
         'clint',
-        'pathvalidate',
+        'pathvalidate'
+        'soundcloud',
     ],
     url='https://github.com/flyingrub/scdl',
     classifiers=[
