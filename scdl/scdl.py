@@ -706,7 +706,6 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
         is_already_downloaded = False
         if (
             track.downloadable
-            and track.has_downloads_left
             and not kwargs["onlymp3"]
             and not kwargs.get("no_original")
         ):
