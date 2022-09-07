@@ -713,16 +713,18 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
 
     # Get the requests stream
     url = get_transcoding_m3u8(client, transcoding, **kwargs)
-    filename_path = os.path.abspath(filename)
+    temp = tempfile.NamedTemporaryFile(delete=False)
+    temp_filename = temp.name + os.path.splitext(filename)[1]
 
     p = subprocess.Popen(
-        ["ffmpeg", "-i", url, "-c", "copy", filename_path, "-loglevel", "error"],
+        ["ffmpeg", "-i", url, "-c", "copy", temp_filename, "-loglevel", "error"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
     stdout, stderr = p.communicate()
     if stderr:
         logger.error(stderr.decode("utf-8"))
+    shutil.move(temp_filename, os.path.join(os.getcwd(), filename))
     return (filename, False)
 
 
