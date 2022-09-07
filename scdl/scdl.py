@@ -696,7 +696,7 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
     return (filename, False)
 
 
-def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, exit_on_fail=True, **kwargs):
+def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, exit_on_fail=True, playlist_buffer=None, **kwargs):
     """
     Downloads a track
     """
@@ -735,6 +735,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
 
         # Skip if file ID or filename already exists
         if is_already_downloaded and not kwargs.get("force_metadata"):
+            if playlist_buffer is not None: playlist_buffer.append({ "id": track.id, "path": filename, "uri": track.uri })
             raise SoundCloudSoftException(f"{filename} already downloaded.")
 
         # If file does not exist an error occurred
@@ -761,6 +762,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
         filetime = int(time.mktime(track.created_at.timetuple()))
         try_utime(filename, filetime)
 
+        if playlist_buffer is not None: playlist_buffer.append({ "id": track.id, "path": filename, "uri": track.uri })
         logger.info(f"{filename} Downloaded.\n")
         return True
         
