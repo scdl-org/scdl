@@ -726,7 +726,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
 
         # Skip if file ID or filename already exists
         if is_already_downloaded and not kwargs.get("force_metadata"):
-            raise SoundCloudException(f"{filename} already downloaded.")
+            raise SoundCloudSoftException(f"{filename} already downloaded.")
 
         # If file does not exist an error occurred
         if not os.path.isfile(filename):
@@ -753,11 +753,17 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
         try_utime(filename, filetime)
 
         logger.info(f"{filename} Downloaded.\n")
+        return True
+        
     except SoundCloudException as err:
         logger.error(err)
         if exit_on_fail:
             sys.exit(1)
+        return False
 
+    except SoundCloudSoftException as err:
+        logger.error(err)
+        return False
 
 def can_convert(filename):
     ext = os.path.splitext(filename)[1]
