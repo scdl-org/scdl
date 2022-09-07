@@ -112,6 +112,9 @@ fileToKeep = []
 class SoundCloudException(Exception):
     pass
 
+class SoundCloudSoftException(Exception):
+    pass
+
 def handle_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         logger.error("\nGoodbye!")
