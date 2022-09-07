@@ -482,6 +482,9 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
             )
             playlist.tracks = playlist.tracks[: int(kwargs.get("n"))]
             kwargs["playlist_offset"] = 0
+
+        if not playlist.tracks or len(playlist.tracks) == 0: return
+            
         if kwargs.get("sync"):
                   if os.path.isfile(kwargs.get("sync")):
                         playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
