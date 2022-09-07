@@ -454,7 +454,7 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
         logger.info('No tracks to download. Exiting...')
         sys.exit(0)
 
-def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs):
+def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_filename_prefix="", subplaylist_buffer=None, **kwargs):
     """
     Downloads a playlist
     """
@@ -493,6 +493,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
                         sys.exit(1)
 
         tracknumber_digits = len(str(len(playlist.tracks)))
+        playlistbuffer=None if not kwargs.get("playlist_file") else []
         for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
             logger.debug(track)
             logger.info(f"Track n°{counter}")
@@ -503,7 +504,11 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
                 else:
                     track = client.get_track(track.id)
 
-            download_track(client, track, playlist_info, kwargs.get("strict_playlist"), **kwargs)
+            download_track(client, track, playlist_info, kwargs.get("strict_playlist"), playlist_buffer=playlistbuffer, **kwargs)
+            if kwargs.get("playlist_file"):
+                playlist_filename=playlist_filename_prefix + playlist_name + ".m3u8"
+                playlist_process(client, playlistbuffer, playlist_filename, **kwargs)
+                if subplaylist_buffer: subplaylist_buffer.append({ "id": playlist.id, "path": playlist_filename, "uri": playlist.uri })
     finally:
         if not kwargs.get("no_playlist_folder"):
             os.chdir("..")
