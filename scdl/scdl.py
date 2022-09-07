@@ -387,10 +387,13 @@ def download_url(client: SoundCloud, **kwargs):
             logger.info(f"Downloaded all tracks & reposts of user {user.username}!")
         if kwargs.get("p"):
             logger.info(f"Retrieving all playlists of user {user.username}...")
+            #subplaylistbuffer=None if not kwargs.get("playlist_file") else []
             resources = client.get_user_playlists(user.id, limit=1000)
             for i, playlist in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"playlist n°{i} of {user.playlist_count}")
-                download_playlist(client, playlist, **kwargs)
+                download_playlist(client, playlist, **kwargs) # subplaylist_buffer=subplaylistbuffer, 
+            #if kwargs.get("playlist_file"):
+            #    playlist_process(client, subplaylistbuffer, kwdefget("playlist_file_name", "Playlists", **kwargs) + "." + kwdefget("playlist_file_extension", "m3u8", **kwargs), no_export=True, **kwargs)
             logger.info(f"Downloaded all playlists of user {user.username}!")
         if kwargs.get("r"):
             logger.info(f"Retrieving all reposts of user {user.username}...")
