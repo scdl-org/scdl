@@ -1058,5 +1058,13 @@ def playlist_process(client: SoundCloud, playlist_buffer, playlist_filename, no_
     if no_export == False:
         playlist_export(playlist_buffer, playlist_filename)
 
+
+
+def playlist_export(playlist_buffer, playlist_filename):
+    with open(playlist_filename, "w") as fout:
+        for playlist_item in playlist_buffer:
+            fout.write(playlist_item["path"] + "\n")
+
+
 if __name__ == "__main__":
     main()
