@@ -1058,6 +1058,18 @@ def playlist_process(client: SoundCloud, playlist_buffer, playlist_filename, no_
     if no_export == False:
         playlist_export(playlist_buffer, playlist_filename)
 
+def playlist_map_read(playlist_filename):
+    try:
+        res = []
+        if not os.path.isfile(playlist_filename + ".map"): return res
+        with open(playlist_filename + ".map", "r") as fin:
+            for fline in fin.read().splitlines():
+                ffields = fline.split(":", 2)
+                if len(ffields) == 3: res.append({ "id": ffields[0], "path": ffields[1], "uri": ffields[2] })
+        return res
+    except Exception:
+        return []
+
 def playlist_map_write(playlist_buffer, playlist_filename):
     if playlist_buffer is None or len(playlist_buffer) == 0: return
     with open(playlist_filename + ".map", "w") as fout:
