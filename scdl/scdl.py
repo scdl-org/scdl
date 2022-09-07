@@ -397,17 +397,22 @@ def download_url(client: SoundCloud, **kwargs):
             logger.info(f"Downloaded all playlists of user {user.username}!")
         if kwargs.get("r"):
             logger.info(f"Retrieving all reposts of user {user.username}...")
+            playlistbuffer=None if not kwargs.get("playlist_file") else []
+            subplaylistbuffer=None if not kwargs.get("playlist_file") else []
             resources = client.get_user_reposts(user.id, limit=1000)
             for i, item in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"item n°{i} of {user.reposts_count or '?'}")
                 if item.type == "track-repost":
-                    download_track(client, item.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
+                    download_track(client, item.track, exit_on_fail=kwargs.get("strict_playlist"), playlist_buffer=playlistbuffer, **kwargs)
                 elif item.type == "playlist-repost":
-                    download_playlist(client, item.playlist, **kwargs)
+                    download_playlist(client, item.playlist, kwdefget("playlist_file_name", "Reposts", **kwargs) + " - ", subplaylist_buffer=subplaylistbuffer, **kwargs)
                 else:
                     logger.error(f"Unknown item type {item.type}")
                     if kwargs.get("strict_playlist"):
                         sys.exit(1)
+            if kwargs.get("playlist_file"):
+                playlist_process(client, playlistbuffer, kwdefget("playlist_file_name", "Reposts", **kwargs) + "." + kwdefget("playlist_file_extension", "m3u8", **kwargs), **kwargs)
+                playlist_process(client, subplaylistbuffer, kwdefget("playlist_file_name", "Reposts Playlists", **kwargs) + "." + kwdefget("playlist_file_extension", "m3u8", **kwargs), no_export=True, **kwargs)
             logger.info(f"Downloaded all reposts of user {user.username}!")
 
     else:
