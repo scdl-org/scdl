@@ -1058,7 +1058,11 @@ def playlist_process(client: SoundCloud, playlist_buffer, playlist_filename, no_
     if no_export == False:
         playlist_export(playlist_buffer, playlist_filename)
 
-
+def playlist_map_write(playlist_buffer, playlist_filename):
+    if playlist_buffer is None or len(playlist_buffer) == 0: return
+    with open(playlist_filename + ".map", "w") as fout:
+        for playlist_item in playlist_buffer:
+            fout.write(str(playlist_item["id"]) + ":" + playlist_item["path"] + ":" + playlist_item["uri"] + "\n")
 
 def playlist_import(playlist_filename):
     try:
