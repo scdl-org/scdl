@@ -331,17 +331,22 @@ def download_url(client: SoundCloud, **kwargs):
             sys.exit(1)
         if kwargs.get("f"):
             logger.info(f"Retrieving all likes of user {user.username}...")
+            playlistbuffer=None if not kwargs.get("playlist_file") else []
+            subplaylistbuffer=None if not kwargs.get("playlist_file") else []
             resources = client.get_user_likes(user.id, limit=1000)
             for i, like in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"like n°{i} of {user.likes_count}")
                 if hasattr(like, "track"):
-                    download_track(client, like.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
+                    download_track(client, like.track, exit_on_fail=kwargs.get("strict_playlist"), playlist_buffer=playlistbuffer, **kwargs)
                 elif hasattr(like, "playlist"):
-                    download_playlist(client, client.get_playlist(like.playlist.id), **kwargs)
+                    download_playlist(client, client.get_playlist(like.playlist.id), playlist_filename_prefix=kwdefget("playlist_file_name", "Likes", **kwargs) + " - ", subplaylist_buffer=subplaylistbuffer, **kwargs)
                 else:
                     logger.error(f"Unknown like type {like}")
                     if kwargs.get("strict_playlist"):
                         sys.exit(1)
+            if kwargs.get("playlist_file"):
+                playlist_process(client, playlistbuffer, kwdefget("playlist_file_name", "Likes", **kwargs) + "." + kwdefget("playlist_file_extension", "m3u8", **kwargs), **kwargs)
+                playlist_process(client, subplaylistbuffer, kwdefget("playlist_file_name", "Likes Playlists", **kwargs) + "." + kwdefget("playlist_file_extension", "m3u8", **kwargs), no_export=True, **kwargs)
             logger.info(f"Downloaded all likes of user {user.username}!")
         if kwargs.get("C"):
             logger.info(f"Retrieving all commented tracks of user {user.username}...")
