@@ -1010,5 +1010,53 @@ def is_ffmpeg_available():
     """
     return shutil.which("ffmpeg") is not None
 
+def playlist_process(client: SoundCloud, playlist_buffer, playlist_filename, no_export=False, no_retain=False, **kwargs):
+    if kwargs.get("playlist_file_retain") and no_retain == False:
+        oldint = playlist_map_read(playlist_filename)
+        oldext = None if no_export == True else playlist_import(playlist_filename)
+        oldindex=-1
+
+        logger.debug(f"Old Map: {oldint}")
+        logger.debug("Old Playlist: {oldext}")
+        
+        for oldel in reversed(oldint):
+            tpath=oldel["path"]
+            oldindex=oldindex+1
+            if oldel["id"] == "-1":
+                # Stop retaining track if deleted from playlist by the user
+                if no_export == False and oldext is not None and oldel["path"] not in oldext:
+                    logger.debug(f"Not retaining {tpath} ({oldel['uri']})")
+                    continue
+                # Stop retaining playlist if according file deleted by the user
+                elif no_export == True and not os.path.isfile(oldel["path"]):
+                    logger.debug(f"Not retaining {tpath} ({oldel['uri']})")
+                    continue
+                # Stop retaining if track or playlist has been restored
+                if next((newel for newel in playlist_buffer if newel["uri"] == oldel["uri"]), None) is not None:
+                    logger.debug(f"Stopping to retain restored {tpath} ({oldel['uri']})")
+                    continue
+
+            else:
+                # Check if item removed
+                if next((newel for newel in playlist_buffer if newel["uri"] == oldel["uri"]), None) is not None: continue
+                # Check if item removed because it is corrupted
+                if check_item(client, oldel["uri"]) == True:
+                    # Item not corrupted
+                    logger.debug(f"Not retaining {tpath} ({oldel['uri']})")
+                    if no_export == True and os.path.isfile(oldel["path"]): os.remove(oldel["path"])
+                    continue
+                oldel["id"] = "-1"
+
+            # Temporarily retain item due to corrupted file on server
+            logger.debug(f"Retaining {tpath} ({oldel['uri']})")
+            newindex = 0 if len(playlist_buffer) - oldindex < 0 else len(playlist_buffer) - oldindex
+            playlist_buffer.insert(newindex, oldel)
+
+        logger.debug(f"New Map: {playlist_buffer}")
+        playlist_map_write(playlist_buffer, playlist_filename)
+        
+    if no_export == False:
+        playlist_export(playlist_buffer, playlist_filename)
+
 if __name__ == "__main__":
     main()
