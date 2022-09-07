@@ -11,7 +11,8 @@ Usage:
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
     [--original-name][--no-original][--only-original][--name-format <format>]
     [--strict-playlist][--playlist-name-format <format>][--client-id <id>]
-    [--auth-token <token>][--overwrite][--no-playlist]
+    [--auth-token <token>][--overwrite][--no-playlist][--playlist-file]
+    [--playlist-file-retain][--playlist-file-name][--playlist-file-extension]
     
     scdl -h | --help
     scdl --version
@@ -64,6 +65,10 @@ Options:
     --overwrite                     Overwrite file if it already exists
     --strict-playlist               Abort playlist downloading if one track fails to download
     --no-playlist                   Skip downloading playlists
+    --playlist-file                 Generate m3u playlist files (and additionally check them when used with --remove)
+    --playlist-file-retain          Retain corrupted items
+    --playlist-file-name            Specify playlist file name without extension
+    --playlist-file-extension       Specify extension to playlist file
 """
 
 import cgi
