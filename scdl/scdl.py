@@ -350,10 +350,12 @@ def download_url(client: SoundCloud, **kwargs):
             logger.info(f"Downloaded all likes of user {user.username}!")
         if kwargs.get("C"):
             logger.info(f"Retrieving all commented tracks of user {user.username}...")
+            playlistbuffer=None if not kwargs.get("playlist_file") else []
             resources = client.get_user_comments(user.id, limit=1000)
             for i, comment in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"comment n°{i} of {user.comments_count}")
-                download_track(client, client.get_track(comment.track.id), exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
+                download_track(client, client.get_track(comment.track.id), exit_on_fail=kwargs.get("strict_playlist"), playlist_buffer=playlistbuffer, **kwargs)
+            if kwargs.get("playlist_file"): playlist_process(client, playlistbuffer, kwdefget("playlist_file_name", "Commented", **kwargs) + "." + kwdefget("playlist_file_extension", "m3u8", **kwargs), **kwargs)
             logger.info(f"Downloaded all commented tracks of user {user.username}!")
         if kwargs.get("t"):
             logger.info(f"Retrieving all tracks of user {user.username}...")
