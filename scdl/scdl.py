@@ -318,6 +318,9 @@ def download_url(client: SoundCloud, **kwargs):
     elif item.kind == "user":
         user = item
         logger.info("Found a user profile")
+        if not kwargs.get("f") and not kwargs.get("C") and not kwargs.get("t") and not kwargs.get("a") and not kwargs.get("p") and not kwargs.get("r"):
+            logger.error("Please provide a download type...")
+            sys.exit(1)
         if kwargs.get("f"):
             logger.info(f"Retrieving all likes of user {user.username}...")
             resources = client.get_user_likes(user.id, limit=1000)
@@ -332,21 +335,21 @@ def download_url(client: SoundCloud, **kwargs):
                     if kwargs.get("strict_playlist"):
                         sys.exit(1)
             logger.info(f"Downloaded all likes of user {user.username}!")
-        elif kwargs.get("C"):
+        if kwargs.get("C"):
             logger.info(f"Retrieving all commented tracks of user {user.username}...")
             resources = client.get_user_comments(user.id, limit=1000)
             for i, comment in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"comment n°{i} of {user.comments_count}")
                 download_track(client, client.get_track(comment.track.id), exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
             logger.info(f"Downloaded all commented tracks of user {user.username}!")
-        elif kwargs.get("t"):
+        if kwargs.get("t"):
             logger.info(f"Retrieving all tracks of user {user.username}...")
             resources = client.get_user_tracks(user.id, limit=1000)
             for i, track in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"track n°{i} of {user.track_count}")
                 download_track(client, track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
             logger.info(f"Downloaded all tracks of user {user.username}!")
-        elif kwargs.get("a"):
+        if kwargs.get("a"):
             logger.info(f"Retrieving all tracks & reposts of user {user.username}...")
             resources = client.get_user_stream(user.id, limit=1000)
             for i, item in itertools.islice(enumerate(resources, 1), offset, None):
@@ -360,14 +363,14 @@ def download_url(client: SoundCloud, **kwargs):
                     if kwargs.get("strict_playlist"):
                         sys.exit(1)
             logger.info(f"Downloaded all tracks & reposts of user {user.username}!")
-        elif kwargs.get("p"):
+        if kwargs.get("p"):
             logger.info(f"Retrieving all playlists of user {user.username}...")
             resources = client.get_user_playlists(user.id, limit=1000)
             for i, playlist in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"playlist n°{i} of {user.playlist_count}")
                 download_playlist(client, playlist, **kwargs)
             logger.info(f"Downloaded all playlists of user {user.username}!")
-        elif kwargs.get("r"):
+        if kwargs.get("r"):
             logger.info(f"Retrieving all reposts of user {user.username}...")
             resources = client.get_user_reposts(user.id, limit=1000)
             for i, item in itertools.islice(enumerate(resources, 1), offset, None):
@@ -381,9 +384,7 @@ def download_url(client: SoundCloud, **kwargs):
                     if kwargs.get("strict_playlist"):
                         sys.exit(1)
             logger.info(f"Downloaded all reposts of user {user.username}!")
-        else:
-            logger.error("Please provide a download type...")
-            sys.exit(1)
+
     else:
         logger.error(f"Unknown item type {item.kind}")
         sys.exit(1)
