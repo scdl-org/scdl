@@ -301,6 +301,9 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
         
     return config
 
+def kwdefget(findkey, defaultvalue, **kwargs):
+    if not kwargs.get(findkey): return defaultvalue
+    return kwargs.get(findkey)
 
 def download_url(client: SoundCloud, **kwargs):
     """
