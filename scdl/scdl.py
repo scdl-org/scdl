@@ -820,6 +820,10 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
         logger.error(err)
         return False
 
+    except BaseException as err:
+        logger.error(err)
+        return False
+
 def can_convert(filename):
     ext = os.path.splitext(filename)[1]
     return "wav" in ext or "aif" in ext
