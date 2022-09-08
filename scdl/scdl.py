@@ -247,7 +247,7 @@ def main():
     download_url(client, **python_args)
 
     if arguments["--remove"]:
-        remove_files()
+        remove_files(arguments["--playlist-file"] is not None, kwdefget("playlist_file_extension", "m3u8", **python_args))
 
 
 def validate_url(client: SoundCloud, url: str):
