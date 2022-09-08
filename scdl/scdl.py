@@ -920,16 +920,19 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             ):
                 response = None
         except Exception:
-            pass
-    if response is None:
-        new_artwork_url = artwork_url.replace("large", "t500x500")
-        response = requests.get(new_artwork_url, stream=True)
-        if response.headers["Content-Type"] not in (
-            "image/png",
-            "image/jpeg",
-            "image/jpg",
-        ):
             response = None
+    try:
+        if response is None:
+            new_artwork_url = artwork_url.replace("large", "t500x500")
+            response = requests.get(new_artwork_url, stream=True)
+            if response.headers["Content-Type"] not in (
+                "image/png",
+                "image/jpeg",
+                "image/jpg",
+            ):
+                response = None
+    except Exception:
+        response = None
     if response is None:
         logger.error(f"Could not get cover art at {new_artwork_url}")
     with tempfile.NamedTemporaryFile() as out_file:
@@ -958,7 +961,7 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
                 )
             elif mutagen_file.__class__ == mutagen.mp4.MP4:
                 mutagen_file["\xa9cmt"] = track.description
-        if response:
+        if response is not None:
             if mutagen_file.__class__ == mutagen.flac.FLAC:
                 p = mutagen.flac.Picture()
                 p.data = out_file.read()
