@@ -4,7 +4,7 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl (-l <track_url> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata]
+    scdl (-l <track_url> | me) [-a][-r][-t][-f][-C][-p][-c][--force-metadata]
     [-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error][--path <path>]
     [--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
     [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
