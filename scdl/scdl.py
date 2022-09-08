@@ -422,15 +422,24 @@ def download_url(client: SoundCloud, **kwargs):
         logger.error(f"Unknown item type {item.kind}")
         sys.exit(1)
 
-def remove_files():
+def remove_files(check_playlist_file, playlist_file_extension):
     """
     Removes any pre-existing tracks that were not just downloaded
     """
     logger.info("Removing local track files that were not downloaded...")
-    files = [f for f in os.listdir(".") if os.path.isfile(f)]
-    for f in files:
-        if f not in fileToKeep:
-            os.remove(f)
+    dirs = [d for d in os.listdir(".") if os.path.isdir(d)]
+    dirs.insert(0, ".")
+    for d in dirs:
+        files = [f for f in os.listdir(d) if os.path.isfile(f)]
+        playlist_file = next((f for f in files if f.endswith(playlist_file_extension)), None)
+        if playlist_file is None: continue
+        logger.debug(f"Removing from {d}")
+        playlist_data = playlist_import(playlist_file)
+        if playlist_data is None: continue
+        for f in files:
+            if not f.endswith(playlist_file_extension) and not f.endswith(playlist_file_extension + ".map") and f not in fileToKeep and f not in playlist_data:
+                logger.info(f"Deleting {f}")
+                os.remove(os.path.join(d, f))
 
 def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwargs):
     """
