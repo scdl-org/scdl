@@ -1060,6 +1060,18 @@ def playlist_process(client: SoundCloud, playlist_buffer, playlist_filename, no_
 
 
 
+def playlist_import(playlist_filename):
+    try:
+        res = []
+        if not os.path.isfile(playlist_filename): return None
+        with open(playlist_filename, "r") as fin:
+            for fline in fin.read().splitlines():
+                if not fline.startswith("#"): res.append(fline)
+                    
+        return res
+    except Exception:
+        return None
+
 def playlist_export(playlist_buffer, playlist_filename):
     with open(playlist_filename, "w") as fout:
         for playlist_item in playlist_buffer:
