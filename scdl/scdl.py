@@ -1093,6 +1093,24 @@ def playlist_export(playlist_buffer, playlist_filename):
         for playlist_item in playlist_buffer:
             fout.write(playlist_item["path"] + "\n")
 
+def check_item(client: SoundCloud, itemuri):
+    item = client.resolve(itemuri)
+    if not item:
+        return False
+    elif item.kind == "track":
+        if item.policy == "BLOCK": return False
+        if item.downloadable and client.get_track_original_download(item.id, item.secret_token): return True
+        if not item.media.transcodings: return False
+        for t in item.media.transcodings:
+            if t.format.protocol == "hls" and "aac" in t.preset: return True
+            elif t.format.protocol == "hls" and "mp3" in t.preset: return True
+        return False
+    elif item.kind == "playlist":
+        return item.tracks is not None and len(item.tracks) > 0
+    elif item.kind == "user":
+        return True
+    else:
+        return False
 
 if __name__ == "__main__":
     main()
