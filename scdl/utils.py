@@ -15,7 +15,8 @@ __all__ = ('ColorizeFilter', )
 class ColorizeFilter(logging.Filter):
 
     color_by_level = {
-        logging.DEBUG: 'yellow',
+        logging.DEBUG: 'blue',
+        logging.WARNING: 'yellow',
         logging.ERROR: 'red',
         logging.INFO: 'white'
     }
