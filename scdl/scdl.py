@@ -543,6 +543,9 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist
                 playlist_filename=playlist_filename_prefix + playlist_name + ".m3u8"
                 playlist_process(client, playlistbuffer, playlist_filename, **kwargs)
                 if subplaylist_buffer: subplaylist_buffer.append({ "id": playlist.id, "path": playlist_filename, "uri": playlist.uri })
+    except BaseException as err:
+        logger.error(err)
+        return False
     finally:
         if not kwargs.get("no_playlist_folder"):
             os.chdir("..")
