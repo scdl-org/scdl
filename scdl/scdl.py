@@ -406,13 +406,14 @@ def download_url(client: SoundCloud, **kwargs):
             logger.info(f"Downloaded all playlists of user {user.username}!")
         if kwargs.get("r"):
             logger.info(f"Retrieving all reposts of user {user.username}...")
+            playlistcache=None if not kwargs.get("playlist_file_cache") else playlist_map_read(kwdefget("playlist_file_name", "Reposts", **kwargs) + "." + kwdefget("playlist_file_extension", "m3u8", **kwargs))
             playlistbuffer=None if not kwargs.get("playlist_file") else []
             subplaylistbuffer=None if not kwargs.get("playlist_file") else []
             resources = client.get_user_reposts(user.id, limit=1000)
             for i, item in itertools.islice(enumerate(resources, 1), offset, None):
                 logger.info(f"item n°{i} of {user.reposts_count or '?'}")
                 if item.type == "track-repost":
-                    download_track(client, item.track, exit_on_fail=kwargs.get("strict_playlist"), playlist_buffer=playlistbuffer, **kwargs)
+                    download_track_cached(client, item.track, exit_on_fail=kwargs.get("strict_playlist"), playlist_cache=playlistcache, playlist_buffer=playlistbuffer, **kwargs)
                 elif item.type == "playlist-repost":
                     download_playlist(client, item.playlist, kwdefget("playlist_file_name", "Reposts", **kwargs) + " - ", subplaylist_buffer=subplaylistbuffer, **kwargs)
                 else:
