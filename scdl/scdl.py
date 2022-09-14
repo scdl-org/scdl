@@ -549,10 +549,10 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist
                     track = client.get_track(track.id)
 
             download_track_cached(client, track, playlist_info, kwargs.get("strict_playlist"), playlist_cache=playlistcache, playlist_buffer=playlistbuffer, **kwargs)
-            if kwargs.get("playlist_file"):
-                playlist_filename=playlist_filename_prefix + playlist_name + ".m3u8"
-                playlist_process(client, playlistbuffer, playlist_filename, **kwargs)
-                if subplaylist_buffer: subplaylist_buffer.append({ "id": playlist.id, "path": playlist_filename, "uri": playlist.uri })
+        if kwargs.get("playlist_file"):
+            playlist_filename=playlist_filename_prefix + playlist_name + ".m3u8"
+            playlist_process(client, playlistbuffer, playlist_filename, **kwargs)
+            if subplaylist_buffer: subplaylist_buffer.append({ "id": playlist.id, "path": playlist_filename, "uri": playlist.uri })
     except BaseException as err:
         logger.error(err)
         return False
