@@ -1076,6 +1076,8 @@ def playlist_process(client: SoundCloud, playlist_buffer, playlist_filename, no_
             playlist_buffer.insert(newindex, oldel)
 
         logger.debug(f"New Map: {playlist_buffer}")
+
+    if kwargs.get("playlist_file_retain") or (kwargs.get("playlist_file_cache") and no_retain == False):
         playlist_map_write(playlist_buffer, playlist_filename)
         
     if no_export == False:
