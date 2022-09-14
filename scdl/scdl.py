@@ -1113,7 +1113,7 @@ def playlist_import(playlist_filename):
         if not os.path.isfile(playlist_filename): return None
         with open(playlist_filename, "r") as fin:
             for fline in fin.read().splitlines():
-                if not fline.startswith("#"): res.append(fline)
+                if not fline.startswith("#EXT") or fline == sanitize_filename(fline): res.append(fline)
                     
         return res
     except Exception:
