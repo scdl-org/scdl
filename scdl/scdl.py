@@ -13,6 +13,7 @@ Usage:
     [--strict-playlist][--playlist-name-format <format>][--client-id <id>]
     [--auth-token <token>][--overwrite][--no-playlist][--playlist-file]
     [--playlist-file-retain][--playlist-file-name][--playlist-file-extension]
+    [--playlist-file-cache]
     
     scdl -h | --help
     scdl --version
@@ -69,6 +70,7 @@ Options:
     --playlist-file-retain          Retain corrupted items
     --playlist-file-name            Specify playlist file name without extension
     --playlist-file-extension       Specify extension to playlist file
+    --playlist-file-cache           Skip updates for present files
 """
 
 import cgi
