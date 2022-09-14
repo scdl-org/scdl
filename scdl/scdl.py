@@ -1143,11 +1143,10 @@ def check_item(client: SoundCloud, itemuri):
     else:
         return False
 
-def download_track_cached(client: SoundCloud, track: BasicTrack, playlist_cache=None, playlist_info=None, exit_on_fail=True, playlist_buffer=None, **kwargs):
+def download_track_cached(client: SoundCloud, track: BasicTrack, playlist_info=None, exit_on_fail=True, playlist_cache=None, playlist_buffer=None, **kwargs):
     if playlist_cache is not None and playlist_buffer is not None:
         cacheres = next((cached for cached in playlist_cache if cached["id"] == str(track.id)), None)
-        if cacheres is None or cacheres["path"] is None: return False
-        if os.path.isfile(cacheres["path"]):
+        if cacheres is not None and cacheres["path"] is not None and os.path.isfile(cacheres["path"]):
             playlist_buffer.append({ "id": track.id, "path": cacheres["path"], "uri": track.uri })
             return True
     return download_track(client, track, playlist_info=playlist_info, exit_on_fail=exit_on_fail, playlist_buffer=playlist_buffer, **kwargs)
