@@ -39,8 +39,8 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --sync archive.txt
 # Download your likes (with authentification token)
 scdl me -f
 
-# Download your likes and tracks, generate playlist files
-scdl me -f -t --playlist-file
+# Download your likes and tracks, generate playlist files and use the cache for speedup
+scdl me -f -t --playlist-file --playlist-file-cache
 ```
 
 ## Options:
@@ -94,6 +94,7 @@ scdl me -f -t --playlist-file
 --playlist-file-retain          Retain corrupted items
 --playlist-file-name            Specify playlist file name without extension
 --playlist-file-extension       Specify extension to playlist file
+--playlist-file-cache           Skip updates for present files
 ```
 
 
