@@ -431,10 +431,12 @@ def remove_files(check_playlist_file, playlist_file_extension):
     dirs.insert(0, ".")
     for d in dirs:
         files = [f for f in os.listdir(d) if os.path.isfile(f)]
-        playlist_file = next((f for f in files if f.endswith(playlist_file_extension)), None)
-        if playlist_file is None: continue
+        playlist_data = []
+        for plfile in files:
+            if plfile.endswith(playlist_file_extension): playlist_data += playlist_import(plfile)
+        if len(playlist_data) == 0: continue
         logger.debug(f"Removing from {d}")
-        playlist_data = playlist_import(playlist_file)
+      
         if playlist_data is None: continue
         for f in files:
             if not f.endswith(playlist_file_extension) and not f.endswith(playlist_file_extension + ".map") and f not in fileToKeep and f not in playlist_data:
