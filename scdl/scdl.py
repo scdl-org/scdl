@@ -537,6 +537,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist
 
         tracknumber_digits = len(str(len(playlist.tracks)))
         playlistbuffer=None if not kwargs.get("playlist_file") else []
+        playlistcache=None if not kwargs.get("playlist_file_cache") else playlist_map_read(kwdefget("playlist_file_name", "Likes", **kwargs) + "." + kwdefget("playlist_file_extension", "m3u8", **kwargs))
         for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
             logger.debug(track)
             logger.info(f"Track n°{counter}")
@@ -547,7 +548,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist
                 else:
                     track = client.get_track(track.id)
 
-            download_track(client, track, playlist_info, kwargs.get("strict_playlist"), playlist_buffer=playlistbuffer, **kwargs)
+            download_track_cached(client, track, playlist_info, kwargs.get("strict_playlist"), playlist_cache=playlistcache, playlist_buffer=playlistbuffer, **kwargs)
             if kwargs.get("playlist_file"):
                 playlist_filename=playlist_filename_prefix + playlist_name + ".m3u8"
                 playlist_process(client, playlistbuffer, playlist_filename, **kwargs)
