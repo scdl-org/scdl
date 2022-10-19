@@ -389,7 +389,7 @@ def remove_files():
     """
     Removes any pre-existing tracks that were not just downloaded
     """
-    logger.info("Removing local track files that were not downloaded...")
+    logger.info("Removing local track files...")
     files = [f for f in os.listdir(".") if os.path.isfile(f)]
     for f in files:
         if f not in fileToKeep:
@@ -416,19 +416,15 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
     new = [track.id for track in playlist.tracks]
     add = set(new).difference(old) # find tracks to download
     rem = set(old).difference(new) # find tracks to remove
+    for track_id in new:
+        fileToKeep.append(get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs))
 
     if not (add or rem):
         logger.info("No changes found. Exiting...")
         sys.exit(0)
 
     if rem:
-        for track_id in rem:
-            filename = get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs)
-            if filename in os.listdir('.'):
-                os.remove(filename)
-                logger.info(f'Removed {filename}')
-            else:
-                logger.info(f'Could not find {filename} to remove')
+        remove_files()
         with open(archive,'w') as f:
           for track_id in old:
             if track_id not in rem:
