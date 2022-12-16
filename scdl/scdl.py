@@ -394,6 +394,7 @@ def remove_files():
     for f in files:
         if f not in fileToKeep:
             os.remove(f)
+            logger.info(f'Removed {f}')
 
 def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwargs):
     """
@@ -417,7 +418,14 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
     add = set(new).difference(old) # find tracks to download
     rem = set(old).difference(new) # find tracks to remove
     for track_id in new:
-        fileToKeep.append(get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs))
+        if (
+            client.get_track(track_id).downloadable
+            and not kwargs["onlymp3"]
+            and not kwargs.get("no_original")
+        ):
+            fileToKeep.append(get_original_filename(client, client.get_track_id(track_id), playlist_info, **kwargs))
+        else:
+            fileToKeep.append(get_filename(client.get_track(track_id), playlist_info=playlist_info, **kwargs))
 
     if not (add or rem):
         logger.info("No changes found. Exiting...")
@@ -523,10 +531,7 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
     filename = sanitize_filename(filename)
     return filename
 
-
-def download_original_file(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
-    logger.info("Downloading the original file.")
-
+def get_original_filename(client: SoundCloud, track: BasicTrack, playlist_info=None, **kwargs):
     # Get the requests stream
     url = client.get_track_original_download(track.id, track.secret_token)
     
@@ -563,7 +568,12 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
         filename += ext
 
         filename = get_filename(track, filename, playlist_info=playlist_info, **kwargs)
+        return filename
 
+def download_original_file(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
+    logger.info("Downloading the original file.")
+
+    filename = get_original_filename(client, track, playlist_info, **kwargs)
     logger.debug(f"filename : {filename}")
 
     # Skip if file ID or filename already exists
