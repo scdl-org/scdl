@@ -423,7 +423,7 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
             and not kwargs["onlymp3"]
             and not kwargs.get("no_original")
         ):
-            fileToKeep.append(get_original_filename(client, client.get_track_id(track_id), playlist_info, **kwargs))
+            fileToKeep.append(get_original_filename(client, client.get_track(track_id), playlist_info, **kwargs))
         else:
             fileToKeep.append(get_filename(client.get_track(track_id), playlist_info=playlist_info, **kwargs))
 
