@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
-
+#print("hard fucliong:")
+#exit()
 """scdl allows you to download music from Soundcloud
 
 Usage:
@@ -122,6 +123,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 
 def main():
+    print("hard fucking")
     """
     Main function, parses the URL from command line arguments
     """
@@ -956,4 +958,6 @@ def is_ffmpeg_available():
     return shutil.which("ffmpeg") is not None
 
 if __name__ == "__main__":
+#    print("hard fucking")
+#    exit()
     main()
