@@ -8,7 +8,7 @@ Usage:
     scdl (-l <track_url> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata]
     [-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error][--path <path>]
     [--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
-    [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
+    [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder][--history]
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
     [--original-name][--no-original][--only-original][--name-format <format>]
     [--strict-playlist][--playlist-name-format <format>][--client-id <id>]
@@ -39,6 +39,8 @@ Options:
     --debug                         Set log level to DEBUG
     --download-archive [file]       Keep track of track IDs in an archive file,
                                     and skip already-downloaded files
+
+    --history                       Download Listening History
     --error                         Set log level to ERROR
     --extract-artist                Set artist tag from title instead of username
     --hide-progress                 Hide the wget progress bar
@@ -123,7 +125,6 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 
 def main():
-    print("hard fucking")
     """
     Main function, parses the URL from command line arguments
     """
@@ -135,6 +136,12 @@ def main():
 
     # Parse arguments
     arguments = docopt(__doc__, version=__version__)
+
+
+    if arguments["--history"]:
+        print("asdhgfosaidnaiabngoland")
+        print(arguments["-n"], arguments["-o"])
+        exit(123)
 
     if arguments["--debug"]:
         logger.level = logging.DEBUG
