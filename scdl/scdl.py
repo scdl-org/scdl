@@ -346,7 +346,7 @@ def download_url(client: SoundCloud, **kwargs):
             # Write string into logger.info that considers -n flag when displaying message. where n is a integer which if None then it will display string empty string
             # by copilot
             logger.info(f"Retrieving all listening history of user {user.username} {'upto last {} tracks'.format(kwargs.get('n')) if kwargs.get('n') else ''}...")
-            history = client.get_history(limit=kwargs.get('n'))
+            history = client.get_history(limit=kwargs.get('n') or 1000)
             for i, track in itertools.islice(enumerate(history.tracks, 1), offset, None):
                 logger.info(f"track n°{i} of {len(history.tracks)}")
                 if hasattr(track, "track"):
