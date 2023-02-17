@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
-#print("hard fucliong:")
-#exit()
 """scdl allows you to download music from Soundcloud
 
 Usage:
@@ -138,10 +136,6 @@ def main():
     arguments = docopt(__doc__, version=__version__)
 
 
-    if arguments["--history"]:
-        print("asdhgfosaidnaiabngoland")
-        print(arguments["-n"], arguments["-o"])
-        exit(123)
 
     if arguments["--debug"]:
         logger.level = logging.DEBUG
@@ -338,6 +332,7 @@ def download_url(client: SoundCloud, **kwargs):
                     if kwargs.get("strict_playlist"):
                         sys.exit(1)
             logger.info(f"Downloaded all likes of user {user.username}!")
+
         elif kwargs.get("C"):
             logger.info(f"Retrieving all commented tracks of user {user.username}...")
             resources = client.get_user_comments(user.id, limit=1000)
@@ -345,6 +340,25 @@ def download_url(client: SoundCloud, **kwargs):
                 logger.info(f"comment n°{i} of {user.comments_count}")
                 download_track(client, client.get_track(comment.track.id), exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
             logger.info(f"Downloaded all commented tracks of user {user.username}!")
+
+        elif kwargs.get("history"):
+            """Retrieve all listening history of user"""
+            # Write string into logger.info that considers -n flag when displaying message. where n is a integer which if None then it will display string empty string
+            # by copilot
+            logger.info(f"Retrieving all listening history of user {user.username} {'upto last {} tracks'.format(kwargs.get('n')) if kwargs.get('n') else ''}...")
+            history = client.get_history(limit=kwargs.get('n'))
+            for i, track in itertools.islice(enumerate(history.tracks, 1), offset, None):
+                logger.info(f"track n°{i} of {len(history.tracks)}")
+                if hasattr(track, "track"):
+                    download_track(client, track.track, exit_on_fail=kwargs.get("strict_playlist"), **kwargs)
+#                elif hasattr(like, "playlist"):
+#                    download_playlist(client, client.get_playlist(like.playlist.id), **kwargs)
+                else:
+                    logger.error(f"Unknown history track type {track}")
+#                    if kwargs.get("strict_playlist"):
+#                        sys.exit(1)
+            logger.info(f"Downloaded all history of user {user.username}!{'upto last {} tracks'.format(kwargs.get('n')) if kwargs.get('n') else ''}...")
+
         elif kwargs.get("t"):
             logger.info(f"Retrieving all tracks of user {user.username}...")
             resources = client.get_user_tracks(user.id, limit=1000)
@@ -965,6 +979,4 @@ def is_ffmpeg_available():
     return shutil.which("ffmpeg") is not None
 
 if __name__ == "__main__":
-#    print("hard fucking")
-#    exit()
     main()
