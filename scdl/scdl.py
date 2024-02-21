@@ -147,6 +147,9 @@ def main():
         config_file = pathlib.Path(os.environ["XDG_CONFIG_HOME"], "scdl", "scdl.cfg")
     else:
         config_file = pathlib.Path.home().joinpath(".config", "scdl", "scdl.cfg")
+        config_file = pathlib.Path.home().joinpath(".config", "scdl", arguments["--config-file"] or "scdl.cfg")
+        print(config_file)
+        # exit()
 
     # import conf file
     config = get_config(config_file)
