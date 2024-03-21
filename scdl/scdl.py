@@ -858,13 +858,22 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
         except Exception:
             pass
     if response is None:
-        new_artwork_url = artwork_url.replace("large", "t500x500")
+        new_artwork_url = artwork_url.replace("large.jpg", "original.png")
         response = requests.get(new_artwork_url, stream=True)
         if response.headers["Content-Type"] not in (
             "image/png",
             "image/jpeg",
             "image/jpg",
-        ):
+            ):
+                response = None
+    if response is None:
+        new_artwork_url = artwork_url.replace("large.jpg", "t3000x3000.jpg")
+        response = requests.get(new_artwork_url, stream=True)
+        if response.headers["Content-Type"] not in (
+            "image/png",
+            "image/jpeg",
+            "image/jpg",
+            ):
             response = None
     if response is None:
         logger.error(f"Could not get cover art at {new_artwork_url}")
@@ -873,7 +882,7 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             shutil.copyfileobj(response.raw, out_file)
             out_file.seek(0)
 
-        track.date = track.created_at.strftime("%Y-%m-%d %H::%M::%S")
+        track.date = track.created_at.strftime("%Y-%m-%dT%H:%M:%S")
 
         track.artist = user.username
         if kwargs.get("extract_artist"):
@@ -939,8 +948,8 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             audio = mutagen.File(filename, easy=True)
             audio["title"] = track.title
             audio["artist"] = track.artist
-            #HB4C-EDIT audio["albumartist"] = track.artist
-            #HB4C-EDIT audio["discnumber"] = ["1" "/" "1"]
+            #audio["album"] = "Singles"
+            #audio["discnumber"] = ["1" "/" "1"]
             audio["copyright"] = new_artwork_url
             if track.genre:
                 audio["genre"] = track.genre
@@ -949,9 +958,10 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             if track.permalink_url:
                 audio["website"] = track.permalink_url
             if track.date:
-                audio["date"] = track.date
+                audio["date"] = track.date = track.created_at.strftime("%Y-%m-%dT%H:%M:%S")
             if playlist_info:
                 if not kwargs.get("no_album_tag"):
+                    audio["albumartist"] = track.artist
                     audio["album"] = playlist_info["title"]
                 audio["tracknumber"] = str(playlist_info["tracknumber"])
 
