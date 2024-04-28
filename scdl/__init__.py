@@ -1,3 +1,3 @@
 # -*- encoding: utf-8 -*-
 """Python Soundcloud Music Downloader."""
-__version__ = "v2.7.5"
+__version__ = "v2.7.6"
