@@ -582,7 +582,11 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
             filename = filename[:-4] + ".flac"
         return (filename, True)
 
+    # Get the requests stream
+    url = client.get_track_original_download(track.id, track.secret_token)
+    
     # Write file
+    r = requests.get(url, stream=True)
     total_length = int(r.headers.get("content-length"))
     
     min_size = kwargs.get("min_size") or 0
