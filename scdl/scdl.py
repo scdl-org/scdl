@@ -450,14 +450,16 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
         logger.info("Skipping playlist...")
         return
     playlist_name = playlist.title.encode("utf-8", "ignore")
-    playlist_name = playlist_name.decode("utf-8")
+    playlist_name = playlist_name.decode("utf-8") 
     playlist_name = sanitize_filename(playlist_name)
+    if playlist_name == '':
+        playlist_name = playlist.permalink
     playlist_info = {
                 "author": playlist.user.username,
                 "id": playlist.id,
                 "title": playlist.title
     }
-
+    
     if not kwargs.get("no_playlist_folder"):
         if not os.path.exists(playlist_name):
             os.makedirs(playlist_name)
