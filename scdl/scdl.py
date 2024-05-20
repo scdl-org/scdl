@@ -294,6 +294,19 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     return config
 
 
+def sanitize_str(filename: str, replacement_text: str, ext: str = ''):
+    """
+    Sanitizes a string for use as a filename or folder while preserving the extension
+    """
+    filename += ext if ext else ''
+    sanitized = sanitize_filename(filename, replacement_text=replacement_text).lstrip('.')
+    if not sanitized or sanitized in [ext, ext[1:]]:
+        sanitized = replacement_text * (len(filename) - len(ext)) if ext else replacement_text * len(filename)
+    elif ext:
+        sanitized = sanitized[:-len(ext)]
+    return sanitized
+
+
 def download_url(client: SoundCloud, **kwargs):
     """
     Detects if a URL is a track or a playlist, and parses the track(s)
@@ -450,16 +463,14 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
         logger.info("Skipping playlist...")
         return
     playlist_name = playlist.title.encode("utf-8", "ignore")
-    playlist_name = playlist_name.decode("utf-8") 
-    playlist_name = sanitize_filename(playlist_name)
-    if playlist_name == '':
-        playlist_name = playlist.permalink
+    playlist_name = playlist_name.decode("utf-8")
+    playlist_name = sanitize_str(playlist_name, replacement_text="�")
     playlist_info = {
                 "author": playlist.user.username,
                 "id": playlist.id,
                 "title": playlist.title
     }
-    
+
     if not kwargs.get("no_playlist_folder"):
         if not os.path.exists(playlist_name):
             os.makedirs(playlist_name)
@@ -525,8 +536,8 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
     if original_filename is not None:
         original_filename = original_filename.encode("utf-8", "ignore").decode("utf-8")
         ext = os.path.splitext(original_filename)[1]
+    title = sanitize_str(title, replacement_text="�", ext=ext)
     filename = limit_filename_length(title, ext)
-    filename = sanitize_filename(filename)
     return filename
 
 
