@@ -276,22 +276,36 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     Gets config from scdl.cfg
     """
     config = configparser.ConfigParser()
-    
+
     default_config_file = pathlib.Path(__file__).with_name("scdl.cfg")
 
     # load default config first
     config.read_file(open(default_config_file, encoding="UTF-8"))
-    
+
     # load config file if it exists
     if config_file.exists():
         config.read_file(open(config_file, encoding="UTF-8"))
-    
+
     # save config to disk
     config_file.parent.mkdir(parents=True, exist_ok=True)
     with open(config_file, "w", encoding="UTF-8") as f:
         config.write(f)
-        
+
     return config
+
+
+def sanitize_str(filename: str, replacement_char: str = "�", max_length: int = 255):
+    """
+    Sanitizes a string for use as a filename. Does not allow the file to be hidden
+    """
+    if filename.startswith("."):
+        filename = "_" + filename
+    if filename.endswith("."):
+        filename = filename + "_"
+    sanitized = sanitize_filename(
+        filename, replacement_text=replacement_char, max_len=max_length
+    )
+    return sanitized
 
 
 def download_url(client: SoundCloud, **kwargs):
@@ -451,7 +465,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
         return
     playlist_name = playlist.title.encode("utf-8", "ignore")
     playlist_name = playlist_name.decode("utf-8")
-    playlist_name = sanitize_filename(playlist_name)
+    playlist_name = sanitize_str(playlist_name)
     playlist_info = {
                 "author": playlist.user.username,
                 "id": playlist.id,
@@ -471,11 +485,11 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
             playlist.tracks = playlist.tracks[: int(kwargs.get("n"))]
             kwargs["playlist_offset"] = 0
         if kwargs.get("sync"):
-                  if os.path.isfile(kwargs.get("sync")):
-                        playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
-                  else:
-                        logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
-                        sys.exit(1)
+            if os.path.isfile(kwargs.get("sync")):
+                playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
+            else:
+                logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
+                sys.exit(1)
 
         tracknumber_digits = len(str(len(playlist.tracks)))
         for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
@@ -500,7 +514,7 @@ def try_utime(path, filetime):
         logger.error("Cannot update utime of file")
 
 def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_info=None, **kwargs):
-    
+
     username = track.user.username
     title = track.title.encode("utf-8", "ignore").decode("utf-8")
 
@@ -512,7 +526,7 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
     timestamp = str(int(track.created_at.timestamp()))
     if kwargs.get("addtimestamp"):
         title = timestamp + "_" + title
-    
+
     if not kwargs.get("addtofile") and not kwargs.get("addtimestamp"):
         if playlist_info:
             title = kwargs.get("playlist_name_format").format(**asdict(track), playlist=playlist_info, timestamp=timestamp)
@@ -523,8 +537,7 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
     if original_filename is not None:
         original_filename = original_filename.encode("utf-8", "ignore").decode("utf-8")
         ext = os.path.splitext(original_filename)[1]
-    filename = limit_filename_length(title, ext)
-    filename = sanitize_filename(filename)
+    filename = sanitize_str(title + ext)
     return filename
 
 
