@@ -58,7 +58,7 @@ def size_in_bytes(insize):
         't': 1024 ** 4,
         'p': 1024 ** 5,
     }
-    match = re.search('^\s*([0-9\.]+)\s*([kmgtp])?', insize, re.I)
+    match = re.search(r'^\s*([0-9\.]+)\s*([kmgtp])?', insize, re.I)
 
     if match is None:
         raise ValueError('match not found')
