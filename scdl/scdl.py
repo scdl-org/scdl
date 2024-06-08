@@ -721,6 +721,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
             track.downloadable
             and not kwargs["onlymp3"]
             and not kwargs.get("no_original")
+            and client.auth_token
         ):
             filename, is_already_downloaded = download_original_file(client, track, title, playlist_info, **kwargs)
 
