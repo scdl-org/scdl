@@ -713,12 +713,15 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
         # Geoblocked track
         if track.policy == "BLOCK":
             raise SoundCloudException(f"{title} is not available in your location...")
+        
+        # Get user_id from the client
+        client_user_id = client.get_me().id if client.auth_token else None
 
         # Downloadable track
         filename = None
         is_already_downloaded = False
         if (
-            track.downloadable
+            (track.downloadable or track.user_id == client_user_id)
             and not kwargs["onlymp3"]
             and not kwargs.get("no_original")
             and client.auth_token
