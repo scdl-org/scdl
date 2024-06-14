@@ -138,7 +138,7 @@ def main():
         logger.level = logging.DEBUG
     elif arguments["--error"]:
         logger.level = logging.ERROR
-        
+
     if "XDG_CONFIG_HOME" in os.environ:
         config_file = pathlib.Path(os.environ["XDG_CONFIG_HOME"], "scdl", "scdl.cfg")
     else:
@@ -146,25 +146,32 @@ def main():
 
     # import conf file
     config = get_config(config_file)
-    
+
     logger.info("Soundcloud Downloader")
     logger.debug(arguments)
-        
+
     client_id = arguments["--client-id"] or config["scdl"]["client_id"]
     token = arguments["--auth-token"] or config["scdl"]["auth_token"]
-    
+
     client = SoundCloud(client_id, token if token else None)
-    
+
     if not client.is_client_id_valid():
         if arguments["--client-id"]:
-            logger.error(f"Invalid client_id specified by --client-id argument. Using a dynamically generated client_id...")
+            logger.warning(f"Invalid client_id specified by --client-id argument. Using a dynamically generated client_id...")
         elif config["scdl"]["client_id"]:
-            logger.error(f"Invalid client_id in {config_file}. Using a dynamically generated client_id...")
+            logger.warning(f"Invalid client_id in {config_file}. Using a dynamically generated client_id...")
+        else:
+            logger.info(f"Generating dynamic client_id")
         client = SoundCloud(None, token if token else None)
         if not client.is_client_id_valid():
             logger.error("Dynamically generated client_id is not valid")
             sys.exit(1)
-    
+        config["scdl"]["client_id"] = client.client_id
+        # save client_id
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_file, "w", encoding="UTF-8") as f:
+            config.write(f)
+
     if (token or arguments["me"]) and not client.is_auth_token_valid():
         if arguments["--auth-token"]:
             logger.error(f"Invalid auth_token specified by --auth-token argument")
@@ -202,28 +209,28 @@ def main():
 
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
-    
+
     if not arguments["--name-format"]:
         arguments["--name-format"] = config["scdl"]["name_format"]
-    
+
     if not arguments["--playlist-name-format"]:
         arguments["--playlist-name-format"] = config["scdl"]["playlist_name_format"]
-        
+
     if arguments["me"]:
         # set url to profile associated with auth token
         arguments["-l"] = client.get_me().permalink_url
-    
+
     arguments["-l"] = validate_url(client, arguments["-l"])
 
     if arguments["--sync"]:
         arguments["--download-archive"] = arguments["--sync"]
-        
+
     # convert arguments dict to python_args (kwargs-friendly args)
     python_args = {}
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
-        
+
     # change download path
     path = arguments["--path"] or config["scdl"]["path"]
     if os.path.exists(path):
@@ -235,7 +242,7 @@ def main():
             logger.error(f"Invalid download path '{path}' in {config_file}")
         sys.exit(1)
     logger.debug("Downloading to " + os.getcwd() + "...")
-    
+
     download_url(client, **python_args)
 
     if arguments["--remove"]:
