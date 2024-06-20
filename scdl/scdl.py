@@ -301,18 +301,36 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     return config
 
 
-def sanitize_str(filename: str, replacement_char: str = "�", max_length: int = 255):
+def truncate_str(s: str, length: int) -> str:
+    """
+    Truncate string to a certain number of bytes using the file system encoding
+    """
+    encoding = sys.getfilesystemencoding()
+    bytes = s.encode(encoding)
+    bytes = bytes[:length]
+    return bytes.decode(encoding, errors="ignore")
+
+
+def sanitize_str(
+    filename: str,
+    ext: str = "",
+    replacement_char: str = "�",
+    max_length: int = 255,
+):
     """
     Sanitizes a string for use as a filename. Does not allow the file to be hidden
     """
     if filename.startswith("."):
         filename = "_" + filename
-    if filename.endswith("."):
+    if filename.endswith(".") and not ext:
         filename = filename + "_"
+    max_filename_length = max_length - len(ext)
     sanitized = sanitize_filename(
-        filename, replacement_text=replacement_char, max_len=max_length
+        filename, replacement_text=replacement_char, max_len=max_filename_length
     )
-    return sanitized
+    # sanitize_filename truncates incorrectly, use our own method
+    sanitized = truncate_str(sanitized, max_filename_length)
+    return sanitized + ext
 
 
 def download_url(client: SoundCloud, **kwargs):
@@ -544,7 +562,7 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
     if original_filename is not None:
         original_filename = original_filename.encode("utf-8", "ignore").decode("utf-8")
         ext = os.path.splitext(original_filename)[1]
-    filename = sanitize_str(title + ext)
+    filename = sanitize_str(title, ext)
     return filename
 
 
