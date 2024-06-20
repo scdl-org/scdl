@@ -553,11 +553,11 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
 
     # Get the requests stream
     url = client.get_track_original_download(track.id, track.secret_token)
-    
+
     if not url:
         logger.info("Could not get original download link")
         return (None, False)
-    
+
     r = requests.get(url, stream=True)
     if r.status_code == 401:
         logger.info("The original file has no download left.")
@@ -577,13 +577,14 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
         filename = urllib.parse.unquote(params["filename"], encoding="utf-8")
     else:
         raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
-    
+
     if not kwargs.get("original_name"):
         filename, ext = os.path.splitext(filename)
 
         # Find file extension
         mime = r.headers.get("content-type")
         ext = ext or mimetypes.guess_extension(mime)
+        ext = ext or ("." + r.headers.get("x-amz-meta-file-type"))
         filename += ext
 
         filename = get_filename(track, filename, playlist_info=playlist_info, **kwargs)
@@ -598,13 +599,13 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
 
     # Write file
     total_length = int(r.headers.get("content-length"))
-    
+
     min_size = kwargs.get("min_size") or 0
     max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
-    
+
     if not min_size <= total_length <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
-    
+
     temp = tempfile.NamedTemporaryFile(delete=False)
     received = 0
     with temp as f:
