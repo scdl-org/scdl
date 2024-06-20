@@ -679,18 +679,18 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
 
     if not track.media.transcodings:
         raise SoundCloudException(f"Track {track.permalink_url} has no transcodings available")
-    
+
     logger.debug(f"Trancodings: {track.media.transcodings}")
-    
+
     aac_transcoding = None
     mp3_transcoding = None
-    
+
     for t in track.media.transcodings:
         if t.format.protocol == "hls" and "aac" in t.preset:
             aac_transcoding = t
         elif t.format.protocol == "hls" and "mp3" in t.preset:
             mp3_transcoding = t
-    
+
     aac = False
     transcoding = None
     if not kwargs.get("onlymp3") and aac_transcoding:
@@ -698,7 +698,7 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
         aac = True
     elif mp3_transcoding:
         transcoding = mp3_transcoding
-                
+
     if not transcoding:
         raise SoundCloudException(f"Could not find mp3 or aac transcoding. Available transcodings: {[t.preset for t in track.media.transcodings if t.format.protocol == 'hls']}")
 
@@ -711,15 +711,21 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
     # Get the requests stream
     url = get_transcoding_m3u8(client, transcoding, **kwargs)
     filename_path = os.path.abspath(filename)
+    _, ext = os.path.splitext(filename)
 
-    p = subprocess.Popen(
-        ["ffmpeg", "-i", url, "-c", "copy", filename_path, "-loglevel", "error"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    stdout, stderr = p.communicate()
-    if stderr:
-        logger.error(stderr.decode("utf-8"))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        temp_path = pathlib.Path(tmpdir).joinpath("scdl-download" + ext).absolute()
+        p = subprocess.Popen(
+            ["ffmpeg", "-i", url, "-c", "copy", str(temp_path), "-loglevel", "error"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = p.communicate()
+        if stderr:
+            logger.error(stderr.decode("utf-8"))
+        else:
+            shutil.move(temp_path, filename_path)
+
     return (filename, False)
 
 
