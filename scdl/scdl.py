@@ -87,6 +87,7 @@ import urllib.parse
 import warnings
 from dataclasses import asdict
 
+import filelock
 import mutagen
 from mutagen.easymp4 import EasyMP4
 
@@ -169,8 +170,10 @@ def main():
         config["scdl"]["client_id"] = client.client_id
         # save client_id
         config_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_file, "w", encoding="UTF-8") as f:
-            config.write(f)
+        config_lock = filelock.FileLock(default_config_file + ".scdl.lock", timeout=10)
+        with config_lock:
+            with open(config_file, "w", encoding="UTF-8") as f:
+                config.write(f)
 
     if (token or arguments["me"]) and not client.is_auth_token_valid():
         if arguments["--auth-token"]:
@@ -286,17 +289,20 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
 
     default_config_file = pathlib.Path(__file__).with_name("scdl.cfg")
 
-    # load default config first
-    config.read_file(open(default_config_file, encoding="UTF-8"))
+    config_lock = filelock.FileLock(str(default_config_file) + ".scdl.lock", timeout=10)
 
-    # load config file if it exists
-    if config_file.exists():
-        config.read_file(open(config_file, encoding="UTF-8"))
+    with config_lock:
+        # load default config first
+        config.read_file(open(default_config_file, encoding="UTF-8"))
 
-    # save config to disk
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_file, "w", encoding="UTF-8") as f:
-        config.write(f)
+        # load config file if it exists
+        if config_file.exists():
+            config.read_file(open(config_file, encoding="UTF-8"))
+
+        # save config to disk
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_file, "w", encoding="UTF-8") as f:
+            config.write(f)
 
     return config
 
@@ -440,46 +446,52 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
     """
     logger.info("Comparing tracks...")
     archive = kwargs.get("sync")
-    with open(archive) as f:
-        try:
-            old = [int(i) for i in ''.join(f.readlines()).strip().split('\n')]
-        except IOError as ioe:
-            logger.error(f'Error trying to read download archive {archive}')
-            logger.debug(ioe)
-            sys.exit(1)
-        except ValueError as verr:
-            logger.error(f'Error trying to convert track ids. Verify archive file is not empty.')
-            logger.debug(verr)
-            sys.exit(1)
+    archive_lock = filelock.FileLock(archive + "scdl.lock", timeout=10)
+    with archive_lock:
+        with open(archive) as f:
+            try:
+                old = [int(i) for i in "".join(f.readlines()).strip().split("\n")]
+            except IOError as ioe:
+                logger.error(f"Error trying to read download archive {archive}")
+                logger.debug(ioe)
+                sys.exit(1)
+            except ValueError as verr:
+                logger.error(
+                    f"Error trying to convert track ids. Verify archive file is not empty."
+                )
+                logger.debug(verr)
+                sys.exit(1)
 
-    new = [track.id for track in playlist.tracks]
-    add = set(new).difference(old) # find tracks to download
-    rem = set(old).difference(new) # find tracks to remove
+        new = [track.id for track in playlist.tracks]
+        add = set(new).difference(old)  # find tracks to download
+        rem = set(old).difference(new)  # find tracks to remove
 
-    if not (add or rem):
-        logger.info("No changes found. Exiting...")
-        sys.exit(0)
+        if not (add or rem):
+            logger.info("No changes found. Exiting...")
+            sys.exit(0)
 
-    if rem:
-        for track_id in rem:
-            filename = get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs)
-            if filename in os.listdir('.'):
-                os.remove(filename)
-                logger.info(f'Removed {filename}')
-            else:
-                logger.info(f'Could not find {filename} to remove')
-        with open(archive,'w') as f:
-          for track_id in old:
-            if track_id not in rem:
-              f.write(str(track_id)+'\n')
-    else:
-        logger.info('No tracks to remove.')
-              
-    if add:
-        return [track for track in playlist.tracks if track.id in add]
-    else:
-        logger.info('No tracks to download. Exiting...')
-        sys.exit(0)
+        if rem:
+            for track_id in rem:
+                filename = get_filename(
+                    client.get_track(track_id), playlist_info=playlist_info, **kwargs
+                )
+                if filename in os.listdir("."):
+                    os.remove(filename)
+                    logger.info(f"Removed {filename}")
+                else:
+                    logger.info(f"Could not find {filename} to remove")
+            with open(archive, "w") as f:
+                for track_id in old:
+                    if track_id not in rem:
+                        f.write(str(track_id) + "\n")
+        else:
+            logger.info("No tracks to remove.")
+
+        if add:
+            return [track for track in playlist.tracks if track.id in add]
+        else:
+            logger.info("No tracks to download. Exiting...")
+            sys.exit(0)
 
 def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs):
     """
@@ -745,9 +757,12 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
         # Geoblocked track
         if track.policy == "BLOCK":
             raise SoundCloudException(f"{title} is not available in your location...")
-        
+
         # Get user_id from the client
         client_user_id = client.get_me().id if client.auth_token else None
+
+        lock_file = f"{track.id}.scdl.lock"
+        lock = filelock.FileLock(lock_file, 0)
 
         # Downloadable track
         filename = None
@@ -758,12 +773,26 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
             and not kwargs.get("no_original")
             and client.auth_token
         ):
-            filename, is_already_downloaded = download_original_file(client, track, title, playlist_info, **kwargs)
+            try:
+                with lock:
+                    filename, is_already_downloaded = download_original_file(
+                        client, track, title, playlist_info, **kwargs
+                    )
+            except filelock.Timeout:
+                logger.debug(f"Could not acquire lock: {lock_file}. Skipping")
+                return
 
         if filename is None:
             if kwargs.get("only_original"):
                 raise SoundCloudException(f'Track "{track.permalink_url}" does not have original file available. Not downloading...')
-            filename, is_already_downloaded = download_hls(client, track, title, playlist_info, **kwargs)
+            try:
+                with lock:
+                    filename, is_already_downloaded = download_hls(
+                        client, track, title, playlist_info, **kwargs
+                    )
+            except filelock.Timeout:
+                logger.debug(f"Could not acquire lock: {lock_file}. Skipping")
+                return
 
         if kwargs.get("remove"):
             fileToKeep.append(filename)
@@ -854,13 +883,15 @@ def in_download_archive(track: BasicTrack, **kwargs):
         return
 
     archive_filename = kwargs.get("download_archive")
+    archive_lock = filelock.FileLock(archive_filename + ".scdl.lock", timeout=10)
     try:
-        with open(archive_filename, "a+", encoding="utf-8") as file:
-            file.seek(0)
-            track_id = str(track.id)
-            for line in file:
-                if line.strip() == track_id:
-                    return True
+        with archive_lock:
+            with open(archive_filename, "a+", encoding="utf-8") as file:
+                file.seek(0)
+                track_id = str(track.id)
+                for line in file:
+                    if line.strip() == track_id:
+                        return True
     except IOError as ioe:
         logger.error("Error trying to read download archive...")
         logger.error(ioe)
@@ -876,9 +907,11 @@ def record_download_archive(track: BasicTrack, **kwargs):
         return
 
     archive_filename = kwargs.get("download_archive")
+    archive_lock = filelock.FileLock(archive_filename + "scdl.lock", timeout=10)
     try:
-        with open(archive_filename, "a", encoding="utf-8") as file:
-            file.write(f"{track.id}\n")
+        with archive_lock:
+            with open(archive_filename, "a", encoding="utf-8") as file:
+                file.write(f"{track.id}\n")
     except IOError as ioe:
         logger.error("Error trying to write to download archive...")
         logger.error(ioe)

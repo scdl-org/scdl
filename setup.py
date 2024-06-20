@@ -28,7 +28,8 @@ setup(
         "requests",
         "clint",
         "pathvalidate",
-        "soundcloud-v2>=1.3.7"
+        "soundcloud-v2>=1.3.7",
+        "filelock>=3.0.0",
     ],
     url="https://github.com/flyingrub/scdl",
     classifiers=[
@@ -45,7 +46,7 @@ setup(
         "Topic :: Internet",
         "Topic :: Multimedia :: Sound/Audio",
     ],
-    python_requires = ">=3.7",
+    python_requires=">=3.7",
     entry_points={
         "console_scripts": [
             "scdl = scdl.scdl:main",
