@@ -170,7 +170,7 @@ def main():
         config["scdl"]["client_id"] = client.client_id
         # save client_id
         config_file.parent.mkdir(parents=True, exist_ok=True)
-        config_lock = filelock.FileLock(default_config_file + ".scdl.lock", timeout=10)
+        config_lock = filelock.FileLock(str(config_file) + ".scdl.lock", timeout=10)
         with config_lock:
             with open(config_file, "w", encoding="UTF-8") as f:
                 config.write(f)
@@ -289,7 +289,7 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
 
     default_config_file = pathlib.Path(__file__).with_name("scdl.cfg")
 
-    config_lock = filelock.FileLock(str(default_config_file) + ".scdl.lock", timeout=10)
+    config_lock = filelock.FileLock(str(config_file) + ".scdl.lock", timeout=10)
 
     with config_lock:
         # load default config first
