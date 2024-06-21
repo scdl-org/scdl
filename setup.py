@@ -28,7 +28,7 @@ setup(
         "requests",
         "clint",
         "pathvalidate",
-        "soundcloud-v2>=1.3.7",
+        "soundcloud-v2>=1.3.10",
         "filelock>=3.0.0",
     ],
     url="https://github.com/flyingrub/scdl",

@@ -671,15 +671,15 @@ def get_transcoding_m3u8(client: SoundCloud, transcoding: Transcoding, **kwargs)
     url = transcoding.url
     bitrate_KBps = 256 / 8 if "aac" in transcoding.preset else 128 / 8
     total_bytes = bitrate_KBps * transcoding.duration
-    
+
     min_size = kwargs.get("min_size") or 0
     max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
-    
+
     if not min_size <= total_bytes <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
 
     if url is not None:
-        headers = client.get_default_headers()
+        headers = client._get_default_headers()
         if client.auth_token:
             headers["Authorization"] = f"OAuth {client.auth_token}"
         r = requests.get(url, params={"client_id": client.client_id}, headers=headers)
