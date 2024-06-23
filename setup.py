@@ -29,7 +29,7 @@ setup(
         "clint",
         "pathvalidate",
         "soundcloud-v2>=1.3.10",
-        "filelock>=3.0.0",
+        "filelock>=3.0.0; platform_system=='Windows'",
     ],
     extras_require={"test": ["coveralls", "pytest", "pytest-dotenv", "music-tag"]},
     url="https://github.com/flyingrub/scdl",

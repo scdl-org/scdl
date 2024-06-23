@@ -71,6 +71,7 @@ Options:
 import base64
 import cgi
 import configparser
+import contextlib
 import itertools
 import logging
 import math
@@ -91,7 +92,16 @@ import urllib.parse
 import warnings
 from dataclasses import asdict
 
-import filelock
+if os.name == "nt":
+    import filelock
+
+    FileLockTimeout = filelock.Timeout
+else:
+
+    class FileLockTimeout:
+        pass
+
+
 import mutagen
 import mutagen.flac
 import mutagen.id3
@@ -137,6 +147,13 @@ class PlaylistInfo(TypedDict):
     author: str
     id: int
     title: str
+
+
+def get_filelock(path: pathlib.Path, timeout: int = 10):
+    if os.name == "nt":
+        return filelock.FileLock(str(path) + ".scdl.lock", timeout=timeout)
+    else:
+        return contextlib.nullcontext()
 
 
 def main():
@@ -187,8 +204,7 @@ def main():
         config["scdl"]["client_id"] = client.client_id
         # save client_id
         config_file.parent.mkdir(parents=True, exist_ok=True)
-        config_lock = filelock.FileLock(str(config_file) + ".scdl.lock", timeout=10)
-        with config_lock:
+        with get_filelock(config_file):
             with open(config_file, "w", encoding="UTF-8") as f:
                 config.write(f)
 
@@ -306,9 +322,7 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
 
     default_config_file = pathlib.Path(__file__).with_name("scdl.cfg")
 
-    config_lock = filelock.FileLock(str(config_file) + ".scdl.lock", timeout=10)
-
-    with config_lock:
+    with get_filelock(config_file):
         # load default config first
         config.read_file(open(default_config_file, encoding="UTF-8"))
 
@@ -469,8 +483,7 @@ def sync(
     """
     logger.info("Comparing tracks...")
     archive = kwargs.get("sync")
-    archive_lock = filelock.FileLock(archive + "scdl.lock", timeout=10)
-    with archive_lock:
+    with get_filelock(archive):
         with open(archive) as f:
             try:
                 old = [int(i) for i in "".join(f.readlines()).strip().split("\n")]
@@ -820,8 +833,7 @@ def download_track(
         # Get user_id from the client
         client_user_id = client.get_me().id if client.auth_token else None
 
-        lock_file = f"{track.id}.scdl.lock"
-        lock = filelock.FileLock(lock_file, 0)
+        lock = get_filelock(f"{track.id}", 0)
 
         # Downloadable track
         downloaded_original = False
@@ -839,8 +851,8 @@ def download_track(
                         client, track, title, playlist_info, **kwargs
                     )
                 downloaded_original = True
-            except filelock.Timeout:
-                logger.debug(f"Could not acquire lock: {lock_file}. Skipping")
+            except FileLockTimeout:
+                logger.debug(f"Could not acquire lock: {lock}. Skipping")
                 return
 
         if filename is None:
@@ -851,8 +863,8 @@ def download_track(
                     filename, is_already_downloaded = download_hls(
                         client, track, title, playlist_info, **kwargs
                     )
-            except filelock.Timeout:
-                logger.debug(f"Could not acquire lock: {lock_file}. Skipping")
+            except FileLockTimeout:
+                logger.debug(f"Could not acquire lock: {lock}. Skipping")
                 return
 
         if kwargs.get("remove"):
@@ -938,13 +950,12 @@ def in_download_archive(track: BasicTrack, **kwargs):
     """
     Returns True if a track_id exists in the download archive
     """
-    if not kwargs.get("download_archive"):
+    archive_filename = kwargs.get("download_archive")
+    if not archive_filename:
         return
 
-    archive_filename = kwargs.get("download_archive")
-    archive_lock = filelock.FileLock(archive_filename + ".scdl.lock", timeout=10)
     try:
-        with archive_lock:
+        with get_filelock(archive_filename):
             with open(archive_filename, "a+", encoding="utf-8") as file:
                 file.seek(0)
                 track_id = str(track.id)
@@ -962,13 +973,12 @@ def record_download_archive(track: BasicTrack, **kwargs):
     """
     Write the track_id in the download archive
     """
-    if not kwargs.get("download_archive"):
+    archive_filename = kwargs.get("download_archive")
+    if not archive_filename:
         return
 
-    archive_filename = kwargs.get("download_archive")
-    archive_lock = filelock.FileLock(archive_filename + "scdl.lock", timeout=10)
     try:
-        with archive_lock:
+        with get_filelock(archive_filename):
             with open(archive_filename, "a", encoding="utf-8") as file:
                 file.write(f"{track.id}\n")
     except IOError as ioe:
