@@ -11,7 +11,7 @@ Usage:
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
     [--original-name][--no-original][--only-original][--name-format <format>]
     [--strict-playlist][--playlist-name-format <format>][--client-id <id>]
-    [--auth-token <token>][--overwrite][--no-playlist]
+    [--auth-token <token>][--overwrite][--no-playlist][--opus]
     
     scdl -h | --help
     scdl --version
@@ -51,7 +51,7 @@ Options:
     --path [path]                   Use a custom path for downloaded files
     --remove                        Remove any files not downloaded from execution
     --sync [file]                   Compares an archive file to a playlist and downloads/removes any changed tracks
-    --flac                          Convert original files to .flac
+    --flac                          Convert original files to .flac. Only works if the original file is lossless quality
     --no-album-tag                  On some player track get the same cover art if from the same album, this prevent it
     --original-art                  Download original cover art
     --original-name                 Do not change name of original file downloads
@@ -64,14 +64,17 @@ Options:
     --overwrite                     Overwrite file if it already exists
     --strict-playlist               Abort playlist downloading if one track fails to download
     --no-playlist                   Skip downloading playlists
+    --opus                          Prefer downloading opus streams over mp3 streams
 """
 
+import base64
 import cgi
 import configparser
 import itertools
 import logging
 import math
 import mimetypes
+from typing import Optional
 
 mimetypes.init()
 
@@ -89,6 +92,11 @@ from dataclasses import asdict
 
 import filelock
 import mutagen
+import mutagen.flac
+import mutagen.mp3
+import mutagen.mp4
+import mutagen.oggopus
+import mutagen.wave
 from mutagen.easymp4 import EasyMP4
 
 EasyMP4.RegisterTextKey("website", "purl")
@@ -440,7 +448,10 @@ def remove_files():
         if f not in fileToKeep:
             os.remove(f)
 
-def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwargs):
+
+def sync(
+    client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info: dict, **kwargs
+):
     """
     Downloads/Removes tracks that have been changed on playlist since last archive file
     """
@@ -472,13 +483,18 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
 
         if rem:
             for track_id in rem:
-                filename = get_filename(
-                    client.get_track(track_id), playlist_info=playlist_info, **kwargs
-                )
-                if filename in os.listdir("."):
-                    os.remove(filename)
-                    logger.info(f"Removed {filename}")
-                else:
+                removed = False
+                for ext in (".mp3", ".m4a", ".opus", ".flac", ".wav"):
+                    filename = get_filename(
+                        client.get_track(track_id),
+                        playlist_info=playlist_info,
+                        **kwargs,
+                    )
+                    if filename in os.listdir("."):
+                        removed = True
+                        os.remove(filename)
+                        logger.info(f"Removed {filename}")
+                if not removed:
                     logger.info(f"Could not find {filename} to remove")
             with open(archive, "w") as f:
                 for track_id in old:
@@ -492,6 +508,7 @@ def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwar
         else:
             logger.info("No tracks to download. Exiting...")
             sys.exit(0)
+
 
 def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs):
     """
@@ -550,7 +567,14 @@ def try_utime(path, filetime):
     except Exception:
         logger.error("Cannot update utime of file")
 
-def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_info=None, **kwargs):
+
+def get_filename(
+    track: BasicTrack,
+    ext: Optional[str] = None,
+    original_filename: Optional[str] = None,
+    playlist_info: Optional[dict] = None,
+    **kwargs,
+):
 
     username = track.user.username
     title = track.title.encode("utf-8", "ignore").decode("utf-8")
@@ -570,7 +594,6 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
         else:
             title = kwargs.get("name_format").format(**asdict(track), timestamp=timestamp)
 
-    ext = ".m4a" if aac else ".mp3"  # contain aac in m4a to write metadata
     if original_filename is not None:
         original_filename = original_filename.encode("utf-8", "ignore").decode("utf-8")
         ext = os.path.splitext(original_filename)[1]
@@ -617,7 +640,9 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
         ext = ext or ("." + r.headers.get("x-amz-meta-file-type"))
         filename += ext
 
-        filename = get_filename(track, filename, playlist_info=playlist_info, **kwargs)
+        filename = get_filename(
+            track, original_filename=filename, playlist_info=playlist_info, **kwargs
+        )
 
     logger.debug(f"filename : {filename}")
 
@@ -687,34 +712,44 @@ def get_transcoding_m3u8(client: SoundCloud, transcoding: Transcoding, **kwargs)
         return r.json()["url"]
 
 
-def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
+def download_hls(
+    client: SoundCloud,
+    track: BasicTrack,
+    title: str,
+    playlist_info: Optional[str] = None,
+    **kwargs,
+):
 
     if not track.media.transcodings:
         raise SoundCloudException(f"Track {track.permalink_url} has no transcodings available")
 
     logger.debug(f"Trancodings: {track.media.transcodings}")
 
-    aac_transcoding = None
-    mp3_transcoding = None
+    transcodings = {
+        transcoding.preset: transcoding
+        for transcoding in track.media.transcodings
+        if transcoding.format.protocol == "hls"
+    }
 
-    for t in track.media.transcodings:
-        if t.format.protocol == "hls" and "aac" in t.preset:
-            aac_transcoding = t
-        elif t.format.protocol == "hls" and "mp3" in t.preset:
-            mp3_transcoding = t
+    preset = None
+    ext = None
+    if not kwargs.get("onlymp3") and "aac_1_0" in transcodings:
+        preset = "aac_1_0"
+        ext = ".m4a"
+    elif kwargs.get("opus") and "opus_0_0" in transcodings:
+        preset = "opus_0_0"
+        ext = ".opus"
+    elif "mp3_1_0" in transcodings:
+        preset = "mp3_1_0"
+        ext = ".mp3"
+    if not preset:
+        raise SoundCloudException(
+            f"Could not find valid transcoding. Available transcodings: {[t.preset for t in track.media.transcodings if t.format.protocol == 'hls']}"
+        )
 
-    aac = False
-    transcoding = None
-    if not kwargs.get("onlymp3") and aac_transcoding:
-        transcoding = aac_transcoding
-        aac = True
-    elif mp3_transcoding:
-        transcoding = mp3_transcoding
+    transcoding = transcodings[preset]
 
-    if not transcoding:
-        raise SoundCloudException(f"Could not find mp3 or aac transcoding. Available transcodings: {[t.preset for t in track.media.transcodings if t.format.protocol == 'hls']}")
-
-    filename = get_filename(track, None, aac, playlist_info, **kwargs)
+    filename = get_filename(track, ext=ext, playlist_info=playlist_info, **kwargs)
     logger.debug(f"filename : {filename}")
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename, **kwargs):
@@ -741,7 +776,13 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
     return (filename, False)
 
 
-def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, exit_on_fail=True, **kwargs):
+def download_track(
+    client: SoundCloud,
+    track: BasicTrack,
+    playlist_info: Optional[dict] = None,
+    exit_on_fail=True,
+    **kwargs,
+):
     """
     Downloads a track
     """
@@ -813,6 +854,7 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
             or filename.endswith(".flac")
             or filename.endswith(".m4a")
             or filename.endswith(".wav")
+            or filename.endswith(".opus")
         ):
             try:
                 set_metadata(track, filename, playlist_info, **kwargs)
@@ -919,7 +961,7 @@ def record_download_archive(track: BasicTrack, **kwargs):
 
 def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs):
     """
-    Sets the mp3 file metadata using the Python module Mutagen
+    Sets the track file metadata using the Python module Mutagen
     """
     logger.info("Setting tags...")
     artwork_url = track.artwork_url
@@ -976,6 +1018,8 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
                 )
             elif mutagen_file.__class__ == mutagen.mp4.MP4:
                 mutagen_file["\xa9cmt"] = track.description
+            elif mutagen_file.__class__ == mutagen.oggopus.OggOpus:
+                mutagen_file["comment"] = track.description
         if response:
             if mutagen_file.__class__ == mutagen.flac.FLAC:
                 p = mutagen.flac.Picture()
@@ -993,6 +1037,14 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
                 )
             elif mutagen_file.__class__ == mutagen.mp4.MP4:
                 mutagen_file["covr"] = [mutagen.mp4.MP4Cover(out_file.read())]
+            elif mutagen_file.__class__ == mutagen.oggopus.OggOpus:
+                p = mutagen.flac.Picture()
+                p.data = out_file.read()
+                p.mime = "image/jpeg"
+                p.type = mutagen.id3.PictureType.COVER_FRONT
+                picture_data = p.write()
+                b64_str = base64.b64encode(picture_data).decode()
+                mutagen_file["metadata_block_picture"] = b64_str
 
         if mutagen_file.__class__ == mutagen.wave.WAVE:
             mutagen_file["TIT2"] = mutagen.id3.TIT2(encoding=3, text=track.title)
