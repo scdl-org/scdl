@@ -31,6 +31,7 @@ setup(
         "soundcloud-v2>=1.3.10",
         "filelock>=3.0.0",
     ],
+    extras_require={"test": ["coveralls", "pytest", "pytest-dotenv", "music-tag"]},
     url="https://github.com/flyingrub/scdl",
     classifiers=[
         "Programming Language :: Python",
