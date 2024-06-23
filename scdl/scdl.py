@@ -98,7 +98,7 @@ if os.name == "nt":
     FileLockTimeout = filelock.Timeout
 else:
 
-    class FileLockTimeout:
+    class FileLockTimeout(Exception):
         pass
 
 
