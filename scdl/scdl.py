@@ -756,29 +756,32 @@ def download_hls(
 
     logger.debug(f"Trancodings: {track.media.transcodings}")
 
-    transcodings = {
-        transcoding.preset: transcoding
-        for transcoding in track.media.transcodings
-        if transcoding.format.protocol == "hls"
-    }
+    transcodings = [t for t in track.media.transcodings if t.format.protocol == "hls"]
 
-    preset = None
+    transcoding = None
     ext = None
-    if not kwargs.get("onlymp3") and "aac_1_0" in transcodings:
-        preset = "aac_1_0"
-        ext = ".m4a"
-    elif kwargs.get("opus") and "opus_0_0" in transcodings:
-        preset = "opus_0_0"
-        ext = ".opus"
-    elif "mp3_1_0" in transcodings:
-        preset = "mp3_1_0"
-        ext = ".mp3"
-    if not preset:
+
+    # ordered in terms of preference best -> worst
+    valid_presets = [("mp3", ".mp3")]
+
+    if not kwargs.get("onlymp3"):
+        if kwargs.get("opus"):
+            valid_presets = [("opus", ".opus")] + valid_presets
+        valid_presets = [("aac", ".m4a")] + valid_presets
+
+    transcoding = None
+    ext = None
+    for preset_name, preset_ext in valid_presets:
+        for t in transcodings:
+            if t.preset.startswith(preset_name):
+                transcoding = t
+                ext = preset_ext
+        if transcoding:
+            break
+    else:
         raise SoundCloudException(
             f"Could not find valid transcoding. Available transcodings: {[t.preset for t in track.media.transcodings if t.format.protocol == 'hls']}"
         )
-
-    transcoding = transcodings[preset]
 
     filename = get_filename(track, ext=ext, playlist_info=playlist_info, **kwargs)
     logger.debug(f"filename : {filename}")
