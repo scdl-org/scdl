@@ -9,9 +9,9 @@ Usage:
     [--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
     [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
-    [--original-name][--no-original][--only-original][--name-format <format>]
-    [--strict-playlist][--playlist-name-format <format>][--client-id <id>]
-    [--auth-token <token>][--overwrite][--no-playlist][--opus]
+    [--original-name][--original-metadata][--no-original][--only-original]
+    [--name-format <format>][--strict-playlist][--playlist-name-format <format>]
+    [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
     
     scdl -h | --help
     scdl --version
@@ -31,14 +31,15 @@ Options:
     -r                              Download all reposts of user
     -c                              Continue if a downloaded file already exists
     --force-metadata                This will set metadata on already downloaded track
-    -o [offset]                     Begin with a custom offset
+    -o [offset]                     Start downloading a playlist from the [offset]th track (starting with 1)
     --addtimestamp                  Add track creation timestamp to filename,
                                     which allows for chronological sorting
+                                    (Deprecated. Use --name-format instead.)
     --addtofile                     Add artist to filename if missing
     --debug                         Set log level to DEBUG
+    --error                         Set log level to ERROR
     --download-archive [file]       Keep track of track IDs in an archive file,
                                     and skip already-downloaded files
-    --error                         Set log level to ERROR
     --extract-artist                Set artist tag from title instead of username
     --hide-progress                 Hide the wget progress bar
     --hidewarnings                  Hide Warnings. (use with precaution)
@@ -46,16 +47,16 @@ Options:
     --min-size [min-size]           Skip tracks smaller than size (k/m/g)
     --no-playlist-folder            Download playlist tracks into main directory,
                                     instead of making a playlist subfolder
-    --onlymp3                       Download only the streamable mp3 file,
-                                    even if track has a Downloadable file
+    --onlymp3                       Download only mp3 files
     --path [path]                   Use a custom path for downloaded files
     --remove                        Remove any files not downloaded from execution
     --sync [file]                   Compares an archive file to a playlist and downloads/removes any changed tracks
     --flac                          Convert original files to .flac. Only works if the original file is lossless quality
     --no-album-tag                  On some player track get the same cover art if from the same album, this prevent it
-    --original-art                  Download original cover art
+    --original-art                  Download original cover art, not just 500x500 JPEG
     --original-name                 Do not change name of original file downloads
-    --no-original                   Do not download original file; only mp3 or m4a
+    --original-metadata             Do not change metadata of original file downloads
+    --no-original                   Do not download original file; only mp3, m4a, or opus
     --only-original                 Only download songs with original file available
     --name-format [format]          Specify the downloaded file name format
     --playlist-name-format [format] Specify the downloaded file name format, if it is being downloaded as part of a playlist
@@ -74,7 +75,7 @@ import itertools
 import logging
 import math
 import mimetypes
-from typing import Optional
+from typing import Optional, TypedDict
 
 mimetypes.init()
 
@@ -93,6 +94,7 @@ from dataclasses import asdict
 import filelock
 import mutagen
 import mutagen.flac
+import mutagen.id3
 import mutagen.mp3
 import mutagen.mp4
 import mutagen.oggopus
@@ -129,6 +131,13 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     sys.exit(1)
 
 sys.excepthook = handle_exception
+
+
+class PlaylistInfo(TypedDict):
+    author: str
+    id: int
+    title: str
+
 
 def main():
     """
@@ -450,7 +459,10 @@ def remove_files():
 
 
 def sync(
-    client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info: dict, **kwargs
+    client: SoundCloud,
+    playlist: BasicAlbumPlaylist,
+    playlist_info: PlaylistInfo,
+    **kwargs,
 ):
     """
     Downloads/Removes tracks that have been changed on playlist since last archive file
@@ -572,7 +584,7 @@ def get_filename(
     track: BasicTrack,
     ext: Optional[str] = None,
     original_filename: Optional[str] = None,
-    playlist_info: Optional[dict] = None,
+    playlist_info: Optional[PlaylistInfo] = None,
     **kwargs,
 ):
 
@@ -601,7 +613,13 @@ def get_filename(
     return filename
 
 
-def download_original_file(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
+def download_original_file(
+    client: SoundCloud,
+    track: BasicTrack,
+    title: str,
+    playlist_info: Optional[PlaylistInfo] = None,
+    **kwargs,
+):
     logger.info("Downloading the original file.")
 
     # Get the requests stream
@@ -716,7 +734,7 @@ def download_hls(
     client: SoundCloud,
     track: BasicTrack,
     title: str,
-    playlist_info: Optional[str] = None,
+    playlist_info: Optional[PlaylistInfo] = None,
     **kwargs,
 ):
 
@@ -779,7 +797,7 @@ def download_hls(
 def download_track(
     client: SoundCloud,
     track: BasicTrack,
-    playlist_info: Optional[dict] = None,
+    playlist_info: Optional[PlaylistInfo] = None,
     exit_on_fail=True,
     **kwargs,
 ):
@@ -806,6 +824,7 @@ def download_track(
         lock = filelock.FileLock(lock_file, 0)
 
         # Downloadable track
+        downloaded_original = False
         filename = None
         is_already_downloaded = False
         if (
@@ -819,6 +838,7 @@ def download_track(
                     filename, is_already_downloaded = download_original_file(
                         client, track, title, playlist_info, **kwargs
                     )
+                downloaded_original = True
             except filelock.Timeout:
                 logger.debug(f"Could not acquire lock: {lock_file}. Skipping")
                 return
@@ -849,7 +869,7 @@ def download_track(
             raise SoundCloudException(f"An error occurred downloading {filename}.")
 
         # Try to set the metadata
-        if (
+        if not (downloaded_original and kwargs.get("original_metadata")) and (
             filename.endswith(".mp3")
             or filename.endswith(".flac")
             or filename.endswith(".m4a")
@@ -889,22 +909,19 @@ def already_downloaded(track: BasicTrack, title: str, filename: str, **kwargs):
 
     if os.path.isfile(filename):
         already_downloaded = True
-        if kwargs.get("overwrite"):
-            os.remove(filename)
-            already_downloaded = False
     if (
         kwargs.get("flac")
         and can_convert(filename)
         and os.path.isfile(filename[:-4] + ".flac")
     ):
         already_downloaded = True
-        if kwargs.get("overwrite"):
-            os.remove(filename[:-4] + ".flac")
-            already_downloaded = False
     if kwargs.get("download_archive") and in_download_archive(track, **kwargs):
         already_downloaded = True
 
     if kwargs.get("flac") and can_convert(filename) and os.path.isfile(filename):
+        already_downloaded = False
+
+    if kwargs.get("overwrite"):
         already_downloaded = False
 
     if already_downloaded:
@@ -959,7 +976,12 @@ def record_download_archive(track: BasicTrack, **kwargs):
         logger.error(ioe)
 
 
-def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs):
+def set_metadata(
+    track: BasicTrack,
+    filename: str,
+    playlist_info: Optional[PlaylistInfo] = None,
+    **kwargs,
+):
     """
     Sets the track file metadata using the Python module Mutagen
     """
@@ -1058,6 +1080,9 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             if playlist_info:
                 if not kwargs.get("no_album_tag"):
                     mutagen_file["TALB"] = mutagen.id3.TALB(encoding=3, text=playlist_info["title"])
+                    mutagen_file["TPE2"] = mutagen.id3.TPE2(
+                        encoding=3, text=playlist_info["author"]
+                    )
                 mutagen_file["TRCK"] = mutagen.id3.TRCK(encoding=3, text=str(playlist_info["tracknumber"]))
             mutagen_file.save()
         else:
@@ -1074,9 +1099,11 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             if playlist_info:
                 if not kwargs.get("no_album_tag"):
                     audio["album"] = playlist_info["title"]
+                    audio["albumartist"] = playlist_info["author"]
                 audio["tracknumber"] = str(playlist_info["tracknumber"])
 
             audio.save()
+
 
 def limit_filename_length(name: str, ext: str, max_bytes=255):
     while len(name.encode("utf-8")) + len(ext.encode("utf-8")) > max_bytes:
