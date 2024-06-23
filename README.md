@@ -55,14 +55,15 @@ scdl me -f
 -r                              Download all reposts of user
 -c                              Continue if a downloaded file already exists
 --force-metadata                This will set metadata on already downloaded track
--o [offset]                     Begin with a custom offset
+-o [offset]                     Start downloading a playlist from the [offset]th track (starting with 1)
 --addtimestamp                  Add track creation timestamp to filename,
                                 which allows for chronological sorting
+                                (Deprecated. Use --name-format instead.)
 --addtofile                     Add artist to filename if missing
 --debug                         Set log level to DEBUG
+--error                         Set log level to ERROR
 --download-archive [file]       Keep track of track IDs in an archive file,
                                 and skip already-downloaded files
---error                         Set log level to ERROR
 --extract-artist                Set artist tag from title instead of username
 --hide-progress                 Hide the wget progress bar
 --hidewarnings                  Hide Warnings. (use with precaution)
@@ -70,16 +71,16 @@ scdl me -f
 --min-size [min-size]           Skip tracks smaller than size (k/m/g)
 --no-playlist-folder            Download playlist tracks into main directory,
                                 instead of making a playlist subfolder
---onlymp3                       Download only the streamable mp3 file,
-                                even if track has a Downloadable file
+--onlymp3                       Download only mp3 files
 --path [path]                   Use a custom path for downloaded files
 --remove                        Remove any files not downloaded from execution
---sync [file]	                Compare an archive file to a playlist and downloads/removes any changed tracks
---flac                          Convert original files to .flac
+--sync [file]                   Compares an archive file to a playlist and downloads/removes any changed tracks
+--flac                          Convert original files to .flac. Only works if the original file is lossless quality
 --no-album-tag                  On some player track get the same cover art if from the same album, this prevent it
---original-art                  Download original cover art
+--original-art                  Download original cover art, not just 500x500 JPEG
 --original-name                 Do not change name of original file downloads
---no-original                   Do not download original file; only mp3 or m4a
+--original-metadata             Do not change metadata of original file downloads
+--no-original                   Do not download original file; only mp3, m4a, or opus
 --only-original                 Only download songs with original file available
 --name-format [format]          Specify the downloaded file name format
 --playlist-name-format [format] Specify the downloaded file name format, if it is being downloaded as part of a playlist
@@ -88,6 +89,7 @@ scdl me -f
 --overwrite                     Overwrite file if it already exists
 --strict-playlist               Abort playlist downloading if one track fails to download
 --no-playlist                   Skip downloading playlists
+--opus                          Prefer downloading opus streams over mp3 streams
 ```
 
 

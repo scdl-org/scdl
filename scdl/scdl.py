@@ -68,15 +68,15 @@ Options:
     --opus                          Prefer downloading opus streams over mp3 streams
 """
 
+import atexit
 import base64
 import cgi
 import configparser
-import contextlib
 import itertools
 import logging
 import math
 import mimetypes
-from typing import Optional, TypedDict
+from typing import List, Optional, TypedDict
 
 mimetypes.init()
 
@@ -92,16 +92,7 @@ import urllib.parse
 import warnings
 from dataclasses import asdict
 
-if os.name == "nt":
-    import filelock
-
-    FileLockTimeout = filelock.Timeout
-else:
-
-    class FileLockTimeout(Exception):
-        pass
-
-
+import filelock
 import mutagen
 import mutagen.flac
 import mutagen.id3
@@ -148,12 +139,26 @@ class PlaylistInfo(TypedDict):
     id: int
     title: str
 
+file_lock_dirs: List[pathlib.Path] = []
+
+
+def clean_up_locks():
+    for dir in file_lock_dirs:
+        for lock in dir.glob("*.scdl.lock"):
+            try:
+                lock.unlink(True)
+            except Exception:
+                pass
+
+
+atexit.register(clean_up_locks)
+
 
 def get_filelock(path: pathlib.Path, timeout: int = 10):
-    if os.name == "nt":
-        return filelock.FileLock(str(path) + ".scdl.lock", timeout=timeout)
-    else:
-        return contextlib.nullcontext()
+    path = path.resolve()
+    file_lock_dirs.append(path.parent)
+    lock_path = str(path) + ".scdl.lock"
+    return filelock.FileLock(lock_path, timeout=timeout)
 
 
 def main():
@@ -712,7 +717,7 @@ def download_original_file(
     shutil.move(temp.name, os.path.join(os.getcwd(), filename))
     if kwargs.get("flac") and can_convert(filename):
         logger.info("Converting to .flac...")
-        newfilename = limit_filename_length(filename[:-4], ".flac")
+        newfilename = sanitize_str(filename[:-4], ".flac")
 
         commands = ["ffmpeg", "-i", filename, newfilename, "-loglevel", "error"]
         logger.debug(f"Commands: {commands}")
@@ -760,7 +765,6 @@ def download_hls(
 
     transcoding = None
     ext = None
-
     # ordered in terms of preference best -> worst
     valid_presets = [("mp3", ".mp3")]
 
@@ -836,7 +840,7 @@ def download_track(
         # Get user_id from the client
         client_user_id = client.get_me().id if client.auth_token else None
 
-        lock = get_filelock(f"{track.id}", 0)
+        lock = get_filelock(pathlib.Path(f"./{track.id}"), 0)
 
         # Downloadable track
         downloaded_original = False
@@ -854,7 +858,7 @@ def download_track(
                         client, track, title, playlist_info, **kwargs
                     )
                 downloaded_original = True
-            except FileLockTimeout:
+            except filelock.Timeout:
                 logger.debug(f"Could not acquire lock: {lock}. Skipping")
                 return
 
@@ -866,7 +870,7 @@ def download_track(
                     filename, is_already_downloaded = download_hls(
                         client, track, title, playlist_info, **kwargs
                     )
-            except FileLockTimeout:
+            except filelock.Timeout:
                 logger.debug(f"Could not acquire lock: {lock}. Skipping")
                 return
 
@@ -1117,11 +1121,6 @@ def set_metadata(
 
             audio.save()
 
-
-def limit_filename_length(name: str, ext: str, max_bytes=255):
-    while len(name.encode("utf-8")) + len(ext.encode("utf-8")) > max_bytes:
-        name = name[:-1]
-    return name + ext
 
 def is_ffmpeg_available():
     """
