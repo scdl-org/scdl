@@ -46,11 +46,10 @@ scdl me -f
 --version                       Show version
 -l [url]                        URL can be track/playlist/user
 -n [maxtracks]                  Download the n last tracks of a playlist according to the creation date
--s                              Download the stream of a user (token needed)
 -a                              Download all tracks of user (including reposts)
 -t                              Download all uploads of a user (no reposts)
--f                              Download all favorites of a user
--C                              Download all commented by a user
+-f                              Download all favorites (likes) of a user
+-C                              Download all tracks commented on by a user
 -p                              Download all playlists of a user
 -r                              Download all reposts of user
 -c                              Continue if a downloaded file already exists
