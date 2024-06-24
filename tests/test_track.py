@@ -1,9 +1,12 @@
 import os
 from pathlib import Path
 
+import pytest
+
 from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
 
 
+@pytest.mark.skip(reason="Track has reached download limit")
 def test_original_download(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -16,6 +19,7 @@ def test_original_download(tmp_path: Path):
     assert_track(tmp_path, "track.wav")
 
 
+@pytest.mark.skip(reason="Track has reached download limit")
 def test_flac(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -83,6 +87,7 @@ def test_original_art(tmp_path: Path):
     assert_track(tmp_path, "track.mp3", expected_artwork_len=3409)
 
 
+@pytest.mark.skip(reason="Track has reached download limit")
 def test_original_name(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -96,6 +101,7 @@ def test_original_name(tmp_path: Path):
     assert_track(tmp_path, "original.wav", check_metadata=False)
 
 
+@pytest.mark.skip(reason="Track has reached download limit")
 def test_original_metadata(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -109,6 +115,7 @@ def test_original_metadata(tmp_path: Path):
     assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", False)
 
 
+@pytest.mark.skip(reason="Track has reached download limit")
 def test_force_metadata(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -263,13 +270,14 @@ def test_remove(tmp_path: Path):
     assert_track(tmp_path, "track.mp3", check_metadata=False)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "https://soundcloud.com/one-thousand-and-one/test-track-2/s-fgLQFAzNIMP",
         "--name-format",
-        "track",
+        "track2",
         "--remove",
+        "--onlymp3",
     )
     assert r.returncode == 0
-    assert_track(tmp_path, "track.wav", check_metadata=False)
+    assert_track(tmp_path, "track2.mp3", check_metadata=False)
     assert_not_track(tmp_path, "track.mp3")
 
 
