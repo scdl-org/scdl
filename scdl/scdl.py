@@ -155,6 +155,7 @@ atexit.register(clean_up_locks)
 
 
 def get_filelock(path: pathlib.Path, timeout: int = 10):
+    path = pathlib.Path(path)
     path = path.resolve()
     file_lock_dirs.append(path.parent)
     lock_path = str(path) + ".scdl.lock"
