@@ -264,8 +264,24 @@ def main():
 
     arguments["-l"] = validate_url(client, arguments["-l"])
 
+    if arguments["--download-archive"]:
+        try:
+            path = pathlib.Path(arguments["--download-archive"]).resolve()
+            arguments["--download-archive"] = path
+        except Exception:
+            logger.error(
+                f"Invalid download archive file {arguments['--download-archive']}"
+            )
+            sys.exit(1)
+
     if arguments["--sync"]:
-        arguments["--download-archive"] = arguments["--sync"]
+        try:
+            path = pathlib.Path(arguments["--sync"]).resolve()
+            arguments["--download-archive"] = path
+            arguments["--sync"] = path
+        except Exception:
+            logger.error(f"Invalid sync archive file {arguments['--sync']}")
+            sys.exit(1)
 
     # convert arguments dict to python_args (kwargs-friendly args)
     python_args = {}
@@ -518,6 +534,7 @@ def sync(
                 for ext in (".mp3", ".m4a", ".opus", ".flac", ".wav"):
                     filename = get_filename(
                         client.get_track(track_id),
+                        ext,
                         playlist_info=playlist_info,
                         **kwargs,
                     )
