@@ -271,3 +271,28 @@ def test_remove(tmp_path: Path):
     assert r.returncode == 0
     assert_track(tmp_path, "track.wav", check_metadata=False)
     assert_not_track(tmp_path, "track.mp3")
+
+
+def test_download_archive(tmp_path: Path):
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--name-format",
+        "track",
+        "--onlymp3",
+        "--download-archive=archive.txt",
+    )
+    assert r.returncode == 0
+    os.remove("track.mp3")
+    assert not os.path.exists("track.mp3")
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--name-format",
+        "track",
+        "--onlymp3",
+        "--download-archive=archive.txt",
+    )
+    assert r.returncode == 1
+    assert "already exists" in r.stderr

@@ -128,3 +128,39 @@ def test_strict_playlist(tmp_path: Path):
     assert r.returncode == 1
     assert_not_track(tmp_path / "test playlist", "1_testing - test track.mp3")
     assert_not_track(tmp_path / "test playlist", "2_test track 2.mp3")
+
+
+def test_sync(tmp_path: Path):
+    os.chdir(tmp_path)
+    os.makedirs("test playlist")
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/7x11x13/wan-bushi-eurodance-vibes-part-123",
+        "--onlymp3",
+        "--name-format",
+        "{title}",
+        "--path",
+        "test playlist",
+    )
+    assert r.returncode == 0
+    assert_track(
+        tmp_path / "test playlist",
+        "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3",
+        check_metadata=False,
+    )
+    with open("archive.txt", "w", encoding="utf-8") as f:
+        f.writelines(["1032303631"])
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/sets/test-playlist/s-ZSLfNrbPoXR",
+        "--playlist-name-format",
+        "{title}",
+        "--sync",
+        "archive.txt",
+    )
+    assert r.returncode == 0
+    assert_not_track(
+        tmp_path / "test playlist", "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3"
+    )
+    with open("archive.txt", "r") as f:
+        assert f.read().split() == ["1855267053", "1855318536"]
