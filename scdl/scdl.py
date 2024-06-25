@@ -69,7 +69,6 @@ Options:
 
 import atexit
 import base64
-import cgi
 import configparser
 import itertools
 import logging
@@ -675,7 +674,7 @@ def download_original_file(
 
     # Find filename
     header = r.headers.get("content-disposition")
-    _, params = cgi.parse_header(header)
+    _, params = utils.parse_header(header)
     if "filename*" in params:
         encoding, filename = params["filename*"].split("''")
         filename = urllib.parse.unquote(filename, encoding=encoding)
