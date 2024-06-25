@@ -70,6 +70,7 @@ Options:
 import atexit
 import base64
 import configparser
+import email.message
 import itertools
 import logging
 import math
@@ -674,12 +675,9 @@ def download_original_file(
 
     # Find filename
     header = r.headers.get("content-disposition")
-    _, params = utils.parse_header(header)
-    if "filename*" in params:
-        encoding, filename = params["filename*"].split("''")
-        filename = urllib.parse.unquote(filename, encoding=encoding)
-    elif "filename" in params:
-        filename = urllib.parse.unquote(params["filename"], encoding="utf-8")
+    params = utils.parse_header(header)
+    if "filename" in params:
+        filename = urllib.parse.unquote(params["filename"][-1], encoding="utf-8")
     else:
         raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
 
