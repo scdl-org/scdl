@@ -22,11 +22,11 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=[
-        "docopt",
+        "docopt-ng",
         "mutagen>=1.45.0",
         "termcolor",
         "requests",
-        "clint",
+        "tqdm",
         "pathvalidate",
         "soundcloud-v2>=1.3.10",
         "filelock>=3.0.0",

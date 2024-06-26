@@ -103,11 +103,11 @@ from mutagen.easymp4 import EasyMP4
 EasyMP4.RegisterTextKey("website", "purl")
 
 import requests
-from clint.textui import progress
 from docopt import docopt
 from pathvalidate import sanitize_filename
 from soundcloud import (BasicAlbumPlaylist, BasicTrack, MiniTrack, SoundCloud,
                         Transcoding)
+from tqdm import tqdm
 
 from scdl import __version__, utils
 
@@ -713,10 +713,10 @@ def download_original_file(
     temp = tempfile.NamedTemporaryFile(delete=False)
     received = 0
     with temp as f:
-        for chunk in progress.bar(
+        for chunk in tqdm(
             r.iter_content(chunk_size=1024),
-            expected_size=(total_length / 1024) + 1,
-            hide=True if kwargs.get("hide_progress") else False,
+            total=(total_length / 1024) + 1,
+            disable=bool(kwargs.get("hide_progress")),
         ):
             if chunk:
                 received += len(chunk)
