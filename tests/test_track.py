@@ -1,36 +1,53 @@
 import os
 from pathlib import Path
 
-import pytest
-
 from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
 
 
-@pytest.mark.skip(reason="Track has reached download limit")
 def test_original_download(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "https://soundcloud.com/57v/original",  # thanks saves for hosting
         "--name-format",
         "track",
     )
     assert r.returncode == 0
-    assert_track(tmp_path, "track.wav")
+    assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
-@pytest.mark.skip(reason="Track has reached download limit")
 def test_flac(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "https://soundcloud.com/57v/original",
         "--name-format",
         "track",
         "--flac",
     )
     assert r.returncode == 0
-    assert_track(tmp_path, "track.flac")
+    assert_track(tmp_path, "track.flac", "copy", "saves", None)
+
+
+def test_m4a(tmp_path: Path):
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/7x11x13/wan-bushi-eurodance-vibes-part-123",
+        "--name-format",
+        "track",
+        "--no-original",
+        "--opus",
+    )
+    assert r.returncode == 0
+    assert_track(
+        tmp_path,
+        "track.m4a",
+        "Wan Bushi - Eurodance Vibes (part 1+2+3)",
+        "7x11x13",
+        "Electronic",
+        None,
+    )
 
 
 def test_opus(tmp_path: Path):
@@ -87,12 +104,11 @@ def test_original_art(tmp_path: Path):
     assert_track(tmp_path, "track.mp3", expected_artwork_len=3409)
 
 
-@pytest.mark.skip(reason="Track has reached download limit")
 def test_original_name(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "https://soundcloud.com/57v/original",
         "--name-format",
         "track",
         "--original-name",
@@ -101,41 +117,39 @@ def test_original_name(tmp_path: Path):
     assert_track(tmp_path, "original.wav", check_metadata=False)
 
 
-@pytest.mark.skip(reason="Track has reached download limit")
 def test_original_metadata(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "https://soundcloud.com/57v/original",
         "--name-format",
         "track",
         "--original-metadata",
     )
     assert r.returncode == 0
-    assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", False)
+    assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", 0)
 
 
-@pytest.mark.skip(reason="Track has reached download limit")
 def test_force_metadata(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "https://soundcloud.com/57v/original",
         "--name-format",
         "track",
         "--original-metadata",
     )
     assert r.returncode == 0
-    assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", False)
+    assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", 0)
 
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "https://soundcloud.com/57v/original",
         "--name-format",
         "track",
         "--force-metadata",
     )
-    assert_track(tmp_path, "track.wav")
+    assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
 def test_addtimestamp(tmp_path: Path):
