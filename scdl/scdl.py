@@ -70,7 +70,6 @@ Options:
 import atexit
 import base64
 import configparser
-import email.message
 import itertools
 import logging
 import math
