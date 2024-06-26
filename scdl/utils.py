@@ -5,6 +5,7 @@ Copied from
 https://github.com/davidfischer-ch/pytoolbox/blob/master/pytoolbox/logging.py
 """
 
+import email.message
 import logging
 import re
 from termcolor import colored
@@ -72,3 +73,9 @@ def size_in_bytes(insize):
         size = size * units[unit.lower().strip()]
 
     return int(size)
+
+
+def parse_header(content_disposition):
+    message = email.message.Message()
+    message['content-type'] = content_disposition
+    return dict(message.get_params())
