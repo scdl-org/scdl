@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from hashlib import md5
 
 from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
 
@@ -14,6 +15,46 @@ def test_original_download(tmp_path: Path):
     )
     assert r.returncode == 0
     assert_track(tmp_path, "track.wav", "copy", "saves", None)
+
+
+def test_original_to_stdout():
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/57v/original",
+        "--name-format",
+        "-",
+        encoding=None,
+    )
+    assert r.returncode == 0
+    assert md5(r.stdout).hexdigest() == '29f770010278cd638c2c735c9b1d9ed4'
+
+
+def test_mp3_to_stdout():
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--name-format",
+        "-",
+        "--onlymp3",
+        encoding=None,
+    )
+    assert r.returncode == 0
+    # todo: better tests
+    assert len(r.stdout) > 5
+
+
+def test_flac_to_stdout():
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/57v/original",
+        "--name-format",
+        "-",
+        "--flac",
+        encoding=None,
+    )
+    assert r.returncode == 0
+    # todo: better tests
+    assert len(r.stdout) > 5
 
 
 def test_flac(tmp_path: Path):

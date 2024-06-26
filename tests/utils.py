@@ -9,7 +9,7 @@ from soundcloud import SoundCloud
 client_id = SoundCloud().client_id
 
 
-def call_scdl_with_auth(*args) -> subprocess.CompletedProcess[str]:
+def call_scdl_with_auth(*args, encoding: Optional[str] = 'utf-8') -> subprocess.CompletedProcess[str]:
     auth_token = os.getenv("AUTH_TOKEN")
     assert auth_token
     args = (
@@ -17,7 +17,7 @@ def call_scdl_with_auth(*args) -> subprocess.CompletedProcess[str]:
         + list(args)
         + [f"--auth-token={auth_token}", f"--client-id={client_id}"]
     )
-    return subprocess.run(args, capture_output=True, encoding="utf-8")
+    return subprocess.run(args, capture_output=True, encoding=encoding)
 
 
 def assert_track(

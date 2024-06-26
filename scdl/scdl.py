@@ -70,11 +70,13 @@ Options:
 import atexit
 import base64
 import configparser
+import contextlib
+import io
 import itertools
 import logging
 import math
 import mimetypes
-from typing import List, Optional, TypedDict
+from typing import List, Optional, TypedDict, Tuple
 
 mimetypes.init()
 
@@ -607,11 +609,28 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
         if not kwargs.get("no_playlist_folder"):
             os.chdir("..")
 
+
 def try_utime(path, filetime):
     try:
         os.utime(path, (time.time(), filetime))
     except Exception:
         logger.error("Cannot update utime of file")
+
+
+def is_downloading_to_stdout(**kwargs) -> bool:
+    return kwargs.get('name_format') == '-'
+
+
+def get_stdout():
+    # Credits: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/utils/_utils.py#L575
+    if sys.platform == 'win32':
+        import msvcrt
+
+        # stdout may be any IO stream, e.g. when using contextlib.redirect_stdout
+        with contextlib.suppress(io.UnsupportedOperation):
+            msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
+    return getattr(sys.stdout, 'buffer', sys.stdout)
 
 
 def get_filename(
@@ -621,6 +640,9 @@ def get_filename(
     playlist_info: Optional[PlaylistInfo] = None,
     **kwargs,
 ):
+    # Force stdout name on tracks that are being downloaded to stdout
+    if is_downloading_to_stdout(**kwargs):
+        return 'stdout'
 
     username = track.user.username
     title = track.title.encode("utf-8", "ignore").decode("utf-8")
@@ -653,24 +675,25 @@ def download_original_file(
     title: str,
     playlist_info: Optional[PlaylistInfo] = None,
     **kwargs,
-):
+) -> Tuple[Optional[str], bool]:
     logger.info("Downloading the original file.")
+    to_stdout = is_downloading_to_stdout(**kwargs)
 
     # Get the requests stream
     url = client.get_track_original_download(track.id, track.secret_token)
 
     if not url:
         logger.info("Could not get original download link")
-        return (None, False)
+        return None, False
 
     r = requests.get(url, stream=True)
     if r.status_code == 401:
         logger.info("The original file has no download left.")
-        return (None, False)
+        return None, False
 
     if r.status_code == 404:
         logger.info("Could not get name from stream - using basic name")
-        return (None, False)
+        return None, False
 
     # Find filename
     header = r.headers.get("content-disposition")
@@ -680,26 +703,29 @@ def download_original_file(
     else:
         raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
 
+    orig_filename = filename
     if not kwargs.get("original_name"):
-        filename, ext = os.path.splitext(filename)
+        orig_filename, ext = os.path.splitext(filename)
 
         # Find file extension
         mime = r.headers.get("content-type")
         ext = ext or mimetypes.guess_extension(mime)
         ext = ext or ("." + r.headers.get("x-amz-meta-file-type"))
-        filename += ext
+        orig_filename += ext
 
         filename = get_filename(
-            track, original_filename=filename, playlist_info=playlist_info, **kwargs
+            track, original_filename=orig_filename, playlist_info=playlist_info, **kwargs
         )
 
     logger.debug(f"filename : {filename}")
+    encoding_to_flac = bool(kwargs.get("flac")) and can_convert(orig_filename)
 
     # Skip if file ID or filename already exists
-    if already_downloaded(track, title, filename, **kwargs):
-        if kwargs.get("flac") and can_convert(filename):
+    # We are always re-downloading to stdout
+    if not to_stdout and already_downloaded(track, title, filename, **kwargs):
+        if encoding_to_flac:
             filename = filename[:-4] + ".flac"
-        return (filename, True)
+        return filename, True
 
     # Write file
     total_length = int(r.headers.get("content-length"))
@@ -710,35 +736,65 @@ def download_original_file(
     if not min_size <= total_length <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
 
-    temp = tempfile.NamedTemporaryFile(delete=False)
+    out_stream = sys.stdout
+    if to_stdout:
+        out_stream = get_stdout()
+
+    # For regular downloads, we just straight open the destination file
+    if not to_stdout and not encoding_to_flac:
+        out_stream = open(os.path.join(os.getcwd(), filename), 'wb')
+
+    # For flacs we are downloading right to the ffmpeg pipe
+    ffmpeg_pipe = None
+    if encoding_to_flac:
+        logger.info("Creating the .flac pipe...")
+
+        commands = ["ffmpeg", "-i", "pipe:0", '-f', 'flac', '-', "-loglevel", "error", "-hide_banner"]
+
+        logger.debug(f"Commands: {commands}")
+        ffmpeg_pipe = subprocess.Popen(commands, stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=-1)
+        out_stream = ffmpeg_pipe.stdin
+
     received = 0
-    with temp as f:
-        for chunk in tqdm(
-            r.iter_content(chunk_size=1024),
-            total=(total_length / 1024) + 1,
-            disable=bool(kwargs.get("hide_progress")),
-        ):
-            if chunk:
-                received += len(chunk)
-                f.write(chunk)
-                f.flush()
+    for chunk in tqdm(
+        r.iter_content(chunk_size=1024),
+        total=(total_length / 1024) + 1,
+        disable=bool(kwargs.get("hide_progress")),
+    ):
+        if not chunk:
+            continue
+
+        received += len(chunk)
+        out_stream.write(chunk)
+        out_stream.flush()
+
+    if not to_stdout:
+        out_stream.close()
 
     if received != total_length:
         logger.error("connection closed prematurely, download incomplete")
         sys.exit(1)
 
-    shutil.move(temp.name, os.path.join(os.getcwd(), filename))
-    if kwargs.get("flac") and can_convert(filename):
-        logger.info("Converting to .flac...")
-        newfilename = sanitize_str(filename[:-4], ".flac")
+    if encoding_to_flac:
+        logger.info("Collecting .flac out data")
+        ffmpeg_pipe.stdin.close()
 
-        commands = ["ffmpeg", "-i", filename, newfilename, "-loglevel", "error"]
-        logger.debug(f"Commands: {commands}")
-        subprocess.call(commands)
-        os.remove(filename)
-        filename = newfilename
+        flac_data, stderr = ffmpeg_pipe.communicate()
+        if stderr:
+            logger.error(stderr.decode())
 
-    return (filename, False)
+        ffmpeg_pipe.kill()
+
+        if to_stdout:
+            out_handle = get_stdout()
+            out_handle.write(flac_data)
+            out_handle.flush()
+        else:
+            filename = sanitize_str(filename[:-4], ".flac")
+            with open(filename, 'wb') as f:
+                f.write(flac_data)
+
+    return filename, False
 
 
 def get_transcoding_m3u8(client: SoundCloud, transcoding: Transcoding, **kwargs):
@@ -767,14 +823,14 @@ def download_hls(
     title: str,
     playlist_info: Optional[PlaylistInfo] = None,
     **kwargs,
-):
-
+) -> Tuple[Optional[str], bool]:
     if not track.media.transcodings:
         raise SoundCloudException(f"Track {track.permalink_url} has no transcodings available")
 
-    logger.debug(f"Trancodings: {track.media.transcodings}")
+    logger.debug(f"Transcodings: {track.media.transcodings}")
 
     transcodings = [t for t in track.media.transcodings if t.format.protocol == "hls"]
+    to_stdout = is_downloading_to_stdout(**kwargs)
 
     transcoding = None
     ext = None
@@ -788,11 +844,13 @@ def download_hls(
 
     transcoding = None
     ext = None
+    trans_preset = None
     for preset_name, preset_ext in valid_presets:
         for t in transcodings:
             if t.preset.startswith(preset_name):
                 transcoding = t
                 ext = preset_ext
+                trans_preset = preset_name
         if transcoding:
             break
     else:
@@ -803,28 +861,32 @@ def download_hls(
     filename = get_filename(track, ext=ext, playlist_info=playlist_info, **kwargs)
     logger.debug(f"filename : {filename}")
     # Skip if file ID or filename already exists
-    if already_downloaded(track, title, filename, **kwargs):
-        return (filename, True)
+    if not to_stdout and already_downloaded(track, title, filename, **kwargs):
+        return filename, True
 
     # Get the requests stream
     url = get_transcoding_m3u8(client, transcoding, **kwargs)
-    filename_path = os.path.abspath(filename)
     _, ext = os.path.splitext(filename)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        temp_path = pathlib.Path(tmpdir).joinpath("scdl-download" + ext).absolute()
-        p = subprocess.Popen(
-            ["ffmpeg", "-i", url, "-c", "copy", str(temp_path), "-loglevel", "error"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        stdout, stderr = p.communicate()
-        if stderr:
-            logger.error(stderr.decode("utf-8"))
-        else:
-            shutil.move(temp_path, filename_path)
+    commands = ["ffmpeg", "-i", url, "-c", "copy", "-f", preset_name, "-", "-loglevel", "error", "-hide_banner"]
+    p = subprocess.Popen(
+        commands,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    if stderr:
+        logger.error(stderr.decode("utf-8"))
 
-    return (filename, False)
+    if to_stdout:
+        out_handle = get_stdout()
+        out_handle.write(stdout)
+        out_handle.flush()
+    else:
+        with open(filename, 'wb') as f:
+            f.write(stdout)
+
+    return filename, False
 
 
 def download_track(
@@ -891,6 +953,12 @@ def download_track(
             fileToKeep.append(filename)
 
         record_download_archive(track, **kwargs)
+
+        # If we are downloading to stdout and reached this point, then most likely we downloaded the track
+        # todo: Set the metadata for the tracks downloaded to stdout
+        if is_downloading_to_stdout(**kwargs):
+            logger.info('Downloaded to stdout.\n')
+            return
 
         # Skip if file ID or filename already exists
         if is_already_downloaded and not kwargs.get("force_metadata"):
@@ -1140,6 +1208,7 @@ def is_ffmpeg_available():
     Returns true if ffmpeg is available in the operating system
     """
     return shutil.which("ffmpeg") is not None
+
 
 if __name__ == "__main__":
     main()
