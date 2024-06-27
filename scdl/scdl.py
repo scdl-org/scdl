@@ -117,6 +117,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
 
+CHUNK_SIZE = 1024
+
 fileToKeep = []
 
 class SoundCloudException(Exception):
@@ -647,6 +649,53 @@ def get_filename(
     return filename
 
 
+def run_ffmpeg_command_with_progress(
+    command: List[str], input_duration_ms: int, hide_progress: bool
+):
+    def is_progress_line(line: str):
+        x = line.split("=")
+        if len(x) != 2:
+            return False
+        key = x[0]
+        if key not in (
+            "progress",
+            "speed",
+            "drop_frames",
+            "dup_frames",
+            "out_time",
+            "out_time_ms",
+            "out_time_us",
+            "total_size",
+            "bitrate",
+        ):
+            return False
+        return True
+
+    command += ["-loglevel", "error", "-progress", "pipe:2", "-stats_period", "0.1"]
+    with subprocess.Popen(command, stderr=subprocess.PIPE, encoding="utf-8") as p:
+        err = ""
+        with tqdm(
+            total=input_duration_ms / 1000, disable=hide_progress, unit="s"
+        ) as progress:
+            last_secs = 0
+            for line in p.stderr:
+                if not is_progress_line(line):
+                    err += line
+                elif line.startswith("out_time_ms"):
+                    try:
+                        # actually in microseconds
+                        # the name is a lie
+                        secs = int(line.split("=")[1]) / 1_000_000
+                    except ValueError:
+                        secs = 0
+                    changed = secs - last_secs
+                    last_secs = secs
+                    progress.update(changed)
+            progress.update(input_duration_ms / 1000 - last_secs)
+    if p.returncode != 0:
+        raise SoundCloudException(f"FFmpeg error: {err}")
+
+
 def download_original_file(
     client: SoundCloud,
     track: BasicTrack,
@@ -710,35 +759,48 @@ def download_original_file(
     if not min_size <= total_length <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
 
-    temp = tempfile.NamedTemporaryFile(delete=False)
-    received = 0
-    with temp as f:
-        for chunk in tqdm(
-            r.iter_content(chunk_size=1024),
-            total=(total_length / 1024) + 1,
-            disable=bool(kwargs.get("hide_progress")),
-        ):
-            if chunk:
-                received += len(chunk)
-                f.write(chunk)
-                f.flush()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        received = 0
+        temp_path = pathlib.Path(tmpdir) / "scdl-download"
+        with open(temp_path, "wb") as f:
+            with tqdm.wrapattr(
+                f,
+                "write",
+                total=total_length,
+                disable=bool(kwargs.get("hide_progress")),
+            ) as fobj:
+                for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+                    if chunk:
+                        received += len(chunk)
+                        fobj.write(chunk)
 
-    if received != total_length:
-        logger.error("connection closed prematurely, download incomplete")
-        sys.exit(1)
+        if received != total_length:
+            raise SoundCloudException(
+                "Connection closed prematurely, download incomplete"
+            )
 
-    shutil.move(temp.name, os.path.join(os.getcwd(), filename))
-    if kwargs.get("flac") and can_convert(filename):
-        logger.info("Converting to .flac...")
-        newfilename = sanitize_str(filename[:-4], ".flac")
+        src_file = temp_path
+        dest_file = filename
+        if kwargs.get("flac") and can_convert(filename):
+            flac_path = pathlib.Path(tmpdir) / "scdl-download-flac"
+            logger.info("Converting to .flac...")
+            command = [
+                "ffmpeg",
+                "-i",
+                temp_path,
+                "-f",
+                "flac",
+                flac_path,
+            ]
+            run_ffmpeg_command_with_progress(
+                command, track.duration, bool(kwargs.get("hide_progress"))
+            )
+            src_file = flac_path
+            dest_file = sanitize_str(filename[:-4], ".flac")
 
-        commands = ["ffmpeg", "-i", filename, newfilename, "-loglevel", "error"]
-        logger.debug(f"Commands: {commands}")
-        subprocess.call(commands)
-        os.remove(filename)
-        filename = newfilename
+        shutil.move(src_file, dest_file)
 
-    return (filename, False)
+        return (pathlib.Path(dest_file).name, False)
 
 
 def get_transcoding_m3u8(client: SoundCloud, transcoding: Transcoding, **kwargs):
@@ -812,17 +874,20 @@ def download_hls(
     _, ext = os.path.splitext(filename)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        temp_path = pathlib.Path(tmpdir).joinpath("scdl-download" + ext).absolute()
-        p = subprocess.Popen(
-            ["ffmpeg", "-i", url, "-c", "copy", str(temp_path), "-loglevel", "error"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+        temp_path = pathlib.Path(tmpdir) / ("scdl-download" + ext)
+        command = [
+            "ffmpeg",
+            "-i",
+            url,
+            "-c",
+            "copy",
+            temp_path,
+        ]
+        run_ffmpeg_command_with_progress(
+            command, track.duration, bool(kwargs.get("hide_progress"))
         )
-        stdout, stderr = p.communicate()
-        if stderr:
-            logger.error(stderr.decode("utf-8"))
-        else:
-            shutil.move(temp_path, filename_path)
+
+        shutil.move(temp_path, filename_path)
 
     return (filename, False)
 
