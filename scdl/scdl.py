@@ -112,6 +112,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
 
+CHUNK_SIZE = 1024
+
 fileToKeep = []
 
 class SoundCloudException(Exception):
@@ -660,6 +662,53 @@ def get_filename(
         ext = os.path.splitext(original_filename)[1]
     filename = sanitize_str(title, ext)
     return filename
+
+
+def run_ffmpeg_command_with_progress(
+    command: List[str], input_duration_ms: int, hide_progress: bool
+):
+    def is_progress_line(line: str):
+        x = line.split("=")
+        if len(x) != 2:
+            return False
+        key = x[0]
+        if key not in (
+            "progress",
+            "speed",
+            "drop_frames",
+            "dup_frames",
+            "out_time",
+            "out_time_ms",
+            "out_time_us",
+            "total_size",
+            "bitrate",
+        ):
+            return False
+        return True
+
+    command += ["-loglevel", "error", "-progress", "pipe:2", "-stats_period", "0.1"]
+    with subprocess.Popen(command, stderr=subprocess.PIPE, encoding="utf-8") as p:
+        err = ""
+        with tqdm(
+            total=input_duration_ms / 1000, disable=hide_progress, unit="s"
+        ) as progress:
+            last_secs = 0
+            for line in p.stderr:
+                if not is_progress_line(line):
+                    err += line
+                elif line.startswith("out_time_ms"):
+                    try:
+                        # actually in microseconds
+                        # the name is a lie
+                        secs = int(line.split("=")[1]) / 1_000_000
+                    except ValueError:
+                        secs = 0
+                    changed = secs - last_secs
+                    last_secs = secs
+                    progress.update(changed)
+            progress.update(input_duration_ms / 1000 - last_secs)
+    if p.returncode != 0:
+        raise SoundCloudException(f"FFmpeg error: {err}")
 
 
 def download_original_file(
