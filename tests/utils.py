@@ -17,7 +17,8 @@ def call_scdl_with_auth(*args, encoding: Optional[str] = 'utf-8') -> subprocess.
         + list(args)
         + [f"--auth-token={auth_token}", f"--client-id={client_id}"]
     )
-    return subprocess.run(args, capture_output=True, encoding=encoding)
+    return subprocess.run(args, capture_output=True, encoding=encoding,
+                          errors='ignore' if encoding is not None else None)
 
 
 def assert_track(
