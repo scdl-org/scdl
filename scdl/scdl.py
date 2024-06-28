@@ -68,7 +68,6 @@ Options:
 """
 
 import atexit
-import base64
 import configparser
 import contextlib
 import io
@@ -76,7 +75,7 @@ import itertools
 import logging
 import math
 import mimetypes
-from typing import List, Optional, TypedDict, Tuple
+from typing import List, Optional, TypedDict, Tuple, IO, Union
 
 mimetypes.init()
 
@@ -85,7 +84,6 @@ import pathlib
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 import traceback
 import urllib.parse
@@ -94,12 +92,6 @@ from dataclasses import asdict
 
 import filelock
 import mutagen
-import mutagen.flac
-import mutagen.id3
-import mutagen.mp3
-import mutagen.mp4
-import mutagen.oggopus
-import mutagen.wave
 from mutagen.easymp4 import EasyMP4
 
 EasyMP4.RegisterTextKey("website", "purl")
@@ -112,6 +104,7 @@ from soundcloud import (BasicAlbumPlaylist, BasicTrack, MiniTrack, SoundCloud,
 from tqdm import tqdm
 
 from scdl import __version__, utils
+from scdl.metadata_assembler import METADATA_ASSEMBLERS, MetadataInfo
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -704,6 +697,8 @@ def download_original_file(
         raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
 
     orig_filename = filename
+    _, ext = os.path.splitext(filename)
+
     if not kwargs.get("original_name"):
         orig_filename, ext = os.path.splitext(filename)
 
@@ -720,79 +715,22 @@ def download_original_file(
     logger.debug(f"filename : {filename}")
     encoding_to_flac = bool(kwargs.get("flac")) and can_convert(orig_filename)
 
+    if encoding_to_flac:
+        filename = filename[:-4] + ".flac"
+
     # Skip if file ID or filename already exists
     # We are always re-downloading to stdout
     if not to_stdout and already_downloaded(track, title, filename, **kwargs):
-        if encoding_to_flac:
-            filename = filename[:-4] + ".flac"
         return filename, True
 
-    # Write file
-    total_length = int(r.headers.get("content-length"))
-
-    min_size = kwargs.get("min_size") or 0
-    max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
-
-    if not min_size <= total_length <= max_size:
-        raise SoundCloudException("File not within --min-size and --max-size bounds")
-
-    out_stream = sys.stdout
-    if to_stdout:
-        out_stream = get_stdout()
-
-    # For regular downloads, we just straight open the destination file
-    if not to_stdout and not encoding_to_flac:
-        out_stream = open(os.path.join(os.getcwd(), filename), 'wb')
-
-    # For flacs we are downloading right to the ffmpeg pipe
-    ffmpeg_pipe = None
-    if encoding_to_flac:
-        logger.info("Creating the .flac pipe...")
-
-        commands = ["ffmpeg", "-i", "pipe:0", '-f', 'flac', '-', "-loglevel", "error", "-hide_banner"]
-
-        logger.debug(f"Commands: {commands}")
-        ffmpeg_pipe = subprocess.Popen(commands, stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=-1)
-        out_stream = ffmpeg_pipe.stdin
-
-    received = 0
-    for chunk in tqdm(
-        r.iter_content(chunk_size=1024),
-        total=(total_length / 1024) + 1,
-        disable=bool(kwargs.get("hide_progress")),
-    ):
-        if not chunk:
-            continue
-
-        received += len(chunk)
-        out_stream.write(chunk)
-        out_stream.flush()
-
-    if not to_stdout:
-        out_stream.close()
-
-    if received != total_length:
-        logger.error("connection closed prematurely, download incomplete")
-        sys.exit(1)
-
-    if encoding_to_flac:
-        logger.info("Collecting .flac out data")
-        ffmpeg_pipe.stdin.close()
-
-        flac_data, stderr = ffmpeg_pipe.communicate()
-        if stderr:
-            logger.error(stderr.decode())
-
-        ffmpeg_pipe.kill()
-
-        if to_stdout:
-            out_handle = get_stdout()
-            out_handle.write(flac_data)
-            out_handle.flush()
-        else:
-            filename = sanitize_str(filename[:-4], ".flac")
-            with open(filename, 'wb') as f:
-                f.write(flac_data)
+    re_encode_to_out(
+        track,
+        r,
+        ext[1:] if not encoding_to_flac else 'flac',
+        filename,
+        skip_re_encoding=not encoding_to_flac,
+        **kwargs,
+    )
 
     return filename, False
 
@@ -832,8 +770,6 @@ def download_hls(
     transcodings = [t for t in track.media.transcodings if t.format.protocol == "hls"]
     to_stdout = is_downloading_to_stdout(**kwargs)
 
-    transcoding = None
-    ext = None
     # ordered in terms of preference best -> worst
     valid_presets = [("mp3", ".mp3")]
 
@@ -844,13 +780,11 @@ def download_hls(
 
     transcoding = None
     ext = None
-    trans_preset = None
     for preset_name, preset_ext in valid_presets:
         for t in transcodings:
             if t.preset.startswith(preset_name):
                 transcoding = t
                 ext = preset_ext
-                trans_preset = preset_name
         if transcoding:
             break
     else:
@@ -868,23 +802,14 @@ def download_hls(
     url = get_transcoding_m3u8(client, transcoding, **kwargs)
     _, ext = os.path.splitext(filename)
 
-    commands = ["ffmpeg", "-i", url, "-c", "copy", "-f", preset_name, "-", "-loglevel", "error", "-hide_banner"]
-    p = subprocess.Popen(
-        commands,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+    re_encode_to_out(
+        track,
+        url,
+        preset_name,
+        filename,
+        playlist_info,
+        **kwargs,
     )
-    stdout, stderr = p.communicate()
-    if stderr:
-        logger.error(stderr.decode("utf-8"))
-
-    if to_stdout:
-        out_handle = get_stdout()
-        out_handle.write(stdout)
-        out_handle.flush()
-    else:
-        with open(filename, 'wb') as f:
-            f.write(stdout)
 
     return filename, False
 
@@ -954,40 +879,32 @@ def download_track(
 
         record_download_archive(track, **kwargs)
 
-        # If we are downloading to stdout and reached this point, then most likely we downloaded the track
-        # todo: Set the metadata for the tracks downloaded to stdout
-        if is_downloading_to_stdout(**kwargs):
-            logger.info('Downloaded to stdout.\n')
-            return
+        to_stdout = is_downloading_to_stdout(**kwargs)
 
         # Skip if file ID or filename already exists
         if is_already_downloaded and not kwargs.get("force_metadata"):
             raise SoundCloudException(f"{filename} already downloaded.")
 
         # If file does not exist an error occurred
-        if not os.path.isfile(filename):
+        # If we are downloading to stdout and reached this point, then most likely we downloaded the track
+        if not os.path.isfile(filename) and not to_stdout:
             raise SoundCloudException(f"An error occurred downloading {filename}.")
 
-        # Try to set the metadata
-        if not (downloaded_original and kwargs.get("original_metadata")) and (
-            filename.endswith(".mp3")
-            or filename.endswith(".flac")
-            or filename.endswith(".m4a")
-            or filename.endswith(".wav")
-            or filename.endswith(".opus")
-        ):
-            try:
-                set_metadata(track, filename, playlist_info, **kwargs)
-            except Exception:
-                os.remove(filename)
-                logger.exception("Error trying to set the tags...")
-                raise SoundCloudException("Error trying to set the tags...")
-        else:
-            logger.error("This type of audio doesn't support tagging...")
+        # Add metadata to an already existing file if needed
+        if is_already_downloaded and kwargs.get('force_metadata'):
+            with open(filename, 'rb') as f:
+                file_data = io.BytesIO(f.read())
+
+            _add_metadata_to_stream(track, file_data, playlist_info, **kwargs)
+
+            with open(filename, 'wb') as f:
+                file_data.seek(0)
+                f.write(file_data.read())
 
         # Try to change the real creation date
-        filetime = int(time.mktime(track.created_at.timetuple()))
-        try_utime(filename, filetime)
+        if not to_stdout:
+            filetime = int(time.mktime(track.created_at.timetuple()))
+            try_utime(filename, filetime)
 
         logger.info(f"{filename} Downloaded.\n")
     except SoundCloudException as err:
@@ -1074,133 +991,235 @@ def record_download_archive(track: BasicTrack, **kwargs):
         logger.error(ioe)
 
 
-def set_metadata(
+def _try_get_artwork(url: str, size: str = 'original') -> Optional[requests.Response]:
+    new_artwork_url = url.replace("large", size)
+
+    try:
+        artwork_response = requests.get(new_artwork_url, allow_redirects=False, timeout=5)
+
+        if artwork_response.status_code != 200:
+            return None
+
+        content_type = artwork_response.headers.get('Content-Type', '').lower()
+        if content_type not in ('image/png', 'image/jpeg', 'image/jpg'):
+            return None
+
+        return artwork_response
+    except requests.RequestException:
+        return None
+
+
+def build_ffmpeg_encoding_args(
+    input_file: str,
+    output_file: str,
+    out_codec: str,
+) -> List[str]:
+    return [
+        'ffmpeg',
+
+        # Disable all the useless stuff
+        '-loglevel', 'error',
+        '-hide_banner',
+
+        # Input stream
+        '-i', input_file,
+
+        # Encoding
+        '-f', out_codec,
+
+        # Output file
+        output_file
+    ]
+
+
+def _write_streaming_response_to_pipe(
+    response: requests.Response,
+    pipe: Union[IO[bytes], io.BytesIO],
+    **kwargs,
+) -> None:
+    total_length = int(response.headers.get("content-length"))
+
+    min_size = kwargs.get("min_size") or 0
+    max_size = kwargs.get("max_size") or math.inf  # max size of 0 treated as no max size
+
+    if not min_size <= total_length <= max_size:
+        raise SoundCloudException("File not within --min-size and --max-size bounds")
+
+    received = 0
+
+    for chunk in tqdm(
+        response.iter_content(chunk_size=1024),
+        total=(total_length / 1024) + 1,
+        disable=bool(kwargs.get("hide_progress")),
+    ):
+        if not chunk:
+            continue
+
+        received += len(chunk)
+        pipe.write(chunk)
+        pipe.flush()
+
+    if received != total_length:
+        logger.error("connection closed prematurely, download incomplete")
+        sys.exit(1)
+
+    if not isinstance(pipe, io.BytesIO):
+        pipe.close()
+
+
+def _add_metadata_to_stream(
     track: BasicTrack,
-    filename: str,
+    stream: io.BytesIO,
     playlist_info: Optional[PlaylistInfo] = None,
     **kwargs,
-):
-    """
-    Sets the track file metadata using the Python module Mutagen
-    """
-    logger.info("Setting tags...")
-    artwork_url = track.artwork_url
-    user = track.user
-    if not artwork_url:
-        artwork_url = user.avatar_url
-    response = None
+) -> None:
+    logger.info("Applying metadata...")
+
+    artwork_base_url = track.artwork_url or track.user.avatar_url
+    artwork_response = None
+
     if kwargs.get("original_art"):
-        new_artwork_url = artwork_url.replace("large", "original")
-        try:
-            response = requests.get(new_artwork_url, stream=True)
-            if response.headers["Content-Type"] not in (
-                "image/png",
-                "image/jpeg",
-                "image/jpg",
-            ):
-                response = None
-        except Exception:
-            pass
-    if response is None:
-        new_artwork_url = artwork_url.replace("large", "t500x500")
-        response = requests.get(new_artwork_url, stream=True)
-        if response.headers["Content-Type"] not in (
-            "image/png",
-            "image/jpeg",
-            "image/jpg",
-        ):
-            response = None
-    if response is None:
-        logger.error(f"Could not get cover art at {new_artwork_url}")
-    with tempfile.NamedTemporaryFile() as out_file:
-        if response:
-            shutil.copyfileobj(response.raw, out_file)
-            out_file.seek(0)
+        artwork_response = _try_get_artwork(artwork_base_url, 'original')
 
-        track.date = track.created_at.strftime("%Y-%m-%d %H::%M::%S")
+    if artwork_response is None:
+        artwork_response = _try_get_artwork(artwork_base_url, 't500x500')
 
-        track.artist = user.username
-        if kwargs.get("extract_artist"):
-            for dash in [" - ", " − ", " – ", " — ", " ― "]:
-                if dash in track.title:
-                    artist_title = track.title.split(dash)
-                    track.artist = artist_title[0].strip()
-                    track.title = artist_title[1].strip()
-                    break
-        mutagen_file = mutagen.File(filename)
-        mutagen_file.delete()
-        if track.description:
-            if mutagen_file.__class__ == mutagen.flac.FLAC:
-                mutagen_file["description"] = track.description
-            elif mutagen_file.__class__ == mutagen.mp3.MP3 or mutagen_file.__class__ == mutagen.wave.WAVE:
-                mutagen_file["COMM"] = mutagen.id3.COMM(
-                    encoding=3, lang="ENG", text=track.description
-                )
-            elif mutagen_file.__class__ == mutagen.mp4.MP4:
-                mutagen_file["\xa9cmt"] = track.description
-            elif mutagen_file.__class__ == mutagen.oggopus.OggOpus:
-                mutagen_file["comment"] = track.description
-        if response:
-            if mutagen_file.__class__ == mutagen.flac.FLAC:
-                p = mutagen.flac.Picture()
-                p.data = out_file.read()
-                p.mime = "image/jpeg"
-                p.type = mutagen.id3.PictureType.COVER_FRONT
-                mutagen_file.add_picture(p)
-            elif mutagen_file.__class__ == mutagen.mp3.MP3 or mutagen_file.__class__ == mutagen.wave.WAVE:
-                mutagen_file["APIC"] = mutagen.id3.APIC(
-                    encoding=3,
-                    mime="image/jpeg",
-                    type=3,
-                    desc="Cover",
-                    data=out_file.read(),
-                )
-            elif mutagen_file.__class__ == mutagen.mp4.MP4:
-                mutagen_file["covr"] = [mutagen.mp4.MP4Cover(out_file.read())]
-            elif mutagen_file.__class__ == mutagen.oggopus.OggOpus:
-                p = mutagen.flac.Picture()
-                p.data = out_file.read()
-                p.mime = "image/jpeg"
-                p.type = mutagen.id3.PictureType.COVER_FRONT
-                picture_data = p.write()
-                b64_str = base64.b64encode(picture_data).decode()
-                mutagen_file["metadata_block_picture"] = b64_str
+    artist: str = track.user.username
+    if bool(kwargs.get('extract_artist')):
+        for dash in {" - ", " − ", " – ", " — ", " ― "}:
+            if dash not in track.title:
+                continue
 
-        if mutagen_file.__class__ == mutagen.wave.WAVE:
-            mutagen_file["TIT2"] = mutagen.id3.TIT2(encoding=3, text=track.title)
-            mutagen_file["TPE1"] = mutagen.id3.TPE1(encoding=3, text=track.artist)
-            if track.genre:
-                mutagen_file["TCON"] = mutagen.id3.TCON(encoding=3, text=track.genre)
-            if track.permalink_url:
-                mutagen_file["WOAS"] = mutagen.id3.WOAS(url=track.permalink_url)
-            if track.date:
-                mutagen_file["TDAT"] = mutagen.id3.TDAT(encoding=3, text=track.date)
-            if playlist_info:
-                if not kwargs.get("no_album_tag"):
-                    mutagen_file["TALB"] = mutagen.id3.TALB(encoding=3, text=playlist_info["title"])
-                    mutagen_file["TPE2"] = mutagen.id3.TPE2(
-                        encoding=3, text=playlist_info["author"]
-                    )
-                mutagen_file["TRCK"] = mutagen.id3.TRCK(encoding=3, text=str(playlist_info["tracknumber"]))
-            mutagen_file.save()
-        else:
-            mutagen_file.save()
-            audio = mutagen.File(filename, easy=True)
-            audio["title"] = track.title
-            audio["artist"] = track.artist
-            if track.genre:
-                audio["genre"] = track.genre
-            if track.permalink_url:
-                audio["website"] = track.permalink_url
-            if track.date:
-                audio["date"] = track.date
-            if playlist_info:
-                if not kwargs.get("no_album_tag"):
-                    audio["album"] = playlist_info["title"]
-                    audio["albumartist"] = playlist_info["author"]
-                audio["tracknumber"] = str(playlist_info["tracknumber"])
+            artist_title = track.title.split(dash, maxsplit=1)
+            artist = artist_title[0].strip()
+            track.title = artist_title[1].strip()
+            break
 
-            audio.save()
+    album_available: bool = playlist_info and not kwargs.get("no_album_tag")
+
+    metadata = MetadataInfo(
+        artist=artist,
+        title=track.title,
+        description=track.description,
+        genre=track.genre,
+        artwork_jpeg=artwork_response.content if artwork_response else None,
+        link=track.permalink_url,
+        date=track.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        album_title=playlist_info["title"] if album_available else None,
+        album_author=playlist_info["author"] if album_available else None,
+        album_track_num=playlist_info["tracknumber"] if album_available else None,
+    )
+
+    mutagen_file = mutagen.File(stream)
+
+    handler = METADATA_ASSEMBLERS.get(type(mutagen_file), None)
+    if handler is None:
+        logger.error(f'Metadata assemblers for {type(mutagen_file)} is unsupported. '
+                     f'Please create an issue at https://github.com/flyingrub/scdl/issues and we will look into it')
+        return
+
+    # Delete all the existing tags and write our own tags
+    stream.seek(0)
+    mutagen_file.delete(stream)
+    handler(mutagen_file, metadata)
+
+    stream.seek(0)
+    mutagen_file.save(stream)
+
+
+def re_encode_to_out(
+    track: BasicTrack,
+    in_data: Union[requests.Response, str],
+    out_codec: str,
+    filename: str,
+    playlist_info: Optional[PlaylistInfo] = None,
+    skip_re_encoding: bool = False,
+    **kwargs,
+) -> None:
+    to_stdout = is_downloading_to_stdout(**kwargs)
+
+    encoded = re_encode_to_buffer(
+        track,
+        in_data,
+        out_codec,
+        playlist_info,
+        skip_re_encoding,
+        **kwargs,
+    )
+
+    out_handle = get_stdout() if to_stdout else open(filename, 'wb')
+    out_handle.write(encoded.read())
+    out_handle.flush()
+
+    if not to_stdout:
+        out_handle.close()
+
+
+def _re_encode_ffmpeg(
+    in_data: Union[requests.Response, str],  # streaming response or url
+    out_codec: str,
+    **kwargs,
+) -> io.BytesIO:
+    is_url: bool = isinstance(in_data, str)
+    logger.info("Creating the ffmpeg pipe...")
+
+    commands = build_ffmpeg_encoding_args(
+        input_file=in_data if is_url else '-',
+        output_file='pipe:1',
+        out_codec=out_codec,
+    )
+
+    logger.debug(f"ffmpeg commands: {commands}")
+    pipe = subprocess.Popen(
+        commands,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        bufsize=-1,
+    )
+
+    # Stream the response to ffmpeg if needed
+    if isinstance(in_data, requests.Response):
+        assert pipe.stdin is not None
+        _write_streaming_response_to_pipe(in_data, pipe.stdin, **kwargs)
+        pipe.stdin.close()
+
+    # todo: add error checks
+    stdout, stderr = pipe.communicate()
+    if stderr:
+        logger.error(f'Got ffmpeg errors: {stderr.decode()}')
+
+    return io.BytesIO(stdout)
+
+
+def _copy_stream(
+    in_data: requests.Response,  # streaming response or url
+    **kwargs,
+) -> io.BytesIO:
+    result = io.BytesIO()
+    _write_streaming_response_to_pipe(in_data, result, **kwargs)
+    result.seek(0)
+    return result
+
+
+def re_encode_to_buffer(
+    track: BasicTrack,
+    in_data: Union[requests.Response, str],  # streaming response or url
+    out_codec: str,
+    playlist_info: Optional[PlaylistInfo] = None,
+    skip_re_encoding: bool = False,
+    **kwargs,
+) -> io.BytesIO:
+    if skip_re_encoding and isinstance(in_data, requests.Response):
+        encoded_data = _copy_stream(in_data, **kwargs)
+    else:
+        encoded_data = _re_encode_ffmpeg(in_data, out_codec, **kwargs)
+
+    # Remove original metadata, add our own, and we are done
+    if not kwargs.get("original_metadata"):
+        _add_metadata_to_stream(track, encoded_data, playlist_info, **kwargs)
+
+    encoded_data.seek(0)
+    return encoded_data
 
 
 def is_ffmpeg_available():

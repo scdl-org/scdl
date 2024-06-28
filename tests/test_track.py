@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
-from hashlib import md5
+
+import pytest
 
 from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
 
@@ -17,7 +18,8 @@ def test_original_download(tmp_path: Path):
     assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
-def test_original_to_stdout():
+def test_original_to_stdout(tmp_path: Path):
+    os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
         "https://soundcloud.com/57v/original",
@@ -26,24 +28,31 @@ def test_original_to_stdout():
         encoding=None,
     )
     assert r.returncode == 0
-    assert md5(r.stdout).hexdigest() == '29f770010278cd638c2c735c9b1d9ed4'
+    with open('track.wav', 'wb') as f:
+        f.write(r.stdout)
+    assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
-def test_mp3_to_stdout():
+def test_mp3_to_stdout(tmp_path: Path):
+    os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
         "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--onlymp3",
         "--name-format",
         "-",
-        "--onlymp3",
         encoding=None,
     )
     assert r.returncode == 0
-    # todo: better tests
-    assert len(r.stdout) > 5
+
+    with open('track.mp3', 'wb') as f:
+        f.write(r.stdout)
+
+    assert_track(tmp_path, "track.mp3")
 
 
-def test_flac_to_stdout():
+def test_flac_to_stdout(tmp_path: Path):
+    os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
         "https://soundcloud.com/57v/original",
@@ -52,9 +61,12 @@ def test_flac_to_stdout():
         "--flac",
         encoding=None,
     )
+
+    with open('track.flac', 'wb') as f:
+        f.write(r.stdout)
+
     assert r.returncode == 0
-    # todo: better tests
-    assert len(r.stdout) > 5
+    assert_track(tmp_path, "track.flac", "copy", "saves", None)
 
 
 def test_flac(tmp_path: Path):
@@ -190,6 +202,7 @@ def test_force_metadata(tmp_path: Path):
         "track",
         "--force-metadata",
     )
+    assert r.returncode == 0
     assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
