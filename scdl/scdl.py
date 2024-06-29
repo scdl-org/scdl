@@ -1055,18 +1055,26 @@ def _write_streaming_response_to_pipe(
 
     logger.info('Receiving the streaming response')
     received = 0
+    chunk_size = 8192
 
-    for chunk in tqdm(
-        response.iter_content(chunk_size=1024),
-        total=(total_length / 1024) + 1,
-        disable=bool(kwargs.get("hide_progress")),
-    ):
-        if not chunk:
-            continue
+    with memoryview(bytearray(chunk_size)) as buffer:
+        for chunk in tqdm(
+            iter(lambda: response.raw.read(chunk_size), b''),
+            total=(total_length / chunk_size) + 1,
+            disable=bool(kwargs.get('hide_progress')),
+            unit='KB',
+            unit_scale=chunk_size/1024
+        ):
+            if not chunk:
+                break
 
-        received += len(chunk)
-        pipe.write(chunk)
-        pipe.flush()
+            buffer_view = buffer[:len(chunk)]
+            buffer_view[:] = chunk
+
+            received += len(chunk)
+            pipe.write(buffer_view)
+
+    pipe.flush()
 
     if received != total_length:
         logger.error("connection closed prematurely, download incomplete")
@@ -1157,8 +1165,7 @@ def re_encode_to_out(
     )
 
     out_handle = get_stdout() if to_stdout else open(filename, 'wb')
-    out_handle.write(encoded.read())
-    out_handle.flush()
+    shutil.copyfileobj(encoded, out_handle)
 
     if not to_stdout:
         out_handle.close()
