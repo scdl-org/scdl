@@ -1062,8 +1062,8 @@ def _write_streaming_response_to_pipe(
             iter(lambda: response.raw.read(chunk_size), b''),
             total=(total_length / chunk_size) + 1,
             disable=bool(kwargs.get('hide_progress')),
-            unit='KB',
-            unit_scale=chunk_size/1024
+            unit='Kb',
+            unit_scale=chunk_size / 1024,
         ):
             if not chunk:
                 break
@@ -1211,12 +1211,6 @@ def _re_encode_ffmpeg(
     # Wrap stderr with TextIOWrapper for automatic decoding
     pipe.stderr = io.TextIOWrapper(pipe.stderr, encoding='utf-8', errors=None)
 
-    # Stream the response to ffmpeg if needed
-    if isinstance(in_data, requests.Response):
-        assert pipe.stdin is not None
-        _write_streaming_response_to_pipe(in_data, pipe.stdin, **kwargs)
-        pipe.stdin.close()
-
     logger.info('Encoding..')
     errors_output = ''
     stdout = io.BytesIO()
@@ -1242,9 +1236,22 @@ def _re_encode_ffmpeg(
 
     stdout_thread = threading.Thread(target=read_stdout)
     stderr_thread = threading.Thread(target=read_stderr)
+    stdin_thread = None
+
+    # Stream the response to ffmpeg if needed
+    if isinstance(in_data, requests.Response):
+        assert pipe.stdin is not None
+        stdin_thread = threading.Thread(
+            target=_write_streaming_response_to_pipe,
+            args=(in_data, pipe.stdin,),
+            kwargs=kwargs,
+        )
 
     stdout_thread.start()
     stderr_thread.start()
+
+    if stdin_thread:
+        stdin_thread.start()
 
     with tqdm(
         total=track_duration_ms / 1000,
