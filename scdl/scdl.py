@@ -75,6 +75,8 @@ import itertools
 import logging
 import math
 import mimetypes
+import queue
+import threading
 from typing import List, Optional, TypedDict, Tuple, IO, Union
 
 mimetypes.init()
@@ -664,53 +666,6 @@ def get_filename(
     return filename
 
 
-def run_ffmpeg_command_with_progress(
-    command: List[str], input_duration_ms: int, hide_progress: bool
-):
-    def is_progress_line(line: str):
-        x = line.split("=")
-        if len(x) != 2:
-            return False
-        key = x[0]
-        if key not in (
-            "progress",
-            "speed",
-            "drop_frames",
-            "dup_frames",
-            "out_time",
-            "out_time_ms",
-            "out_time_us",
-            "total_size",
-            "bitrate",
-        ):
-            return False
-        return True
-
-    command += ["-loglevel", "error", "-progress", "pipe:2", "-stats_period", "0.1"]
-    with subprocess.Popen(command, stderr=subprocess.PIPE, encoding="utf-8") as p:
-        err = ""
-        with tqdm(
-            total=input_duration_ms / 1000, disable=hide_progress, unit="s"
-        ) as progress:
-            last_secs = 0
-            for line in p.stderr:
-                if not is_progress_line(line):
-                    err += line
-                elif line.startswith("out_time_ms"):
-                    try:
-                        # actually in microseconds
-                        # the name is a lie
-                        secs = int(line.split("=")[1]) / 1_000_000
-                    except ValueError:
-                        secs = 0
-                    changed = secs - last_secs
-                    last_secs = secs
-                    progress.update(changed)
-            progress.update(input_duration_ms / 1000 - last_secs)
-    if p.returncode != 0:
-        raise SoundCloudException(f"FFmpeg error: {err}")
-
-
 def download_original_file(
     client: SoundCloud,
     track: BasicTrack,
@@ -1076,6 +1031,10 @@ def build_ffmpeg_encoding_args(
         # Encoding
         '-f', out_codec,
 
+        # Progress to stderr
+        '-progress', 'pipe:2',
+        '-stats_period', '0.1',
+
         # Output file
         output_file
     ]
@@ -1094,6 +1053,7 @@ def _write_streaming_response_to_pipe(
     if not min_size <= total_length <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
 
+    logger.info('Receiving the streaming response')
     received = 0
 
     for chunk in tqdm(
@@ -1163,7 +1123,7 @@ def _add_metadata_to_stream(
 
     handler = METADATA_ASSEMBLERS.get(type(mutagen_file), None)
     if handler is None:
-        logger.error(f'Metadata assemblers for {type(mutagen_file)} is unsupported. '
+        logger.error(f'Metadata assembling for {type(mutagen_file)} is unsupported. '
                      f'Please create an issue at https://github.com/flyingrub/scdl/issues and we will look into it')
         return
 
@@ -1204,9 +1164,24 @@ def re_encode_to_out(
         out_handle.close()
 
 
+def _is_ffmpeg_progress_line(parameters: List[str]):
+    return len(parameters) == 2 and parameters[0] in (
+        "progress",
+        "speed",
+        "drop_frames",
+        "dup_frames",
+        "out_time",
+        "out_time_ms",
+        "out_time_us",
+        "total_size",
+        "bitrate",
+    )
+
+
 def _re_encode_ffmpeg(
     in_data: Union[requests.Response, str],  # streaming response or url
     out_codec: str,
+    track_duration_ms: int,
     **kwargs,
 ) -> io.BytesIO:
     is_url: bool = isinstance(in_data, str)
@@ -1218,13 +1193,16 @@ def _re_encode_ffmpeg(
         out_codec=out_codec,
     )
 
-    logger.debug(f"ffmpeg commands: {commands}")
+    logger.debug(f"ffmpeg command: {commands}")
     pipe = subprocess.Popen(
         commands,
         stdin=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        bufsize=-1,
     )
+
+    # Wrap stderr with TextIOWrapper for automatic decoding
+    pipe.stderr = io.TextIOWrapper(pipe.stderr, encoding='utf-8', errors=None)
 
     # Stream the response to ffmpeg if needed
     if isinstance(in_data, requests.Response):
@@ -1232,12 +1210,80 @@ def _re_encode_ffmpeg(
         _write_streaming_response_to_pipe(in_data, pipe.stdin, **kwargs)
         pipe.stdin.close()
 
-    # todo: add error checks
-    stdout, stderr = pipe.communicate()
-    if stderr:
-        logger.error(f'Got ffmpeg errors: {stderr.decode()}')
+    logger.info('Encoding..')
+    errors_output = ''
+    stdout = io.BytesIO()
 
-    return io.BytesIO(stdout)
+    # Sadly we have to iterate both stdout and stderr at the same times in order for things to work.
+    # This is why we have 2 threads that are reading stdout and stderr, stderr puts lines in queue,
+    #   then in another part of code messages from this queue gets processed.
+    # I don't think there is any other way how to get this working and make it fast as it is now.
+
+    stderr_queue = queue.Queue()
+
+    # A function that reads encoded track to our `stdout` BytesIO object
+    def read_stdout():
+        for line in pipe.stdout:
+            stdout.write(line)
+        pipe.stdout.close()
+
+    # Read line by line from stderr and put these messages in a queue
+    def read_stderr():
+        for line in iter(pipe.stderr.readline, ''):
+            stderr_queue.put(line)
+        pipe.stderr.close()
+
+    stdout_thread = threading.Thread(target=read_stdout)
+    stderr_thread = threading.Thread(target=read_stderr)
+
+    stdout_thread.start()
+    stderr_thread.start()
+
+    with tqdm(
+        total=track_duration_ms / 1000,
+        disable=bool(kwargs.get("hide_progress")),
+        unit="s"
+    ) as progress:
+        last_secs = 0
+
+        # We don't care about stdout here
+        while stderr_thread.is_alive():
+            try:
+                chunk_err = stderr_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
+
+            parameters = chunk_err.split('=', maxsplit=1)
+            if not _is_ffmpeg_progress_line(parameters):
+                errors_output += chunk_err
+                continue
+
+            if not chunk_err.startswith('out_time_ms'):
+                continue
+
+            try:
+                seconds = int(parameters[1]) / 1_000_000
+            except ValueError:
+                seconds = 0
+
+            changed = seconds - last_secs
+            last_secs = seconds
+            progress.update(changed)
+
+        # We are done here
+        progress.close()
+
+    # Wait for threads to finish
+    stdout_thread.join()
+    stderr_thread.join()
+
+    # Make sure that process has exited and get its exit code
+    pipe.wait()
+    if pipe.returncode != 0:
+        raise SoundCloudException(f'FFmpeg error({pipe.returncode}): {errors_output}')
+
+    stdout.seek(0)
+    return stdout
 
 
 def _copy_stream(
@@ -1261,7 +1307,7 @@ def re_encode_to_buffer(
     if skip_re_encoding and isinstance(in_data, requests.Response):
         encoded_data = _copy_stream(in_data, **kwargs)
     else:
-        encoded_data = _re_encode_ffmpeg(in_data, out_codec, **kwargs)
+        encoded_data = _re_encode_ffmpeg(in_data, out_codec, track.duration, **kwargs)
 
     # Remove original metadata, add our own, and we are done
     if not kwargs.get("original_metadata"):
