@@ -5,6 +5,7 @@ Copied from
 https://github.com/davidfischer-ch/pytoolbox/blob/master/pytoolbox/logging.py
 """
 
+import email.message
 import logging
 import re
 from termcolor import colored
@@ -58,7 +59,7 @@ def size_in_bytes(insize):
         't': 1024 ** 4,
         'p': 1024 ** 5,
     }
-    match = re.search('^\s*([0-9\.]+)\s*([kmgtp])?', insize, re.I)
+    match = re.search(r'^\s*([0-9\.]+)\s*([kmgtp])?', insize, re.I)
 
     if match is None:
         raise ValueError('match not found')
@@ -72,3 +73,9 @@ def size_in_bytes(insize):
         size = size * units[unit.lower().strip()]
 
     return int(size)
+
+
+def parse_header(content_disposition):
+    message = email.message.Message()
+    message['content-type'] = content_disposition
+    return dict(message.get_params())

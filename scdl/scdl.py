@@ -22,23 +22,23 @@ Options:
     --version                       Show version
     -l [url]                        URL can be track/playlist/user
     -n [maxtracks]                  Download the n last tracks of a playlist according to the creation date
-    -s                              Download the stream of a user (token needed)
     -a                              Download all tracks of user (including reposts)
     -t                              Download all uploads of a user (no reposts)
-    -f                              Download all favorites of a user
-    -C                              Download all commented by a user
+    -f                              Download all favorites (likes) of a user
+    -C                              Download all tracks commented on by a user
     -p                              Download all playlists of a user
     -r                              Download all reposts of user
     -c                              Continue if a downloaded file already exists
     --force-metadata                This will set metadata on already downloaded track
-    -o [offset]                     Begin with a custom offset
+    -o [offset]                     Start downloading a playlist from the [offset]th track (starting with 1)
     --addtimestamp                  Add track creation timestamp to filename,
                                     which allows for chronological sorting
+                                    (Deprecated. Use --name-format instead.)
     --addtofile                     Add artist to filename if missing
     --debug                         Set log level to DEBUG
+    --error                         Set log level to ERROR
     --download-archive [file]       Keep track of track IDs in an archive file,
                                     and skip already-downloaded files
-    --error                         Set log level to ERROR
     --extract-artist                Set artist tag from title instead of username
     --hide-progress                 Hide the wget progress bar
     --hidewarnings                  Hide Warnings. (use with precaution)
@@ -46,16 +46,16 @@ Options:
     --min-size [min-size]           Skip tracks smaller than size (k/m/g)
     --no-playlist-folder            Download playlist tracks into main directory,
                                     instead of making a playlist subfolder
-    --onlymp3                       Download only the streamable mp3 file,
-                                    even if track has a Downloadable file
+    --onlymp3                       Download only mp3 files
     --path [path]                   Use a custom path for downloaded files
     --remove                        Remove any files not downloaded from execution
     --sync [file]                   Compares an archive file to a playlist and downloads/removes any changed tracks
-    --flac                          Convert original files to .flac
+    --flac                          Convert original files to .flac. Only works if the original file is lossless quality
     --no-album-tag                  On some player track get the same cover art if from the same album, this prevent it
-    --original-art                  Download original cover art
+    --original-art                  Download original cover art, not just 500x500 JPEG
     --original-name                 Do not change name of original file downloads
-    --no-original                   Do not download original file; only mp3 or m4a
+    --original-metadata             Do not change metadata of original file downloads
+    --no-original                   Do not download original file; only mp3, m4a, or opus
     --only-original                 Only download songs with original file available
     --name-format [format]          Specify the downloaded file name format
     --playlist-name-format [format] Specify the downloaded file name format, if it is being downloaded as part of a playlist
@@ -66,14 +66,17 @@ Options:
     --no-playlist                   Skip downloading playlists
     --add-description               Adds the description to a seperate txt file (can be read by some players)
     --add-playlist-subfolder        Puts playlist tracks into their own folder
+    --opus                          Prefer downloading opus streams over mp3 streams
 """
 
-import cgi
+import atexit
+import base64
 import configparser
 import itertools
 import logging
 import math
 import mimetypes
+from typing import List, Optional, TypedDict
 
 mimetypes.init()
 
@@ -89,17 +92,24 @@ import urllib.parse
 import warnings
 from dataclasses import asdict
 
+import filelock
 import mutagen
+import mutagen.flac
+import mutagen.id3
+import mutagen.mp3
+import mutagen.mp4
+import mutagen.oggopus
+import mutagen.wave
 from mutagen.easymp4 import EasyMP4
 
 EasyMP4.RegisterTextKey("website", "purl")
 
 import requests
-from clint.textui import progress
 from docopt import docopt
 from pathvalidate import sanitize_filename
 from soundcloud import (BasicAlbumPlaylist, BasicTrack, MiniTrack, SoundCloud,
                         Transcoding)
+from tqdm import tqdm
 
 from scdl import __version__, utils
 
@@ -110,6 +120,7 @@ logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
 
 logger.info("Jases v3a")
+CHUNK_SIZE = 1024
 
 fileToKeep = []
 
@@ -124,6 +135,35 @@ def handle_exception(exc_type, exc_value, exc_traceback):
     sys.exit(1)
 
 sys.excepthook = handle_exception
+
+
+class PlaylistInfo(TypedDict):
+    author: str
+    id: int
+    title: str
+
+file_lock_dirs: List[pathlib.Path] = []
+
+
+def clean_up_locks():
+    for dir in file_lock_dirs:
+        for lock in dir.glob("*.scdl.lock"):
+            try:
+                lock.unlink(True)
+            except Exception:
+                pass
+
+
+atexit.register(clean_up_locks)
+
+
+def get_filelock(path: pathlib.Path, timeout: int = 10):
+    path = pathlib.Path(path)
+    path = path.resolve()
+    file_lock_dirs.append(path.parent)
+    lock_path = str(path) + ".scdl.lock"
+    return filelock.FileLock(lock_path, timeout=timeout)
+
 
 def main():
     """
@@ -142,7 +182,7 @@ def main():
         logger.level = logging.DEBUG
     elif arguments["--error"]:
         logger.level = logging.ERROR
-        
+
     if "XDG_CONFIG_HOME" in os.environ:
         config_file = pathlib.Path(os.environ["XDG_CONFIG_HOME"], "scdl", "scdl.cfg")
     else:
@@ -150,25 +190,33 @@ def main():
 
     # import conf file
     config = get_config(config_file)
-    
+
     logger.info("Soundcloud Downloader")
     logger.debug(arguments)
-        
+
     client_id = arguments["--client-id"] or config["scdl"]["client_id"]
     token = arguments["--auth-token"] or config["scdl"]["auth_token"]
-    
+
     client = SoundCloud(client_id, token if token else None)
-    
+
     if not client.is_client_id_valid():
         if arguments["--client-id"]:
-            logger.error(f"Invalid client_id specified by --client-id argument. Using a dynamically generated client_id...")
+            logger.warning(f"Invalid client_id specified by --client-id argument. Using a dynamically generated client_id...")
         elif config["scdl"]["client_id"]:
-            logger.error(f"Invalid client_id in {config_file}. Using a dynamically generated client_id...")
+            logger.warning(f"Invalid client_id in {config_file}. Using a dynamically generated client_id...")
+        else:
+            logger.info(f"Generating dynamic client_id")
         client = SoundCloud(None, token if token else None)
         if not client.is_client_id_valid():
             logger.error("Dynamically generated client_id is not valid")
             sys.exit(1)
-    
+        config["scdl"]["client_id"] = client.client_id
+        # save client_id
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        with get_filelock(config_file):
+            with open(config_file, "w", encoding="UTF-8") as f:
+                config.write(f)
+
     if (token or arguments["me"]) and not client.is_auth_token_valid():
         if arguments["--auth-token"]:
             logger.error(f"Invalid auth_token specified by --auth-token argument")
@@ -206,28 +254,44 @@ def main():
 
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
-    
+
     if not arguments["--name-format"]:
         arguments["--name-format"] = config["scdl"]["name_format"]
-    
+
     if not arguments["--playlist-name-format"]:
         arguments["--playlist-name-format"] = config["scdl"]["playlist_name_format"]
-        
+
     if arguments["me"]:
         # set url to profile associated with auth token
         arguments["-l"] = client.get_me().permalink_url
-    
+
     arguments["-l"] = validate_url(client, arguments["-l"])
 
+    if arguments["--download-archive"]:
+        try:
+            path = pathlib.Path(arguments["--download-archive"]).resolve()
+            arguments["--download-archive"] = path
+        except Exception:
+            logger.error(
+                f"Invalid download archive file {arguments['--download-archive']}"
+            )
+            sys.exit(1)
+
     if arguments["--sync"]:
-        arguments["--download-archive"] = arguments["--sync"]
-        
+        try:
+            path = pathlib.Path(arguments["--sync"]).resolve()
+            arguments["--download-archive"] = path
+            arguments["--sync"] = path
+        except Exception:
+            logger.error(f"Invalid sync archive file {arguments['--sync']}")
+            sys.exit(1)
+
     # convert arguments dict to python_args (kwargs-friendly args)
     python_args = {}
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
-        
+
     # change download path
     path = arguments["--path"] or config["scdl"]["path"]
     if os.path.exists(path):
@@ -239,7 +303,7 @@ def main():
             logger.error(f"Invalid download path '{path}' in {config_file}")
         sys.exit(1)
     logger.debug("Downloading to " + os.getcwd() + "...")
-    
+
     download_url(client, **python_args)
 
     if arguments["--remove"]:
@@ -280,22 +344,55 @@ def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     Gets config from scdl.cfg
     """
     config = configparser.ConfigParser()
-    
+
     default_config_file = pathlib.Path(__file__).with_name("scdl.cfg")
 
-    # load default config first
-    config.read_file(open(default_config_file, encoding="UTF-8"))
-    
-    # load config file if it exists
-    if config_file.exists():
-        config.read_file(open(config_file, encoding="UTF-8"))
-    
-    # save config to disk
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_file, "w", encoding="UTF-8") as f:
-        config.write(f)
-        
+    with get_filelock(config_file):
+        # load default config first
+        config.read_file(open(default_config_file, encoding="UTF-8"))
+
+        # load config file if it exists
+        if config_file.exists():
+            config.read_file(open(config_file, encoding="UTF-8"))
+
+        # save config to disk
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_file, "w", encoding="UTF-8") as f:
+            config.write(f)
+
     return config
+
+
+def truncate_str(s: str, length: int) -> str:
+    """
+    Truncate string to a certain number of bytes using the file system encoding
+    """
+    encoding = sys.getfilesystemencoding()
+    bytes = s.encode(encoding)
+    bytes = bytes[:length]
+    return bytes.decode(encoding, errors="ignore")
+
+
+def sanitize_str(
+    filename: str,
+    ext: str = "",
+    replacement_char: str = "�",
+    max_length: int = 255,
+):
+    """
+    Sanitizes a string for use as a filename. Does not allow the file to be hidden
+    """
+    if filename.startswith("."):
+        filename = "_" + filename
+    if filename.endswith(".") and not ext:
+        filename = filename + "_"
+    max_filename_length = max_length - len(ext)
+    sanitized = sanitize_filename(
+        filename, replacement_text=replacement_char, max_len=max_filename_length
+    )
+    # sanitize_filename truncates incorrectly, use our own method
+    sanitized = truncate_str(sanitized, max_filename_length)
+    return sanitized + ext
 
 
 def download_url(client: SoundCloud, **kwargs):
@@ -399,52 +496,70 @@ def remove_files():
         if f not in fileToKeep:
             os.remove(f)
 
-def sync(client: SoundCloud, playlist: BasicAlbumPlaylist, playlist_info, **kwargs):
+
+def sync(
+    client: SoundCloud,
+    playlist: BasicAlbumPlaylist,
+    playlist_info: PlaylistInfo,
+    **kwargs,
+):
     """
     Downloads/Removes tracks that have been changed on playlist since last archive file
     """
     logger.info("Comparing tracks...")
     archive = kwargs.get("sync")
-    with open(archive) as f:
-        try:
-            old = [int(i) for i in ''.join(f.readlines()).strip().split('\n')]
-        except IOError as ioe:
-            logger.error(f'Error trying to read download archive {archive}')
-            logger.debug(ioe)
-            sys.exit(1)
-        except ValueError as verr:
-            logger.error(f'Error trying to convert track ids. Verify archive file is not empty.')
-            logger.debug(verr)
-            sys.exit(1)
+    with get_filelock(archive):
+        with open(archive) as f:
+            try:
+                old = [int(i) for i in "".join(f.readlines()).strip().split("\n")]
+            except IOError as ioe:
+                logger.error(f"Error trying to read download archive {archive}")
+                logger.debug(ioe)
+                sys.exit(1)
+            except ValueError as verr:
+                logger.error(
+                    f"Error trying to convert track ids. Verify archive file is not empty."
+                )
+                logger.debug(verr)
+                sys.exit(1)
 
-    new = [track.id for track in playlist.tracks]
-    add = set(new).difference(old) # find tracks to download
-    rem = set(old).difference(new) # find tracks to remove
+        new = [track.id for track in playlist.tracks]
+        add = set(new).difference(old)  # find tracks to download
+        rem = set(old).difference(new)  # find tracks to remove
 
-    if not (add or rem):
-        logger.info("No changes found. Exiting...")
-        sys.exit(0)
+        if not (add or rem):
+            logger.info("No changes found. Exiting...")
+            sys.exit(0)
 
-    if rem:
-        for track_id in rem:
-            filename = get_filename(client.get_track(track_id),playlist_info=playlist_info,**kwargs)
-            if filename in os.listdir('.'):
-                os.remove(filename)
-                logger.info(f'Removed {filename}')
-            else:
-                logger.info(f'Could not find {filename} to remove')
-        with open(archive,'w') as f:
-          for track_id in old:
-            if track_id not in rem:
-              f.write(str(track_id)+'\n')
-    else:
-        logger.info('No tracks to remove.')
-              
-    if add:
-        return [track for track in playlist.tracks if track.id in add]
-    else:
-        logger.info('No tracks to download. Exiting...')
-        sys.exit(0)
+        if rem:
+            for track_id in rem:
+                removed = False
+                for ext in (".mp3", ".m4a", ".opus", ".flac", ".wav"):
+                    filename = get_filename(
+                        client.get_track(track_id),
+                        ext,
+                        playlist_info=playlist_info,
+                        **kwargs,
+                    )
+                    if filename in os.listdir("."):
+                        removed = True
+                        os.remove(filename)
+                        logger.info(f"Removed {filename}")
+                if not removed:
+                    logger.info(f"Could not find {filename} to remove")
+            with open(archive, "w") as f:
+                for track_id in old:
+                    if track_id not in rem:
+                        f.write(str(track_id) + "\n")
+        else:
+            logger.info("No tracks to remove.")
+
+        if add:
+            return [track for track in playlist.tracks if track.id in add]
+        else:
+            logger.info("No tracks to download. Exiting...")
+            sys.exit(0)
+
 
 def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs):
     """
@@ -455,7 +570,7 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
         return
     playlist_name = playlist.title.encode("utf-8", "ignore")
     playlist_name = playlist_name.decode("utf-8")
-    playlist_name = sanitize_filename(playlist_name)
+    playlist_name = sanitize_str(playlist_name)
     playlist_info = {
                 "author": playlist.user.username,
                 "id": playlist.id,
@@ -475,11 +590,11 @@ def download_playlist(client: SoundCloud, playlist: BasicAlbumPlaylist, **kwargs
             playlist.tracks = playlist.tracks[: int(kwargs.get("n"))]
             kwargs["playlist_offset"] = 0
         if kwargs.get("sync"):
-                  if os.path.isfile(kwargs.get("sync")):
-                        playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
-                  else:
-                        logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
-                        sys.exit(1)
+            if os.path.isfile(kwargs.get("sync")):
+                playlist.tracks = sync(client, playlist, playlist_info, **kwargs)
+            else:
+                logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
+                sys.exit(1)
 
         tracknumber_digits = len(str(len(playlist.tracks)))
         for counter, track in itertools.islice(enumerate(playlist.tracks, 1), kwargs.get("playlist_offset", 0), None):
@@ -515,8 +630,15 @@ def try_utime(path, filetime):
     except Exception:
         logger.error("Cannot update utime of file")
 
-def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_info=None, **kwargs):
-    
+
+def get_filename(
+    track: BasicTrack,
+    ext: Optional[str] = None,
+    original_filename: Optional[str] = None,
+    playlist_info: Optional[PlaylistInfo] = None,
+    **kwargs,
+):
+
     username = track.user.username
     title = track.title.encode("utf-8", "ignore").decode("utf-8")
 
@@ -528,32 +650,83 @@ def get_filename(track: BasicTrack, original_filename=None, aac=False, playlist_
     timestamp = str(int(track.created_at.timestamp()))
     if kwargs.get("addtimestamp"):
         title = timestamp + "_" + title
-    
+
     if not kwargs.get("addtofile") and not kwargs.get("addtimestamp"):
         if playlist_info:
             title = kwargs.get("playlist_name_format").format(**asdict(track), playlist=playlist_info, timestamp=timestamp)
         else:
             title = kwargs.get("name_format").format(**asdict(track), timestamp=timestamp)
 
-    ext = ".m4a" if aac else ".mp3"  # contain aac in m4a to write metadata
     if original_filename is not None:
         original_filename = original_filename.encode("utf-8", "ignore").decode("utf-8")
         ext = os.path.splitext(original_filename)[1]
-    filename = limit_filename_length(title, ext)
-    filename = sanitize_filename(filename)
+    filename = sanitize_str(title, ext)
     return filename
 
 
-def download_original_file(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
+def run_ffmpeg_command_with_progress(
+    command: List[str], input_duration_ms: int, hide_progress: bool
+):
+    def is_progress_line(line: str):
+        x = line.split("=")
+        if len(x) != 2:
+            return False
+        key = x[0]
+        if key not in (
+            "progress",
+            "speed",
+            "drop_frames",
+            "dup_frames",
+            "out_time",
+            "out_time_ms",
+            "out_time_us",
+            "total_size",
+            "bitrate",
+        ):
+            return False
+        return True
+
+    command += ["-loglevel", "error", "-progress", "pipe:2", "-stats_period", "0.1"]
+    with subprocess.Popen(command, stderr=subprocess.PIPE, encoding="utf-8") as p:
+        err = ""
+        with tqdm(
+            total=input_duration_ms / 1000, disable=hide_progress, unit="s"
+        ) as progress:
+            last_secs = 0
+            for line in p.stderr:
+                if not is_progress_line(line):
+                    err += line
+                elif line.startswith("out_time_ms"):
+                    try:
+                        # actually in microseconds
+                        # the name is a lie
+                        secs = int(line.split("=")[1]) / 1_000_000
+                    except ValueError:
+                        secs = 0
+                    changed = secs - last_secs
+                    last_secs = secs
+                    progress.update(changed)
+            progress.update(input_duration_ms / 1000 - last_secs)
+    if p.returncode != 0:
+        raise SoundCloudException(f"FFmpeg error: {err}")
+
+
+def download_original_file(
+    client: SoundCloud,
+    track: BasicTrack,
+    title: str,
+    playlist_info: Optional[PlaylistInfo] = None,
+    **kwargs,
+):
     logger.info("Downloading the original file.")
 
     # Get the requests stream
     url = client.get_track_original_download(track.id, track.secret_token)
-    
+
     if not url:
         logger.info("Could not get original download link")
         return (None, False)
-    
+
     r = requests.get(url, stream=True)
     if r.status_code == 401:
         logger.info("The original file has no download left.")
@@ -565,24 +738,24 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
 
     # Find filename
     header = r.headers.get("content-disposition")
-    _, params = cgi.parse_header(header)
-    if "filename*" in params:
-        encoding, filename = params["filename*"].split("''")
-        filename = urllib.parse.unquote(filename, encoding=encoding)
-    elif "filename" in params:
-        filename = urllib.parse.unquote(params["filename"], encoding="utf-8")
+    params = utils.parse_header(header)
+    if "filename" in params:
+        filename = urllib.parse.unquote(params["filename"][-1], encoding="utf-8")
     else:
         raise SoundCloudException(f"Could not get filename from content-disposition header: {header}")
-    
+
     if not kwargs.get("original_name"):
         filename, ext = os.path.splitext(filename)
 
         # Find file extension
         mime = r.headers.get("content-type")
         ext = ext or mimetypes.guess_extension(mime)
+        ext = ext or ("." + r.headers.get("x-amz-meta-file-type"))
         filename += ext
 
-        filename = get_filename(track, filename, playlist_info=playlist_info, **kwargs)
+        filename = get_filename(
+            track, original_filename=filename, playlist_info=playlist_info, **kwargs
+        )
 
     logger.debug(f"filename : {filename}")
 
@@ -594,57 +767,70 @@ def download_original_file(client: SoundCloud, track: BasicTrack, title: str, pl
 
     # Write file
     total_length = int(r.headers.get("content-length"))
-    
+
     min_size = kwargs.get("min_size") or 0
     max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
-    
+
     if not min_size <= total_length <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
-    
-    temp = tempfile.NamedTemporaryFile(delete=False)
-    received = 0
-    with temp as f:
-        for chunk in progress.bar(
-            r.iter_content(chunk_size=1024),
-            expected_size=(total_length / 1024) + 1,
-            hide=True if kwargs.get("hide_progress") else False,
-        ):
-            if chunk:
-                received += len(chunk)
-                f.write(chunk)
-                f.flush()
 
-    if received != total_length:
-        logger.error("connection closed prematurely, download incomplete")
-        sys.exit(1)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        received = 0
+        temp_path = pathlib.Path(tmpdir) / "scdl-download"
+        with open(temp_path, "wb") as f:
+            with tqdm.wrapattr(
+                f,
+                "write",
+                total=total_length,
+                disable=bool(kwargs.get("hide_progress")),
+            ) as fobj:
+                for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+                    if chunk:
+                        received += len(chunk)
+                        fobj.write(chunk)
 
-    shutil.move(temp.name, os.path.join(os.getcwd(), filename))
-    if kwargs.get("flac") and can_convert(filename):
-        logger.info("Converting to .flac...")
-        newfilename = limit_filename_length(filename[:-4], ".flac")
+        if received != total_length:
+            raise SoundCloudException(
+                "Connection closed prematurely, download incomplete"
+            )
 
-        commands = ["ffmpeg", "-i", filename, newfilename, "-loglevel", "error"]
-        logger.debug(f"Commands: {commands}")
-        subprocess.call(commands)
-        os.remove(filename)
-        filename = newfilename
+        src_file = temp_path
+        dest_file = filename
+        if kwargs.get("flac") and can_convert(filename):
+            flac_path = pathlib.Path(tmpdir) / "scdl-download-flac"
+            logger.info("Converting to .flac...")
+            command = [
+                "ffmpeg",
+                "-i",
+                temp_path,
+                "-f",
+                "flac",
+                flac_path,
+            ]
+            run_ffmpeg_command_with_progress(
+                command, track.duration, bool(kwargs.get("hide_progress"))
+            )
+            src_file = flac_path
+            dest_file = sanitize_str(filename[:-4], ".flac")
 
-    return (filename, False)
+        shutil.move(src_file, dest_file)
+
+        return (pathlib.Path(dest_file).name, False)
 
 
 def get_transcoding_m3u8(client: SoundCloud, transcoding: Transcoding, **kwargs):
     url = transcoding.url
     bitrate_KBps = 256 / 8 if "aac" in transcoding.preset else 128 / 8
     total_bytes = bitrate_KBps * transcoding.duration
-    
+
     min_size = kwargs.get("min_size") or 0
     max_size = kwargs.get("max_size") or math.inf # max size of 0 treated as no max size
-    
+
     if not min_size <= total_bytes <= max_size:
         raise SoundCloudException("File not within --min-size and --max-size bounds")
 
     if url is not None:
-        headers = client.get_default_headers()
+        headers = client._get_default_headers()
         if client.auth_token:
             headers["Authorization"] = f"OAuth {client.auth_token}"
         r = requests.get(url, params={"client_id": client.client_id}, headers=headers)
@@ -652,34 +838,46 @@ def get_transcoding_m3u8(client: SoundCloud, transcoding: Transcoding, **kwargs)
         return r.json()["url"]
 
 
-def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_info=None, **kwargs):
+def download_hls(
+    client: SoundCloud,
+    track: BasicTrack,
+    title: str,
+    playlist_info: Optional[PlaylistInfo] = None,
+    **kwargs,
+):
 
     if not track.media.transcodings:
         raise SoundCloudException(f"Track {track.permalink_url} has no transcodings available")
-    
-    logger.debug(f"Trancodings: {track.media.transcodings}")
-    
-    aac_transcoding = None
-    mp3_transcoding = None
-    
-    for t in track.media.transcodings:
-        if t.format.protocol == "hls" and "aac" in t.preset:
-            aac_transcoding = t
-        elif t.format.protocol == "hls" and "mp3" in t.preset:
-            mp3_transcoding = t
-    
-    aac = False
-    transcoding = None
-    if not kwargs.get("onlymp3") and aac_transcoding:
-        transcoding = aac_transcoding
-        aac = True
-    elif mp3_transcoding:
-        transcoding = mp3_transcoding
-                
-    if not transcoding:
-        raise SoundCloudException(f"Could not find mp3 or aac transcoding. Available transcodings: {[t.preset for t in track.media.transcodings if t.format.protocol == 'hls']}")
 
-    filename = get_filename(track, None, aac, playlist_info, **kwargs)
+    logger.debug(f"Trancodings: {track.media.transcodings}")
+
+    transcodings = [t for t in track.media.transcodings if t.format.protocol == "hls"]
+
+    transcoding = None
+    ext = None
+    # ordered in terms of preference best -> worst
+    valid_presets = [("mp3", ".mp3")]
+
+    if not kwargs.get("onlymp3"):
+        if kwargs.get("opus"):
+            valid_presets = [("opus", ".opus")] + valid_presets
+        valid_presets = [("aac", ".m4a")] + valid_presets
+
+    transcoding = None
+    ext = None
+    for preset_name, preset_ext in valid_presets:
+        for t in transcodings:
+            if t.preset.startswith(preset_name):
+                transcoding = t
+                ext = preset_ext
+        if transcoding:
+            break
+    else:
+        raise SoundCloudException(
+            f"Could not find valid transcoding. Available transcodings: {[t.preset for t in track.media.transcodings if t.format.protocol == 'hls']}"
+        )
+
+    filename = get_filename(track, ext=ext, playlist_info=playlist_info, **kwargs)
     logger.debug(f"filename : {filename}")
     # Skip if file ID or filename already exists
     if already_downloaded(track, title, filename, **kwargs):
@@ -688,19 +886,34 @@ def download_hls(client: SoundCloud, track: BasicTrack, title: str, playlist_inf
     # Get the requests stream
     url = get_transcoding_m3u8(client, transcoding, **kwargs)
     filename_path = os.path.abspath(filename)
+    _, ext = os.path.splitext(filename)
 
-    p = subprocess.Popen(
-        ["ffmpeg", "-i", url, "-c", "copy", filename_path, "-loglevel", "error"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    stdout, stderr = p.communicate()
-    if stderr:
-        logger.error(stderr.decode("utf-8"))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        temp_path = pathlib.Path(tmpdir) / ("scdl-download" + ext)
+        command = [
+            "ffmpeg",
+            "-i",
+            url,
+            "-c",
+            "copy",
+            temp_path,
+        ]
+        run_ffmpeg_command_with_progress(
+            command, track.duration, bool(kwargs.get("hide_progress"))
+        )
+
+        shutil.move(temp_path, filename_path)
+
     return (filename, False)
 
 
-def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, exit_on_fail=True, **kwargs):
+def download_track(
+    client: SoundCloud,
+    track: BasicTrack,
+    playlist_info: Optional[PlaylistInfo] = None,
+    exit_on_fail=True,
+    **kwargs,
+):
     """
     Downloads a track
     """
@@ -716,21 +929,43 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
         # Geoblocked track
         if track.policy == "BLOCK":
             raise SoundCloudException(f"{title} is not available in your location...")
-        
+
+        # Get user_id from the client
+        client_user_id = client.get_me().id if client.auth_token else None
+
+        lock = get_filelock(pathlib.Path(f"./{track.id}"), 0)
+
         # Downloadable track
+        downloaded_original = False
         filename = None
         is_already_downloaded = False
         if (
-            track.downloadable
+            (track.downloadable or track.user_id == client_user_id)
             and not kwargs["onlymp3"]
             and not kwargs.get("no_original")
+            and client.auth_token
         ):
-            filename, is_already_downloaded = download_original_file(client, track, title, playlist_info, **kwargs)
+            try:
+                with lock:
+                    filename, is_already_downloaded = download_original_file(
+                        client, track, title, playlist_info, **kwargs
+                    )
+                downloaded_original = True
+            except filelock.Timeout:
+                logger.debug(f"Could not acquire lock: {lock}. Skipping")
+                return
 
         if filename is None:
             if kwargs.get("only_original"):
                 raise SoundCloudException(f'Track "{track.permalink_url}" does not have original file available. Not downloading...')
-            filename, is_already_downloaded = download_hls(client, track, title, playlist_info, **kwargs)
+            try:
+                with lock:
+                    filename, is_already_downloaded = download_hls(
+                        client, track, title, playlist_info, **kwargs
+                    )
+            except filelock.Timeout:
+                logger.debug(f"Could not acquire lock: {lock}. Skipping")
+                return
 
         if kwargs.get("remove"):
             fileToKeep.append(filename)
@@ -747,11 +982,12 @@ def download_track(client: SoundCloud, track: BasicTrack, playlist_info=None, ex
             raise SoundCloudException(f"An error occurred downloading {filename}.")
 
         # Try to set the metadata
-        if (
+        if not (downloaded_original and kwargs.get("original_metadata")) and (
             filename.endswith(".mp3")
             or filename.endswith(".flac")
             or filename.endswith(".m4a")
             or filename.endswith(".wav")
+            or filename.endswith(".opus")
         ):
             try:
                 set_metadata(track, filename, playlist_info, **kwargs)
@@ -804,22 +1040,19 @@ def already_downloaded(track: BasicTrack, title: str, filename: str, **kwargs):
 
     if os.path.isfile(filename):
         already_downloaded = True
-        if kwargs.get("overwrite"):
-            os.remove(filename)
-            already_downloaded = False
     if (
         kwargs.get("flac")
         and can_convert(filename)
         and os.path.isfile(filename[:-4] + ".flac")
     ):
         already_downloaded = True
-        if kwargs.get("overwrite"):
-            os.remove(filename[:-4] + ".flac")
-            already_downloaded = False
     if kwargs.get("download_archive") and in_download_archive(track, **kwargs):
         already_downloaded = True
 
     if kwargs.get("flac") and can_convert(filename) and os.path.isfile(filename):
+        already_downloaded = False
+
+    if kwargs.get("overwrite"):
         already_downloaded = False
 
     if already_downloaded:
@@ -836,17 +1069,18 @@ def in_download_archive(track: BasicTrack, **kwargs):
     """
     Returns True if a track_id exists in the download archive
     """
-    if not kwargs.get("download_archive"):
+    archive_filename = kwargs.get("download_archive")
+    if not archive_filename:
         return
 
-    archive_filename = kwargs.get("download_archive")
     try:
-        with open(archive_filename, "a+", encoding="utf-8") as file:
-            file.seek(0)
-            track_id = str(track.id)
-            for line in file:
-                if line.strip() == track_id:
-                    return True
+        with get_filelock(archive_filename):
+            with open(archive_filename, "a+", encoding="utf-8") as file:
+                file.seek(0)
+                track_id = str(track.id)
+                for line in file:
+                    if line.strip() == track_id:
+                        return True
     except IOError as ioe:
         logger.error("Error trying to read download archive...")
         logger.error(ioe)
@@ -858,21 +1092,27 @@ def record_download_archive(track: BasicTrack, **kwargs):
     """
     Write the track_id in the download archive
     """
-    if not kwargs.get("download_archive"):
+    archive_filename = kwargs.get("download_archive")
+    if not archive_filename:
         return
 
-    archive_filename = kwargs.get("download_archive")
     try:
-        with open(archive_filename, "a", encoding="utf-8") as file:
-            file.write(f"{track.id}\n")
+        with get_filelock(archive_filename):
+            with open(archive_filename, "a", encoding="utf-8") as file:
+                file.write(f"{track.id}\n")
     except IOError as ioe:
         logger.error("Error trying to write to download archive...")
         logger.error(ioe)
 
 
-def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs):
+def set_metadata(
+    track: BasicTrack,
+    filename: str,
+    playlist_info: Optional[PlaylistInfo] = None,
+    **kwargs,
+):
     """
-    Sets the mp3 file metadata using the Python module Mutagen
+    Sets the track file metadata using the Python module Mutagen
     """
     logger.info("Setting tags...")
     artwork_url = track.artwork_url
@@ -929,6 +1169,8 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
                 )
             elif mutagen_file.__class__ == mutagen.mp4.MP4:
                 mutagen_file["\xa9cmt"] = track.description
+            elif mutagen_file.__class__ == mutagen.oggopus.OggOpus:
+                mutagen_file["comment"] = track.description
         if response:
             if mutagen_file.__class__ == mutagen.flac.FLAC:
                 p = mutagen.flac.Picture()
@@ -946,6 +1188,14 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
                 )
             elif mutagen_file.__class__ == mutagen.mp4.MP4:
                 mutagen_file["covr"] = [mutagen.mp4.MP4Cover(out_file.read())]
+            elif mutagen_file.__class__ == mutagen.oggopus.OggOpus:
+                p = mutagen.flac.Picture()
+                p.data = out_file.read()
+                p.mime = "image/jpeg"
+                p.type = mutagen.id3.PictureType.COVER_FRONT
+                picture_data = p.write()
+                b64_str = base64.b64encode(picture_data).decode()
+                mutagen_file["metadata_block_picture"] = b64_str
 
         if mutagen_file.__class__ == mutagen.wave.WAVE:
             mutagen_file["TIT2"] = mutagen.id3.TIT2(encoding=3, text=track.title)
@@ -959,6 +1209,9 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             if playlist_info:
                 if not kwargs.get("no_album_tag"):
                     mutagen_file["TALB"] = mutagen.id3.TALB(encoding=3, text=playlist_info["title"])
+                    mutagen_file["TPE2"] = mutagen.id3.TPE2(
+                        encoding=3, text=playlist_info["author"]
+                    )
                 mutagen_file["TRCK"] = mutagen.id3.TRCK(encoding=3, text=str(playlist_info["tracknumber"]))
             mutagen_file.save()
         else:
@@ -975,14 +1228,11 @@ def set_metadata(track: BasicTrack, filename: str, playlist_info=None, **kwargs)
             if playlist_info:
                 if not kwargs.get("no_album_tag"):
                     audio["album"] = playlist_info["title"]
+                    audio["albumartist"] = playlist_info["author"]
                 audio["tracknumber"] = str(playlist_info["tracknumber"])
 
             audio.save()
 
-def limit_filename_length(name: str, ext: str, max_bytes=255):
-    while len(name.encode("utf-8")) + len(ext.encode("utf-8")) > max_bytes:
-        name = name[:-1]
-    return name + ext
 
 def is_ffmpeg_available():
     """

@@ -4,3 +4,7 @@ dist/
 *.egg-info/
 __pycache__/
 *.mp3
+.vscode
+.venv
+.env
+.coverage*

@@ -22,14 +22,16 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=[
-        "docopt",
+        "docopt-ng",
         "mutagen>=1.45.0",
         "termcolor",
         "requests",
-        "clint",
+        "tqdm",
         "pathvalidate",
-        "soundcloud-v2>=1.3.7"
+        "soundcloud-v2>=1.3.10",
+        "filelock>=3.0.0",
     ],
+    extras_require={"test": ["pytest", "pytest-cov", "pytest-dotenv", "music-tag"]},
     url="https://github.com/flyingrub/scdl",
     classifiers=[
         "Programming Language :: Python",
@@ -45,7 +47,7 @@ setup(
         "Topic :: Internet",
         "Topic :: Multimedia :: Sound/Audio",
     ],
-    python_requires = ">=3.7",
+    python_requires=">=3.7",
     entry_points={
         "console_scripts": [
             "scdl = scdl.scdl:main",
