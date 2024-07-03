@@ -730,6 +730,7 @@ def download_original_file(
         track,
         r,
         ext[1:] if not encoding_to_flac else 'flac',
+        not encoding_to_flac,  # copy the stream only if we aren't re-encoding to flac
         filename,
         skip_re_encoding=not encoding_to_flac,
         **kwargs,
@@ -809,6 +810,7 @@ def download_hls(
         track,
         url,
         preset_name,
+        True,  # no need to fully re-encode the whole hls stream
         filename,
         playlist_info,
         **kwargs,
@@ -1016,6 +1018,7 @@ def build_ffmpeg_encoding_args(
     input_file: str,
     output_file: str,
     out_codec: str,
+    *args,
 ) -> List[str]:
     return [
         'ffmpeg',
@@ -1033,6 +1036,9 @@ def build_ffmpeg_encoding_args(
         # Progress to stderr
         '-progress', 'pipe:2',
         '-stats_period', '0.1',
+
+        # User provided arguments
+        *args,
 
         # Output file
         output_file
@@ -1147,6 +1153,7 @@ def re_encode_to_out(
     track: BasicTrack,
     in_data: Union[requests.Response, str],
     out_codec: str,
+    should_copy: bool,
     filename: str,
     playlist_info: Optional[PlaylistInfo] = None,
     skip_re_encoding: bool = False,
@@ -1158,6 +1165,7 @@ def re_encode_to_out(
         track,
         in_data,
         out_codec,
+        should_copy,
         playlist_info,
         skip_re_encoding,
         **kwargs,
@@ -1188,15 +1196,17 @@ def _re_encode_ffmpeg(
     in_data: Union[requests.Response, str],  # streaming response or url
     out_codec: str,
     track_duration_ms: int,
+    should_copy: bool,
     **kwargs,
 ) -> io.BytesIO:
     is_url: bool = isinstance(in_data, str)
     logger.info("Creating the ffmpeg pipe...")
 
     commands = build_ffmpeg_encoding_args(
-        input_file=in_data if is_url else '-',
-        output_file='pipe:1',
-        out_codec=out_codec,
+        in_data if is_url else '-',
+        'pipe:1',
+        out_codec,
+        *(('-c', 'copy',) if should_copy else ())
     )
 
     logger.debug(f"ffmpeg command: {' '.join(commands)}")
@@ -1297,6 +1307,7 @@ def re_encode_to_buffer(
     track: BasicTrack,
     in_data: Union[requests.Response, str],  # streaming response or url
     out_codec: str,
+    should_copy: bool,
     playlist_info: Optional[PlaylistInfo] = None,
     skip_re_encoding: bool = False,
     **kwargs,
@@ -1304,7 +1315,7 @@ def re_encode_to_buffer(
     if skip_re_encoding and isinstance(in_data, requests.Response):
         encoded_data = _copy_stream(in_data, **kwargs)
     else:
-        encoded_data = _re_encode_ffmpeg(in_data, out_codec, track.duration, **kwargs)
+        encoded_data = _re_encode_ffmpeg(in_data, out_codec, track.duration, should_copy, **kwargs)
 
     # Remove original metadata, add our own, and we are done
     if not kwargs.get("original_metadata"):
