@@ -1199,12 +1199,14 @@ def _re_encode_ffmpeg(
         out_codec=out_codec,
     )
 
-    logger.debug(f"ffmpeg command: {commands}")
+    logger.debug(f"ffmpeg command: {' '.join(commands)}")
+    pipe_bufsize = 1024 * 1024  # 1 mb
     pipe = subprocess.Popen(
         commands,
         stdin=subprocess.PIPE,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
+        bufsize=pipe_bufsize,
     )
 
     # Wrap stderr with TextIOWrapper for automatic decoding
@@ -1221,40 +1223,11 @@ def _re_encode_ffmpeg(
 
     # A function that reads encoded track to our `stdout` BytesIO object
     def read_stdout():
-        for line in pipe.stdout:
-            stdout.write(line)
+        for chunk in iter(lambda: pipe.stdout.read(pipe_bufsize), b''):
+            stdout.write(chunk)
         pipe.stdout.close()
 
-    # Read line by line from stderr and look for the `out_time_ms`
-    def read_stderr():
-        nonlocal errors_output
-        with tqdm(
-            total=track_duration_ms / 1000,
-            disable=bool(kwargs.get("hide_progress")),
-            unit="s"
-        ) as progress:
-            last_secs = 0
-            for line in iter(pipe.stderr.readline, ''):
-                parameters = line.split('=', maxsplit=1)
-                if not _is_ffmpeg_progress_line(parameters):
-                    errors_output += line
-                    continue
-
-                if not line.startswith('out_time_ms'):
-                    continue
-
-                try:
-                    seconds = int(parameters[1]) / 1_000_000
-                except ValueError:
-                    seconds = 0
-
-                changed = seconds - last_secs
-                last_secs = seconds
-                progress.update(changed)
-        pipe.stderr.close()
-
     stdout_thread = threading.Thread(target=read_stdout)
-    stderr_thread = threading.Thread(target=read_stderr)
     stdin_thread = None
 
     # Stream the response to ffmpeg if needed
@@ -1266,15 +1239,38 @@ def _re_encode_ffmpeg(
             kwargs=kwargs,
         )
 
+    # Start the threads
     stdout_thread.start()
-    stderr_thread.start()
-
     if stdin_thread:
         stdin_thread.start()
 
+    # Read progress from stderr line by line
+    with tqdm(
+        total=track_duration_ms / 1000,
+        disable=bool(kwargs.get("hide_progress")),
+        unit="s"
+    ) as progress:
+        last_secs = 0
+        for line in iter(pipe.stderr.readline, ''):
+            parameters = line.split('=', maxsplit=1)
+            if not _is_ffmpeg_progress_line(parameters):
+                errors_output += line
+                continue
+
+            if not line.startswith('out_time_ms'):
+                continue
+
+            try:
+                seconds = int(parameters[1]) / 1_000_000
+            except ValueError:
+                seconds = 0
+
+            changed = seconds - last_secs
+            last_secs = seconds
+            progress.update(changed)
+
     # Wait for threads to finish
     stdout_thread.join()
-    stderr_thread.join()
     if stdin_thread:
         stdin_thread.join()
 
