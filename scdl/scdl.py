@@ -1136,8 +1136,15 @@ def _add_metadata_to_stream(
 
     handler = METADATA_ASSEMBLERS.get(type(mutagen_file), None)
     if handler is None:
-        logger.error(f'Metadata assembling for {type(mutagen_file)} is unsupported. '
-                     f'Please create an issue at https://github.com/flyingrub/scdl/issues and we will look into it')
+        logger.error('Metadata assembling for this track is unsupported.\n'
+                     'Please create an issue at https://github.com/flyingrub/scdl/issues and we will look into it')
+
+        kwargs_no_sensitive = {k: v for k, v in kwargs.items() if k not in ('auth_token',)}
+        logger.error(f'Here is the information that you should attach to your issue:\n'
+                     f'- Track: {track.permalink_url}\n'
+                     f'- First 16 bytes: {stream.getvalue()[:16].hex()}\n'
+                     f'- Identified as: {type(mutagen_file)}\n'
+                     f'- Configuration: {kwargs_no_sensitive}')
         return
 
     # Delete all the existing tags and write our own tags
