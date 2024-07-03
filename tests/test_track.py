@@ -1,8 +1,6 @@
 import os
 from pathlib import Path
 
-import pytest
-
 from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
 
 
