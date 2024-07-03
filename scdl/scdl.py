@@ -1237,7 +1237,7 @@ def _re_encode_ffmpeg(
             stdout.write(chunk)
         pipe.stdout.close()
 
-    stdout_thread = threading.Thread(target=read_stdout)
+    stdout_thread = threading.Thread(target=read_stdout, daemon=True)
     stdin_thread = None
 
     # Stream the response to ffmpeg if needed
@@ -1247,6 +1247,7 @@ def _re_encode_ffmpeg(
             target=_write_streaming_response_to_pipe,
             args=(in_data, pipe.stdin,),
             kwargs=kwargs,
+            daemon=True,
         )
 
     # Start the threads
