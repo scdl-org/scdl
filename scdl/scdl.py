@@ -75,7 +75,6 @@ import itertools
 import logging
 import math
 import mimetypes
-import queue
 import threading
 from typing import List, Optional, TypedDict, Tuple, IO, Union
 
@@ -1220,18 +1219,38 @@ def _re_encode_ffmpeg(
     #   then in another part of code messages from this queue gets processed.
     # I don't think there is any other way how to get this working and make it fast as it is now.
 
-    stderr_queue = queue.Queue()
-
     # A function that reads encoded track to our `stdout` BytesIO object
     def read_stdout():
         for line in pipe.stdout:
             stdout.write(line)
         pipe.stdout.close()
 
-    # Read line by line from stderr and put these messages in a queue
+    # Read line by line from stderr and look for the `out_time_ms`
     def read_stderr():
-        for line in iter(pipe.stderr.readline, ''):
-            stderr_queue.put(line)
+        nonlocal errors_output
+        with tqdm(
+            total=track_duration_ms / 1000,
+            disable=bool(kwargs.get("hide_progress")),
+            unit="s"
+        ) as progress:
+            last_secs = 0
+            for line in iter(pipe.stderr.readline, ''):
+                parameters = line.split('=', maxsplit=1)
+                if not _is_ffmpeg_progress_line(parameters):
+                    errors_output += line
+                    continue
+
+                if not line.startswith('out_time_ms'):
+                    continue
+
+                try:
+                    seconds = int(parameters[1]) / 1_000_000
+                except ValueError:
+                    seconds = 0
+
+                changed = seconds - last_secs
+                last_secs = seconds
+                progress.update(changed)
         pipe.stderr.close()
 
     stdout_thread = threading.Thread(target=read_stdout)
@@ -1253,43 +1272,11 @@ def _re_encode_ffmpeg(
     if stdin_thread:
         stdin_thread.start()
 
-    with tqdm(
-        total=track_duration_ms / 1000,
-        disable=bool(kwargs.get("hide_progress")),
-        unit="s"
-    ) as progress:
-        last_secs = 0
-
-        # We don't care about stdout here
-        while stderr_thread.is_alive():
-            try:
-                chunk_err = stderr_queue.get(timeout=0.1)
-            except queue.Empty:
-                continue
-
-            parameters = chunk_err.split('=', maxsplit=1)
-            if not _is_ffmpeg_progress_line(parameters):
-                errors_output += chunk_err
-                continue
-
-            if not chunk_err.startswith('out_time_ms'):
-                continue
-
-            try:
-                seconds = int(parameters[1]) / 1_000_000
-            except ValueError:
-                seconds = 0
-
-            changed = seconds - last_secs
-            last_secs = seconds
-            progress.update(changed)
-
-        # We are done here
-        progress.close()
-
     # Wait for threads to finish
     stdout_thread.join()
     stderr_thread.join()
+    if stdin_thread:
+        stdin_thread.join()
 
     # Make sure that process has exited and get its exit code
     pipe.wait()
