@@ -809,7 +809,7 @@ def download_hls(
     re_encode_to_out(
         track,
         url,
-        preset_name,
+        preset_name if preset_name != 'aac' else 'adts',  # We are encoding aac files with adts
         True,  # no need to fully re-encode the whole hls stream
         filename,
         playlist_info,
