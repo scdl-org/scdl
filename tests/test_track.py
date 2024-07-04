@@ -91,6 +91,7 @@ def test_m4a(tmp_path: Path):
         "--opus",
     )
     assert r.returncode == 0
+    assert not (tmp_path / 'track.opus').exists(), 'Please make sure that you have a GO+ subscription'
     assert_track(
         tmp_path,
         "track.m4a",

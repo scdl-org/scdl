@@ -76,7 +76,9 @@ import logging
 import math
 import mimetypes
 import threading
+import tempfile
 from typing import List, Optional, TypedDict, Tuple, IO, Union
+import secrets
 
 mimetypes.init()
 
@@ -113,7 +115,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
 
-CHUNK_SIZE = 1024
+FFMPEG_PIPE_CHUNK_SIZE = 1024 * 1024  # 1 mb
 
 fileToKeep = []
 
@@ -809,7 +811,7 @@ def download_hls(
     re_encode_to_out(
         track,
         url,
-        preset_name if preset_name != 'aac' else 'adts',  # We are encoding aac files with adts
+        preset_name if preset_name != 'aac' else 'ipod',  # We are encoding aac files to m4a, so an ipod codec is used
         True,  # no need to fully re-encode the whole hls stream
         filename,
         playlist_info,
@@ -1199,6 +1201,40 @@ def _is_ffmpeg_progress_line(parameters: List[str]):
     )
 
 
+def _get_ffmpeg_pipe(
+    in_data: Union[requests.Response, str],  # streaming response or url
+    out_codec: str,
+    should_copy: bool,
+    output_file: str,
+) -> subprocess.Popen:
+    is_url: bool = isinstance(in_data, str)
+    logger.info("Creating the ffmpeg pipe...")
+
+    commands = build_ffmpeg_encoding_args(
+        in_data if is_url else '-',
+        output_file,
+        out_codec,
+        *(('-c', 'copy',) if should_copy else ())
+    )
+
+    logger.debug(f"ffmpeg command: {' '.join(commands)}")
+    pipe = subprocess.Popen(
+        commands,
+        stdin=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        bufsize=FFMPEG_PIPE_CHUNK_SIZE,
+    )
+
+    # Wrap stderr with TextIOWrapper for automatic decoding
+    pipe.stderr = io.TextIOWrapper(pipe.stderr, encoding='utf-8', errors=None)
+    return pipe
+
+
+def _is_unsupported_codec_for_streaming(codec: str) -> bool:
+    return codec in ('ipod',)
+
+
 def _re_encode_ffmpeg(
     in_data: Union[requests.Response, str],  # streaming response or url
     out_codec: str,
@@ -1206,46 +1242,34 @@ def _re_encode_ffmpeg(
     should_copy: bool,
     **kwargs,
 ) -> io.BytesIO:
-    is_url: bool = isinstance(in_data, str)
-    logger.info("Creating the ffmpeg pipe...")
+    streaming_supported = not _is_unsupported_codec_for_streaming(out_codec)
 
-    commands = build_ffmpeg_encoding_args(
-        in_data if is_url else '-',
-        'pipe:1',
-        out_codec,
-        *(('-c', 'copy',) if should_copy else ())
-    )
+    out_file_name = 'pipe:1'  # stdout
+    if not streaming_supported:
+        out_file_name = str(pathlib.Path(tempfile.gettempdir()) / secrets.token_hex(8))
 
-    logger.debug(f"ffmpeg command: {' '.join(commands)}")
-    pipe_bufsize = 1024 * 1024  # 1 mb
-    pipe = subprocess.Popen(
-        commands,
-        stdin=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        bufsize=pipe_bufsize,
-    )
-
-    # Wrap stderr with TextIOWrapper for automatic decoding
-    pipe.stderr = io.TextIOWrapper(pipe.stderr, encoding='utf-8', errors=None)
+    pipe = _get_ffmpeg_pipe(in_data, out_codec, should_copy, out_file_name)
 
     logger.info('Encoding..')
     errors_output = ''
     stdout = io.BytesIO()
 
-    # Sadly we have to iterate both stdout and stderr at the same times in order for things to work.
-    # This is why we have 2 threads that are reading stdout and stderr, stderr puts lines in queue,
-    #   then in another part of code messages from this queue gets processed.
-    # I don't think there is any other way how to get this working and make it fast as it is now.
+    # Sadly, we have to iterate both stdout and stderr at the same times in order for things to work.
+    # This is why we have 2 threads that are reading stderr, and writing stuff to stdin at the same time.
+    # I don't think there is any other way how to get this working and make it as fast as it is now.
 
     # A function that reads encoded track to our `stdout` BytesIO object
     def read_stdout():
-        for chunk in iter(lambda: pipe.stdout.read(pipe_bufsize), b''):
+        for chunk in iter(lambda: pipe.stdout.read(FFMPEG_PIPE_CHUNK_SIZE), b''):
             stdout.write(chunk)
         pipe.stdout.close()
 
-    stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+    stdout_thread = None
     stdin_thread = None
+
+    # Read from stdout only if we expect ffmpeg to write something there
+    if streaming_supported:
+        stdout_thread = threading.Thread(target=read_stdout, daemon=True)
 
     # Stream the response to ffmpeg if needed
     if isinstance(in_data, requests.Response):
@@ -1258,13 +1282,15 @@ def _re_encode_ffmpeg(
         )
 
     # Start the threads
-    stdout_thread.start()
+    if stdout_thread:
+        stdout_thread.start()
     if stdin_thread:
         stdin_thread.start()
 
     # Read progress from stderr line by line
+    total_sec = track_duration_ms / 1000
     with tqdm(
-        total=track_duration_ms / 1000,
+        total=total_sec,
         disable=bool(kwargs.get("hide_progress")),
         unit="s"
     ) as progress:
@@ -1283,12 +1309,14 @@ def _re_encode_ffmpeg(
             except ValueError:
                 seconds = 0
 
+            seconds = min(seconds, total_sec)  # clamp just to be sure
             changed = seconds - last_secs
             last_secs = seconds
             progress.update(changed)
 
     # Wait for threads to finish
-    stdout_thread.join()
+    if stdout_thread:
+        stdout_thread.join()
     if stdin_thread:
         stdin_thread.join()
 
@@ -1296,6 +1324,12 @@ def _re_encode_ffmpeg(
     pipe.wait()
     if pipe.returncode != 0:
         raise SoundCloudException(f'FFmpeg error({pipe.returncode}): {errors_output}')
+
+    # Read from the temp file, if needed
+    if not streaming_supported:
+        with open(out_file_name, 'rb') as f:
+            stdout.write(f.read())
+        os.remove(out_file_name)
 
     stdout.seek(0)
     return stdout

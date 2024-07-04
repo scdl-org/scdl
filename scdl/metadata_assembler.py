@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Optional, Type, TypeVar, Union, Callable
 from types import MappingProxyType
 
-from mutagen import FileType, flac, oggopus, id3, wave, mp3
+from mutagen import FileType, flac, oggopus, id3, wave, mp3, mp4
 
 
 JPEG_MIME_TYPE: str = 'image/jpeg'
@@ -117,11 +117,41 @@ def _assemble_wav_or_mp3(file: Union[wave.WAVE, mp3.MP3], meta: MetadataInfo) ->
         file['APIC'] = _get_apic(meta.artwork_jpeg)
 
 
+def _assemble_mp4(file: mp4.MP4, meta: MetadataInfo) -> None:
+    file['\251ART'] = meta.artist
+    file['\251nam'] = meta.title
+
+    if meta.genre:
+        file['\251gen'] = meta.genre
+
+    if meta.link:
+        file['\251cmt'] = meta.link
+
+    if meta.date:
+        file['\251day'] = meta.date
+
+    if meta.album_title:
+        file['\251alb'] = meta.album_title
+
+    if meta.album_author:
+        file['aART'] = meta.album_author
+
+    if meta.album_track_num is not None:
+        file['trkn'] = str(meta.album_track_num)
+
+    if meta.description:
+        file['desc'] = meta.description
+
+    if meta.artwork_jpeg:
+        file['covr'] = [mp4.MP4Cover(meta.artwork_jpeg)]
+
+
 T = TypeVar('T')
 METADATA_ASSEMBLERS: MappingProxyType[Type[T], Callable[[T, MetadataInfo], None]] = MappingProxyType({
     flac.FLAC: _assemble_flac,
     oggopus.OggOpus: _assemble_opus,
     wave.WAVE: _assemble_wav_or_mp3,
     mp3.MP3: _assemble_wav_or_mp3,
+    mp4.MP4: _assemble_mp4,
 })
 
