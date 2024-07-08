@@ -906,7 +906,7 @@ def download_track(
 
             with open(filename, 'wb') as f:
                 file_data.seek(0)
-                f.write(file_data.read())
+                f.write(file_data.getbuffer())
 
         # Try to change the real creation date
         if not to_stdout:
@@ -1328,7 +1328,7 @@ def _re_encode_ffmpeg(
     # Read from the temp file, if needed
     if not streaming_supported:
         with open(out_file_name, 'rb') as f:
-            stdout.write(f.read())
+            shutil.copyfileobj(f, stdout)
         os.remove(out_file_name)
 
     stdout.seek(0)
