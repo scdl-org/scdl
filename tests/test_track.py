@@ -1,4 +1,5 @@
 import os
+import pytest
 from pathlib import Path
 
 from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
@@ -91,7 +92,8 @@ def test_m4a(tmp_path: Path):
         "--opus",
     )
     assert r.returncode == 0
-    assert not (tmp_path / 'track.opus').exists(), 'Please make sure that you have a GO+ subscription'
+    if (tmp_path / 'track.opus').exists():
+        pytest.skip('No go+ subscription')
     assert_track(
         tmp_path,
         "track.m4a",
