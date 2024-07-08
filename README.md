@@ -81,7 +81,7 @@ scdl me -f
 --original-metadata             Do not change metadata of original file downloads
 --no-original                   Do not download original file; only mp3, m4a, or opus
 --only-original                 Only download songs with original file available
---name-format [format]          Specify the downloaded file name format
+--name-format [format]          Specify the downloaded file name format. Use "-" to download to stdout
 --playlist-name-format [format] Specify the downloaded file name format, if it is being downloaded as part of a playlist
 --client-id [id]                Specify the client_id to use
 --auth-token [token]            Specify the auth token to use
