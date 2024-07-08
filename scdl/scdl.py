@@ -109,11 +109,10 @@ from tqdm import tqdm
 from scdl import __version__, utils
 from scdl.metadata_assembler import METADATA_ASSEMBLERS, MetadataInfo
 
-logging.basicConfig(level=logging.INFO, format="%(message)s")
-logging.getLogger("requests").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
+logger.addHandler(logging.StreamHandler())
 
 FFMPEG_PIPE_CHUNK_SIZE = 1024 * 1024  # 1 mb
 
