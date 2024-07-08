@@ -112,7 +112,6 @@ from scdl.metadata_assembler import METADATA_ASSEMBLERS, MetadataInfo
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addFilter(utils.ColorizeFilter())
-logger.addHandler(logging.StreamHandler())
 
 FFMPEG_PIPE_CHUNK_SIZE = 1024 * 1024  # 1 mb
 
@@ -163,6 +162,7 @@ def main():
     """
     Main function, parses the URL from command line arguments
     """
+    logger.addHandler(logging.StreamHandler())
 
     # exit if ffmpeg not installed
     if not is_ffmpeg_available():
