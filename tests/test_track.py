@@ -16,6 +16,57 @@ def test_original_download(tmp_path: Path):
     assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
+def test_original_to_stdout(tmp_path: Path):
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/57v/original",
+        "--name-format",
+        "-",
+        encoding=None,
+    )
+    assert r.returncode == 0
+    with open('track.wav', 'wb') as f:
+        f.write(r.stdout)
+    assert_track(tmp_path, "track.wav", "copy", "saves", None)
+
+
+def test_mp3_to_stdout(tmp_path: Path):
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--onlymp3",
+        "--name-format",
+        "-",
+        encoding=None,
+    )
+    assert r.returncode == 0
+
+    with open('track.mp3', 'wb') as f:
+        f.write(r.stdout)
+
+    assert_track(tmp_path, "track.mp3")
+
+
+def test_flac_to_stdout(tmp_path: Path):
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/57v/original",
+        "--name-format",
+        "-",
+        "--flac",
+        encoding=None,
+    )
+
+    with open('track.flac', 'wb') as f:
+        f.write(r.stdout)
+
+    assert r.returncode == 0
+    assert_track(tmp_path, "track.flac", "copy", "saves", None)
+
+
 def test_flac(tmp_path: Path):
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -40,6 +91,7 @@ def test_m4a(tmp_path: Path):
         "--opus",
     )
     assert r.returncode == 0
+    assert not (tmp_path / 'track.opus').exists(), 'Please make sure that you have a GO+ subscription'
     assert_track(
         tmp_path,
         "track.m4a",
@@ -149,6 +201,7 @@ def test_force_metadata(tmp_path: Path):
         "track",
         "--force-metadata",
     )
+    assert r.returncode == 0
     assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
