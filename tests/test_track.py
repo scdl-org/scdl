@@ -1,11 +1,13 @@
+import math
 import os
-import pytest
 from pathlib import Path
+
+import pytest
 
 from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
 
 
-def test_original_download(tmp_path: Path):
+def test_original_download(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -17,7 +19,7 @@ def test_original_download(tmp_path: Path):
     assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
-def test_original_to_stdout(tmp_path: Path):
+def test_original_to_stdout(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -27,12 +29,13 @@ def test_original_to_stdout(tmp_path: Path):
         encoding=None,
     )
     assert r.returncode == 0
-    with open('track.wav', 'wb') as f:
+    with open("track.wav", "wb") as f:
+        assert isinstance(r.stdout, bytes)
         f.write(r.stdout)
     assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
-def test_mp3_to_stdout(tmp_path: Path):
+def test_mp3_to_stdout(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -44,13 +47,14 @@ def test_mp3_to_stdout(tmp_path: Path):
     )
     assert r.returncode == 0
 
-    with open('track.mp3', 'wb') as f:
+    with open("track.mp3", "wb") as f:
+        assert isinstance(r.stdout, bytes)
         f.write(r.stdout)
 
     assert_track(tmp_path, "track.mp3")
 
 
-def test_flac_to_stdout(tmp_path: Path):
+def test_flac_to_stdout(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -61,14 +65,15 @@ def test_flac_to_stdout(tmp_path: Path):
         encoding=None,
     )
 
-    with open('track.flac', 'wb') as f:
+    with open("track.flac", "wb") as f:
+        assert isinstance(r.stdout, bytes)
         f.write(r.stdout)
 
     assert r.returncode == 0
     assert_track(tmp_path, "track.flac", "copy", "saves", None)
 
 
-def test_flac(tmp_path: Path):
+def test_flac(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -81,7 +86,7 @@ def test_flac(tmp_path: Path):
     assert_track(tmp_path, "track.flac", "copy", "saves", None)
 
 
-def test_m4a(tmp_path: Path):
+def test_m4a(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -92,8 +97,8 @@ def test_m4a(tmp_path: Path):
         "--opus",
     )
     assert r.returncode == 0
-    if (tmp_path / 'track.opus').exists():
-        pytest.skip('No go+ subscription')
+    if (tmp_path / "track.opus").exists():
+        pytest.skip("No go+ subscription")
     assert_track(
         tmp_path,
         "track.m4a",
@@ -104,7 +109,7 @@ def test_m4a(tmp_path: Path):
     )
 
 
-def test_opus(tmp_path: Path):
+def test_opus(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -118,7 +123,7 @@ def test_opus(tmp_path: Path):
     assert_track(tmp_path, "track.opus")
 
 
-def test_mp3(tmp_path: Path):
+def test_mp3(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -131,7 +136,7 @@ def test_mp3(tmp_path: Path):
     assert_track(tmp_path, "track.mp3")
 
 
-def test_unlisted_track(tmp_path: Path):
+def test_unlisted_track(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -144,7 +149,7 @@ def test_unlisted_track(tmp_path: Path):
     assert_track(tmp_path, "track.mp3", "test track 2")
 
 
-def test_original_art(tmp_path: Path):
+def test_original_art(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -158,7 +163,7 @@ def test_original_art(tmp_path: Path):
     assert_track(tmp_path, "track.mp3", expected_artwork_len=3409)
 
 
-def test_original_name(tmp_path: Path):
+def test_original_name(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -171,7 +176,7 @@ def test_original_name(tmp_path: Path):
     assert_track(tmp_path, "original.wav", check_metadata=False)
 
 
-def test_original_metadata(tmp_path: Path):
+def test_original_metadata(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -184,7 +189,7 @@ def test_original_metadata(tmp_path: Path):
     assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", 0)
 
 
-def test_force_metadata(tmp_path: Path):
+def test_force_metadata(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -207,7 +212,7 @@ def test_force_metadata(tmp_path: Path):
     assert_track(tmp_path, "track.wav", "copy", "saves", None)
 
 
-def test_addtimestamp(tmp_path: Path):
+def test_addtimestamp(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -219,7 +224,7 @@ def test_addtimestamp(tmp_path: Path):
     assert_track(tmp_path, "1719169486_testing - test track.mp3", check_metadata=False)
 
 
-def test_addtofile(tmp_path: Path):
+def test_addtofile(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -231,7 +236,7 @@ def test_addtofile(tmp_path: Path):
     assert_track(tmp_path, "7x11x13-testing - test track 2.mp3", check_metadata=False)
 
 
-def test_extract_artist(tmp_path: Path):
+def test_extract_artist(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -245,7 +250,7 @@ def test_extract_artist(tmp_path: Path):
     assert_track(tmp_path, "track.mp3", "test track", "testing")
 
 
-def test_maxsize(tmp_path: Path):
+def test_maxsize(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -254,10 +259,10 @@ def test_maxsize(tmp_path: Path):
         "--max-size=10kb",
     )
     assert r.returncode == 1
-    assert "not within --min-size and --max-size bounds" in r.stderr
+    assert "not within --min-size=0 and --max-size=10240" in r.stderr
 
 
-def test_minsize(tmp_path: Path):
+def test_minsize(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -266,10 +271,10 @@ def test_minsize(tmp_path: Path):
         "--min-size=1mb",
     )
     assert r.returncode == 1
-    assert "not within --min-size and --max-size bounds" in r.stderr
+    assert f"not within --min-size={1024**2} and --max-size={math.inf}" in r.stderr
 
 
-def test_only_original(tmp_path: Path):
+def test_only_original(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -280,7 +285,7 @@ def test_only_original(tmp_path: Path):
     assert "does not have original file available" in r.stderr
 
 
-def test_overwrite(tmp_path: Path):
+def test_overwrite(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -312,7 +317,7 @@ def test_overwrite(tmp_path: Path):
     assert r.returncode == 0
 
 
-def test_path(tmp_path: Path):
+def test_path(tmp_path: Path) -> None:
     r = call_scdl_with_auth(
         "-l",
         "https://soundcloud.com/one-thousand-and-one/test-track",
@@ -326,7 +331,7 @@ def test_path(tmp_path: Path):
     assert_track(tmp_path, "track.mp3", check_metadata=False)
 
 
-def test_remove(tmp_path: Path):
+def test_remove(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -350,7 +355,7 @@ def test_remove(tmp_path: Path):
     assert_not_track(tmp_path, "track.mp3")
 
 
-def test_download_archive(tmp_path: Path):
+def test_download_archive(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",

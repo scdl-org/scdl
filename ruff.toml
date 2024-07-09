@@ -1,0 +1,13 @@
+target-version = "py37"
+line-length = 100
+
+[lint]
+select = ["ALL"]
+ignore = [
+    "C90", "D",
+    "S", "BLE", "FBT", "A", "EM", "FA", "G", "SLF", "PTH",
+    "PLR", "TRY",
+    "PLW2901", "ANN204",
+    "COM812", "ISC001",
+    "EXE"
+]
