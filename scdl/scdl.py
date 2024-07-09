@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """scdl allows you to download music from Soundcloud
 
 Usage:
