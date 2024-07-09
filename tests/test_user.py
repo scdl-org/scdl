@@ -83,6 +83,7 @@ def test_reposts(tmp_path: Path) -> None:
         "https://soundcloud.com/one-thousand-and-one",
         "-r",
         "--name-format={title}",
+        "--onlymp3",
     )
     assert r.returncode == 0
     assert_track(tmp_path, "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3", check_metadata=False)
