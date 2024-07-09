@@ -213,7 +213,7 @@ class MissingFilenameError(SoundCloudException):
 
 
 class InvalidFilesizeError(SoundCloudException):
-    def __init__(self, min_size: float, max_size: float, size: int):
+    def __init__(self, min_size: float, max_size: float, size: float):
         super().__init__(
             f"File size: {size} not within --min-size={min_size} and --max-size={max_size}",
         )
@@ -526,7 +526,7 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
                         client,
                         like.track,
                         kwargs,
-                        exit_on_fail=kwargs.get("strict_playlist"),
+                        exit_on_fail=kwargs["strict_playlist"],
                     )
                 elif isinstance(like, PlaylistLike):
                     playlist = client.get_playlist(like.playlist.id)
@@ -548,7 +548,7 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
                     client,
                     track,
                     kwargs,
-                    exit_on_fail=kwargs.get("strict_playlist"),
+                    exit_on_fail=kwargs["strict_playlist"],
                 )
             logger.info(f"Downloaded all commented tracks of user {user.username}!")
         elif kwargs.get("t"):
@@ -556,7 +556,7 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
             tracks = client.get_user_tracks(user.id, limit=1000)
             for i, track in itertools.islice(enumerate(tracks, 1), offset, None):
                 logger.info(f"track n°{i} of {user.track_count}")
-                download_track(client, track, kwargs, exit_on_fail=kwargs.get("strict_playlist"))
+                download_track(client, track, kwargs, exit_on_fail=kwargs["strict_playlist"])
             logger.info(f"Downloaded all tracks of user {user.username}!")
         elif kwargs.get("a"):
             logger.info(f"Retrieving all tracks & reposts of user {user.username}...")
@@ -571,7 +571,7 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
                         client,
                         stream_item.track,
                         kwargs,
-                        exit_on_fail=kwargs.get("strict_playlist"),
+                        exit_on_fail=kwargs["strict_playlist"],
                     )
                 elif isinstance(stream_item, (PlaylistStreamItem, PlaylistStreamRepostItem)):
                     download_playlist(client, stream_item.playlist, kwargs)
@@ -597,7 +597,7 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
                         client,
                         repost.track,
                         kwargs,
-                        exit_on_fail=kwargs.get("strict_playlist"),
+                        exit_on_fail=kwargs["strict_playlist"],
                     )
                 elif isinstance(repost, PlaylistStreamRepostItem):
                     download_playlist(client, repost.playlist, kwargs)
@@ -628,7 +628,7 @@ def sync(
     playlist: Union[AlbumPlaylist, BasicAlbumPlaylist],
     playlist_info: PlaylistInfo,
     kwargs: SCDLArgs,
-) -> list[Union[BasicTrack, MiniTrack]]:
+) -> tuple[Union[BasicTrack, MiniTrack], ...]:
     """Downloads/Removes tracks that have been changed on playlist since last archive file"""
     logger.info("Comparing tracks...")
     archive = kwargs.get("sync")
@@ -682,7 +682,7 @@ def sync(
             logger.info("No tracks to remove.")
 
         if add:
-            return [track for track in playlist.tracks if track.id in add]
+            return tuple(track for track in playlist.tracks if track.id in add)
         logger.info("No tracks to download. Exiting...")
         sys.exit(0)
 
@@ -736,22 +736,18 @@ def download_playlist(
             logger.info(f"Track n°{counter}")
             playlist_info["tracknumber_int"] = counter
             playlist_info["tracknumber"] = str(counter).zfill(tracknumber_digits)
-            basic_track: BasicTrack = None
             if isinstance(track, MiniTrack):
                 if playlist.secret_token:
-                    basic_track = client.get_tracks([track.id], playlist.id, playlist.secret_token)[
-                        0
-                    ]
+                    track = client.get_tracks([track.id], playlist.id, playlist.secret_token)[0]
                 else:
-                    basic_track = client.get_track(track.id)  # type: ignore[assignment]
-            else:
-                basic_track = track
+                    track = client.get_track(track.id)  # type: ignore[assignment]
+            assert isinstance(track, BasicTrack)
             download_track(
                 client,
-                basic_track,
+                track,
                 kwargs,
                 playlist_info,
-                kwargs.get("strict_playlist"),
+                kwargs["strict_playlist"],
             )
     finally:
         if not kwargs.get("no_playlist_folder"):
@@ -903,7 +899,7 @@ def get_transcoding_m3u8(
     client: SoundCloud,
     transcoding: Transcoding,
     kwargs: SCDLArgs,
-) -> Optional[str]:
+) -> str:
     url = transcoding.url
     bitrate_KBps = 256 / 8 if "aac" in transcoding.preset else 128 / 8  # noqa: N806
     total_bytes = bitrate_KBps * transcoding.duration
@@ -921,7 +917,7 @@ def get_transcoding_m3u8(
         r = requests.get(url, params={"client_id": client.client_id}, headers=headers)
         logger.debug(r.url)
         return r.json()["url"]
-    return None
+    raise SoundCloudException(f"Transcoding does not contain URL: {transcoding}")
 
 
 def download_hls(
@@ -1351,7 +1347,8 @@ def re_encode_to_out(
         skip_re_encoding,
     )
 
-    with get_stdout() if to_stdout else open(filename, "wb") as out_handle:
+    # see https://github.com/python/mypy/issues/5512
+    with get_stdout() if to_stdout else open(filename, "wb") as out_handle:  # type: ignore[attr-defined]
         shutil.copyfileobj(encoded, out_handle)
 
 

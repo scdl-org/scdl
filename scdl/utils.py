@@ -6,7 +6,7 @@ import email.message
 import logging
 import re
 from types import MappingProxyType
-from typing import Dict
+from typing import Dict, Optional
 
 from termcolor import colored
 
@@ -75,7 +75,9 @@ def size_in_bytes(insize: str) -> int:
     return int(size)
 
 
-def parse_header(content_disposition: str) -> Dict[str, str]:
+def parse_header(content_disposition: Optional[str]) -> Dict[str, str]:
+    if not content_disposition:
+        return {}
     message = email.message.Message()
     message["content-type"] = content_disposition
     return dict(message.get_params({}))
