@@ -1197,6 +1197,7 @@ def build_ffmpeg_encoding_args(
     input_file: str,
     output_file: str,
     out_codec: str,
+    kwargs: SCDLArgs,
     *args: str,
 ) -> List[str]:
     supported = get_ffmpeg_supported_options()
@@ -1211,17 +1212,20 @@ def build_ffmpeg_encoding_args(
         # Encoding
         "-f",
         out_codec,
-        # Progress to stderr
-        "-progress",
-        "pipe:2",
     ]
 
-    if "-stats_period" in supported:
-        # more frequent progress updates
+    if not kwargs.get("hide_progress"):
         ffmpeg_args += [
-            "-stats_period",
-            "0.1",
+            # Progress to stderr
+            "-progress",
+            "pipe:2",
         ]
+        if "-stats_period" in supported:
+            # more frequent progress updates
+            ffmpeg_args += [
+                "-stats_period",
+                "0.1",
+            ]
 
     ffmpeg_args += [
         # User provided arguments
@@ -1394,6 +1398,7 @@ def _get_ffmpeg_pipe(
     out_codec: str,
     should_copy: bool,
     output_file: str,
+    kwargs: SCDLArgs,
 ) -> subprocess.Popen:
     logger.info("Creating the ffmpeg pipe...")
 
@@ -1401,6 +1406,7 @@ def _get_ffmpeg_pipe(
         in_data if isinstance(in_data, str) else "-",
         output_file,
         out_codec,
+        kwargs,
         *(
             (
                 "-c",
@@ -1438,7 +1444,7 @@ def _re_encode_ffmpeg(
     if not streaming_supported:
         out_file_name = str(pathlib.Path(tempfile.gettempdir()) / secrets.token_hex(8))
 
-    pipe = _get_ffmpeg_pipe(in_data, out_codec, should_copy, out_file_name)
+    pipe = _get_ffmpeg_pipe(in_data, out_codec, should_copy, out_file_name, kwargs)
 
     logger.info("Encoding..")
     errors_output = ""
@@ -1478,13 +1484,14 @@ def _re_encode_ffmpeg(
         stdin_thread.start()
 
     # Read progress from stderr line by line
+    hide_progress = bool(kwargs.get("hide_progress"))
     total_sec = track_duration_ms / 1000
-    with tqdm(total=total_sec, disable=bool(kwargs.get("hide_progress")), unit="s") as progress:
+    with tqdm(total=total_sec, disable=hide_progress, unit="s") as progress:
         last_secs = 0.0
         assert pipe.stderr is not None
         for line in io.TextIOWrapper(pipe.stderr, encoding="utf-8", errors=None):
             parameters = line.split("=", maxsplit=1)
-            if not _is_ffmpeg_progress_line(parameters):
+            if hide_progress or not _is_ffmpeg_progress_line(parameters):
                 errors_output += line
                 continue
 
