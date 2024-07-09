@@ -93,8 +93,9 @@ import typing
 import urllib.parse
 import warnings
 from dataclasses import asdict
+from functools import lru_cache
 from types import TracebackType
-from typing import IO, Generator, List, NoReturn, Optional, Tuple, Type, Union
+from typing import IO, Generator, List, NoReturn, Optional, Set, Tuple, Type, Union
 
 from tqdm import tqdm
 
@@ -267,11 +268,6 @@ def get_filelock(path: Union[pathlib.Path, str], timeout: int = 10) -> filelock.
 def main() -> None:
     """Main function, parses the URL from command line arguments"""
     logger.addHandler(logging.StreamHandler())
-
-    # exit if ffmpeg not installed
-    if not is_ffmpeg_available():
-        logger.error("ffmpeg is not installed")
-        sys.exit(1)
 
     # Parse arguments
     arguments = docopt(__doc__, version=__version__)
@@ -1203,12 +1199,12 @@ def build_ffmpeg_encoding_args(
     out_codec: str,
     *args: str,
 ) -> List[str]:
-    return [
+    supported = get_ffmpeg_supported_options()
+    ffmpeg_args = [
         "ffmpeg",
         # Disable all the useless stuff
         "-loglevel",
         "error",
-        "-hide_banner",
         # Input stream
         "-i",
         input_file,
@@ -1218,13 +1214,22 @@ def build_ffmpeg_encoding_args(
         # Progress to stderr
         "-progress",
         "pipe:2",
-        "-stats_period",
-        "0.1",
+    ]
+
+    if "-stats_period" in supported:
+        # more frequent progress updates
+        ffmpeg_args += [
+            "-stats_period",
+            "0.1",
+        ]
+
+    ffmpeg_args += [
         # User provided arguments
         *args,
         # Output file
         output_file,
     ]
+    return ffmpeg_args
 
 
 def _write_streaming_response_to_pipe(
@@ -1549,9 +1554,24 @@ def re_encode_to_buffer(
     return encoded_data
 
 
-def is_ffmpeg_available() -> bool:
-    """Returns true if ffmpeg is available in the operating system"""
-    return shutil.which("ffmpeg") is not None
+@lru_cache(maxsize=1)
+def get_ffmpeg_supported_options() -> Set[str]:
+    """Returns supported ffmpeg options which we care about"""
+    if shutil.which("ffmpeg") is None:
+        logger.error("ffmpeg is not installed")
+        sys.exit(1)
+    r = subprocess.run(
+        ["ffmpeg", "-help", "long", "-loglevel", "quiet"],
+        check=True,
+        stdout=subprocess.PIPE,
+        encoding="utf-8",
+    )
+    supported = set()
+    for line in r.stdout.splitlines():
+        if line.startswith("-"):
+            opt = line.split(maxsplit=1)[0]
+            supported.add(opt)
+    return supported
 
 
 if __name__ == "__main__":
