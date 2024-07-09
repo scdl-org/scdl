@@ -9,4 +9,5 @@ ignore = [
     "PLR", "TRY",
     "PLW2901", "ANN204",
     "COM812", "ISC001",
+    "EXE"
 ]
