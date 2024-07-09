@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- encoding: utf-8 -*-
 
 from os import path
 
@@ -28,10 +27,22 @@ setup(
         "requests",
         "tqdm",
         "pathvalidate",
-        "soundcloud-v2>=1.3.10",
+        "soundcloud-v2>=1.5.2",
         "filelock>=3.0.0",
+        "typing_extensions; python_version < '3.11'",
     ],
-    extras_require={"test": ["pytest", "pytest-cov", "pytest-dotenv", "music-tag"]},
+    extras_require={
+        "dev": [
+            "pytest",
+            "pytest-cov",
+            "pytest-dotenv",
+            "music-tag",
+            "ruff",
+            "mypy",
+            "types-requests",
+            "types-tqdm",
+        ],
+    },
     url="https://github.com/flyingrub/scdl",
     classifiers=[
         "Programming Language :: Python",
