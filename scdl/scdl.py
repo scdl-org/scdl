@@ -913,7 +913,26 @@ def get_transcoding_m3u8(
         headers = client._get_default_headers()
         if client.auth_token:
             headers["Authorization"] = f"OAuth {client.auth_token}"
-        r = requests.get(url, params={"client_id": client.client_id}, headers=headers)
+
+        params = {
+            "client_id": client.client_id,
+        }
+
+        r: Optional[requests.Response] = None
+        delay: int = 0
+
+        # If we got ratelimited
+        while not r or r.status_code == 429:
+            if delay > 0:
+                logger.warning(f"Got rate-limited, delaying for {delay}sec")
+                time.sleep(delay)
+
+            r = requests.get(url, headers=headers, params=params)
+            delay = (delay or 1) * 2  # exponential backoff, what could possibly go wrong
+
+        if r.status_code != 200:
+            raise SoundCloudException(f"Unable to get transcoding m3u8({r.status_code}): {r.text}")
+
         logger.debug(r.url)
         return r.json()["url"]
     raise SoundCloudException(f"Transcoding does not contain URL: {transcoding}")

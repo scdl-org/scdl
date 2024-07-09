@@ -14,7 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: FedericoCarboni/setup-ffmpeg@v3
+    - name: Install ffmpeg
+      run: |
+        sudo apt update
+        sudo apt install -yq --no-install-recommends ffmpeg
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -33,7 +36,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
       run: |
-        pytest
+        pytest --exitfirst
   publish:
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
