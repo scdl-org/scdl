@@ -626,7 +626,7 @@ def sync(
     playlist: Union[AlbumPlaylist, BasicAlbumPlaylist],
     playlist_info: PlaylistInfo,
     kwargs: SCDLArgs,
-) -> tuple[Union[BasicTrack, MiniTrack], ...]:
+) -> Tuple[Union[BasicTrack, MiniTrack], ...]:
     """Downloads/Removes tracks that have been changed on playlist since last archive file"""
     logger.info("Comparing tracks...")
     archive = kwargs.get("sync")
