@@ -3,7 +3,18 @@ from dataclasses import dataclass
 from functools import singledispatch
 from typing import Optional, Union
 
-from mutagen import FileType, flac, id3, mp3, mp4, oggopus, wave
+from mutagen import (
+    FileType,
+    aiff,
+    flac,
+    id3,
+    mp3,
+    mp4,
+    oggopus,
+    oggspeex,
+    oggtheora,
+    wave,
+)
 
 JPEG_MIME_TYPE: str = "image/jpeg"
 
@@ -85,6 +96,8 @@ def _(file: flac.FLAC, meta: MetadataInfo) -> None:
         file.add_picture(_get_flac_pic(meta.artwork_jpeg))
 
 
+@assemble_metadata.register(oggtheora.OggTheora)
+@assemble_metadata.register(oggspeex.OggSpeex)
 @assemble_metadata.register(oggopus.OggOpus)
 def _(file: oggopus.OggOpus, meta: MetadataInfo) -> None:
     _assemble_vorbis_tags(file, meta)
@@ -94,6 +107,7 @@ def _(file: oggopus.OggOpus, meta: MetadataInfo) -> None:
         file["metadata_block_picture"] = b64encode(pic).decode()
 
 
+@assemble_metadata.register(aiff.AIFF)
 @assemble_metadata.register(mp3.MP3)
 @assemble_metadata.register(wave.WAVE)
 def _(file: Union[wave.WAVE, mp3.MP3], meta: MetadataInfo) -> None:
