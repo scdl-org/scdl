@@ -257,6 +257,7 @@ atexit.register(clean_up_locks)
 
 def get_filelock(path: Union[pathlib.Path, str], timeout: int = 10) -> filelock.FileLock:
     path = pathlib.Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path = path.resolve()
     file_lock_dirs.append(path.parent)
     lock_path = str(path) + ".scdl.lock"
