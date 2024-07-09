@@ -561,8 +561,8 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
             items = client.get_user_stream(user.id, limit=1000)
             for i, stream_item in itertools.islice(enumerate(items, 1), offset, None):
                 logger.info(
-                    f"item n°{i} of {user.track_count + user.reposts_count
-                    if user.reposts_count else '?'}",
+                    f"item n°{i} of "
+                    f"{user.track_count + user.reposts_count if user.reposts_count else '?'}",
                 )
                 if isinstance(stream_item, (TrackStreamItem, TrackStreamRepostItem)):
                     download_track(
