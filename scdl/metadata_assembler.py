@@ -48,7 +48,7 @@ def _get_apic(jpeg_data: bytes) -> id3.APIC:
     )
 
 
-def _assemble_common(file: FileType, meta: MetadataInfo) -> None:
+def _assemble_vorbis_tags(file: FileType, meta: MetadataInfo) -> None:
     file["artist"] = meta.artist
     file["title"] = meta.title
 
@@ -56,7 +56,8 @@ def _assemble_common(file: FileType, meta: MetadataInfo) -> None:
         file["genre"] = meta.genre
 
     if meta.link:
-        file["website"] = meta.link
+        # https://getmusicbee.com/forum/index.php?topic=39759.0
+        file["WWWAUDIOFILE"] = meta.link
 
     if meta.date:
         file["date"] = meta.date
@@ -70,13 +71,15 @@ def _assemble_common(file: FileType, meta: MetadataInfo) -> None:
     if meta.album_track_num is not None:
         file["tracknumber"] = str(meta.album_track_num)
 
+    if meta.description:
+        # https://xiph.org/vorbis/doc/v-comment.html
+        # prefer 'description' over 'comment'
+        file["description"] = meta.description
+
 
 @assemble_metadata.register(flac.FLAC)
 def _(file: flac.FLAC, meta: MetadataInfo) -> None:
-    _assemble_common(file, meta)
-
-    if meta.description:
-        file["description"] = meta.description
+    _assemble_vorbis_tags(file, meta)
 
     if meta.artwork_jpeg:
         file.add_picture(_get_flac_pic(meta.artwork_jpeg))
@@ -84,10 +87,7 @@ def _(file: flac.FLAC, meta: MetadataInfo) -> None:
 
 @assemble_metadata.register(oggopus.OggOpus)
 def _(file: oggopus.OggOpus, meta: MetadataInfo) -> None:
-    _assemble_common(file, meta)
-
-    if meta.description:
-        file["comment"] = meta.description
+    _assemble_vorbis_tags(file, meta)
 
     if meta.artwork_jpeg:
         pic = _get_flac_pic(meta.artwork_jpeg).write()
@@ -107,7 +107,7 @@ def _(file: Union[wave.WAVE, mp3.MP3], meta: MetadataInfo) -> None:
         file["TCON"] = id3.TCON(encoding=3, text=meta.genre)
 
     if meta.link:
-        file["WOAS"] = id3.WOAS(url=meta.link)
+        file["WOAF"] = id3.WOAF(url=meta.link)
 
     if meta.date:
         file["TDAT"] = id3.TDAT(encoding=3, text=meta.date)
@@ -134,7 +134,8 @@ def _(file: mp4.MP4, meta: MetadataInfo) -> None:
         file["\251gen"] = meta.genre
 
     if meta.link:
-        file["\251cmt"] = meta.link
+        # https://getmusicbee.com/forum/index.php?topic=39759.0
+        file["----:com.apple.iTunes:WWWAUDIOFILE"] = meta.link.encode()
 
     if meta.date:
         file["\251day"] = meta.date
@@ -149,7 +150,7 @@ def _(file: mp4.MP4, meta: MetadataInfo) -> None:
         file["trkn"] = str(meta.album_track_num)
 
     if meta.description:
-        file["desc"] = meta.description
+        file["\251cmt"] = meta.description
 
     if meta.artwork_jpeg:
         file["covr"] = [mp4.MP4Cover(meta.artwork_jpeg)]
