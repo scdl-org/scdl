@@ -81,7 +81,6 @@ import math
 import mimetypes
 import os
 import pathlib
-import secrets
 import shutil
 import subprocess
 import sys
@@ -1432,17 +1431,12 @@ def _is_unsupported_codec_for_streaming(codec: str) -> bool:
 
 def _re_encode_ffmpeg(
     in_data: Union[requests.Response, str],  # streaming response or url
+    out_file_name: str,
     out_codec: str,
     track_duration_ms: int,
     should_copy: bool,
     kwargs: SCDLArgs,
 ) -> io.BytesIO:
-    streaming_supported = not _is_unsupported_codec_for_streaming(out_codec)
-
-    out_file_name = "pipe:1"  # stdout
-    if not streaming_supported:
-        out_file_name = str(pathlib.Path(tempfile.gettempdir()) / secrets.token_hex(8))
-
     pipe = _get_ffmpeg_pipe(in_data, out_codec, should_copy, out_file_name, kwargs)
 
     logger.info("Encoding..")
@@ -1464,7 +1458,7 @@ def _re_encode_ffmpeg(
     stdin_thread = None
 
     # Read from stdout only if we expect ffmpeg to write something there
-    if streaming_supported:
+    if out_file_name == "pipe:1":
         stdout_thread = threading.Thread(target=read_stdout, daemon=True)
 
     # Stream the response to ffmpeg if needed
@@ -1521,10 +1515,9 @@ def _re_encode_ffmpeg(
         raise FFmpegError(pipe.returncode, errors_output)
 
     # Read from the temp file, if needed
-    if not streaming_supported:
+    if out_file_name != "pipe:1":
         with open(out_file_name, "rb") as f:
             shutil.copyfileobj(f, stdout)
-        os.remove(out_file_name)
 
     stdout.seek(0)
     return stdout
@@ -1552,7 +1545,18 @@ def re_encode_to_buffer(
     if skip_re_encoding and isinstance(in_data, requests.Response):
         encoded_data = _copy_stream(in_data, kwargs)
     else:
-        encoded_data = _re_encode_ffmpeg(in_data, out_codec, track.duration, should_copy, kwargs)
+        streaming_supported = not _is_unsupported_codec_for_streaming(out_codec)
+        if streaming_supported:
+            out_file_name = "pipe:1"  # stdout
+            encoded_data = _re_encode_ffmpeg(
+                in_data, out_file_name, out_codec, track.duration, should_copy, kwargs
+            )
+        else:
+            with tempfile.TemporaryDirectory() as d:
+                out_file_name = str(pathlib.Path(d) / "scdl")
+                encoded_data = _re_encode_ffmpeg(
+                    in_data, out_file_name, out_codec, track.duration, should_copy, kwargs
+                )
 
     # Remove original metadata, add our own, and we are done
     if not kwargs.get("original_metadata"):
