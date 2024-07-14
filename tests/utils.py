@@ -42,6 +42,7 @@ def assert_track(
 
     if check_metadata:
         f = music_tag.load_file(file)
+        assert f["#length"].value
         assert f["title"].value == expected_title
         assert f["artist"].value == expected_artist
         if expected_genre:

@@ -1203,9 +1203,8 @@ def build_ffmpeg_encoding_args(
     supported = get_ffmpeg_supported_options()
     ffmpeg_args = [
         "ffmpeg",
-        # Disable all the useless stuff
         "-loglevel",
-        "error",
+        "debug" if kwargs["debug"] else "error",
         # Input stream
         "-i",
         input_file,
@@ -1428,7 +1427,7 @@ def _get_ffmpeg_pipe(
 
 
 def _is_unsupported_codec_for_streaming(codec: str) -> bool:
-    return codec in ("ipod",)
+    return codec in ("ipod", "flac")
 
 
 def _re_encode_ffmpeg(
@@ -1513,6 +1512,8 @@ def _re_encode_ffmpeg(
         stdout_thread.join()
     if stdin_thread:
         stdin_thread.join()
+
+    logger.debug(f"FFmpeg output: {errors_output}")
 
     # Make sure that process has exited and get its exit code
     pipe.wait()
