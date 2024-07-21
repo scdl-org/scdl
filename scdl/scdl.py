@@ -197,6 +197,7 @@ class PlaylistInfo(TypedDict):
     title: str
     tracknumber_int: int
     tracknumber: str
+    tracknumber_total: int
 
 
 class SoundCloudException(Exception):  # noqa: N818
@@ -698,6 +699,7 @@ def download_playlist(
         "title": playlist.title,
         "tracknumber_int": 0,
         "tracknumber": "0",
+        "tracknumber_total": playlist.track_count,
     }
 
     if not kwargs.get("no_playlist_folder"):
@@ -1319,6 +1321,7 @@ def _add_metadata_to_stream(
         album_title=playlist_info["title"] if album_available else None,  # type: ignore[index]
         album_author=playlist_info["author"] if album_available else None,  # type: ignore[index]
         album_track_num=playlist_info["tracknumber_int"] if album_available else None,  # type: ignore[index]
+        album_total_track_num=playlist_info["tracknumber_total"] if album_available else None,  # type: ignore[index]
     )
 
     mutagen_file = mutagen.File(stream)

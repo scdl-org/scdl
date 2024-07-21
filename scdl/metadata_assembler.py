@@ -34,6 +34,7 @@ class MetadataInfo:
     album_title: Optional[str]
     album_author: Optional[str]
     album_track_num: Optional[int]
+    album_total_track_num: Optional[int]
 
 
 @singledispatch
@@ -161,7 +162,7 @@ def _(file: mp4.MP4, meta: MetadataInfo) -> None:
         file["aART"] = meta.album_author
 
     if meta.album_track_num is not None:
-        file["trkn"] = str(meta.album_track_num)
+        file["trkn"] = [(meta.album_track_num, meta.album_total_track_num)]
 
     if meta.description:
         file["\251cmt"] = meta.description
