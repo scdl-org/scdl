@@ -88,7 +88,6 @@ scdl me -f
 --overwrite                     Overwrite file if it already exists
 --strict-playlist               Abort playlist downloading if one track fails to download
 --add-description               Adds the description to a seperate txt file (can be read by some players)
---addfolder                     Puts track into their own folder
 --no-playlist                   Skip downloading playlists
 --opus                          Prefer downloading opus streams over mp3 streams
 ```
