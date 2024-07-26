@@ -378,3 +378,20 @@ def test_download_archive(tmp_path: Path) -> None:
     )
     assert r.returncode == 1
     assert "already exists" in r.stderr
+
+
+def test_description_file(tmp_path: Path) -> None:
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--name-format",
+        "track",
+        "--onlymp3",
+        "--add-description",
+    )
+    assert r.returncode == 0
+    desc_file = Path("./track.txt")
+    assert desc_file.exists()
+    with open(desc_file, encoding="utf-8") as f:
+        assert f.read().splitlines() == ["test description:", "9439290883"]
