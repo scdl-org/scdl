@@ -69,7 +69,7 @@ Options:
     --overwrite                     Overwrite file if it already exists
     --strict-playlist               Abort playlist downloading if one track fails to download
     --no-playlist                   Skip downloading playlists
-    --add-description               Adds the description to a seperate txt file (can be read by some players)
+    --add-description               Adds the description to a separate txt file
     --opus                          Prefer downloading opus streams over mp3 streams
 """
 
@@ -149,6 +149,7 @@ files_to_keep = []
 class SCDLArgs(TypedDict):
     C: bool
     a: bool
+    add_description: bool
     addtimestamp: bool
     addtofile: bool
     auth_token: Optional[str]
@@ -1071,8 +1072,9 @@ def download_track(
         if kwargs.get("remove"):
             files_to_keep.append(filename)
 
-        record_download_archive(track, **kwargs)
-        create_description_file(track, filename, kwargs)
+        record_download_archive(track, kwargs)
+        if kwargs["add_description"]:
+            create_description_file(track.description, filename)
 
         to_stdout = is_downloading_to_stdout(kwargs)
 
@@ -1114,22 +1116,20 @@ def can_convert(filename: str) -> bool:
     return "wav" in ext or "aif" in ext
 
 
-def create_description_file(track: BasicTrack, filename: str, kwargs: SCDLArgs):
+def create_description_file(description: Optional[str], filename: str) -> None:
     """
     Creates txt file containing the description
     """
-    if kwargs.get("add_description") and len(track.description) > 3:
+    desc = description or ""
+    if desc:
         try:
-            filenameObj = pathlib.Path(filename)
-            descriptionFilename = filenameObj.with_suffix(".txt")
-            with open(descriptionFilename, "a", encoding="utf-8") as file:
-                file.write(track.description)
+            description_filename = pathlib.Path(filename).with_suffix(".txt")
+            with open(description_filename, "w", encoding="utf-8") as f:
+                f.write(desc)
             logger.info("Created description txt file")
         except OSError as ioe:
             logger.error("Error trying to write description txt file...")
             logger.error(ioe)
-
-    return True
 
 
 def already_downloaded(
