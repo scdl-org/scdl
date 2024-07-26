@@ -1,0 +1,64 @@
+name: ci
+on:
+  push:
+    branches: [ master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ master ]
+jobs:
+  test:
+    strategy:
+      matrix:
+        version: ['3.7', '3.12']
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.version }}
+    - name: Install dependencies
+      run: |
+        pip install -e .[dev]
+    - name: Lint
+      if: '!cancelled()'
+      run: ruff check --output-format=github
+    - name: Format check
+      if: '!cancelled()'
+      run: ruff format --check
+    - name: Type check
+      if: '!cancelled()'
+      run: mypy
+    - name: Install ffmpeg
+      run: |
+        sudo apt update
+        sudo apt install -yq --no-install-recommends ffmpeg
+    - name: Test
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
+      run: |
+        pytest -vv --exitfirst
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7
+    - name: Install dependencies
+      run: |
+        pip install -e .
+    - name: Build package
+      run: |
+        pip install --upgrade build
+        python -m build
+    - name: Publish package
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}

@@ -8,3 +8,5 @@ __pycache__/
 .venv
 .env
 .coverage*
+.idea
+.python-version

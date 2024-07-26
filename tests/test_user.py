@@ -4,11 +4,11 @@ from pathlib import Path
 from tests.utils import assert_track, call_scdl_with_auth
 
 
-def count_files(dir: Path):
-    return len(list(dir.rglob("*")))
+def count_files(folder: Path) -> int:
+    return len(list(folder.rglob("*")))
 
 
-def test_all(tmp_path: Path):
+def test_all(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -22,7 +22,7 @@ def test_all(tmp_path: Path):
     assert count_files(tmp_path) == 3
 
 
-def test_tracks(tmp_path: Path):
+def test_tracks(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -36,7 +36,7 @@ def test_tracks(tmp_path: Path):
     assert count_files(tmp_path) == 1
 
 
-def test_likes(tmp_path: Path):
+def test_likes(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -46,13 +46,11 @@ def test_likes(tmp_path: Path):
         "--name-format={title}",
     )
     assert r.returncode == 0
-    assert_track(
-        tmp_path, "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3", check_metadata=False
-    )
+    assert_track(tmp_path, "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3", check_metadata=False)
     assert count_files(tmp_path) == 1
 
 
-def test_commented(tmp_path: Path):
+def test_commented(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -62,13 +60,11 @@ def test_commented(tmp_path: Path):
         "--name-format={title}",
     )
     assert r.returncode == 0
-    assert_track(
-        tmp_path, "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3", check_metadata=False
-    )
+    assert_track(tmp_path, "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3", check_metadata=False)
     assert count_files(tmp_path) == 1
 
 
-def test_playlists(tmp_path: Path):
+def test_playlists(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -80,16 +76,15 @@ def test_playlists(tmp_path: Path):
     assert count_files(tmp_path) == 3
 
 
-def test_reposts(tmp_path: Path):
+def test_reposts(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
         "https://soundcloud.com/one-thousand-and-one",
         "-r",
         "--name-format={title}",
+        "--onlymp3",
     )
     assert r.returncode == 0
-    assert_track(
-        tmp_path, "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3", check_metadata=False
-    )
+    assert_track(tmp_path, "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3", check_metadata=False)
     assert count_files(tmp_path) == 1

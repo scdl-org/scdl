@@ -5,8 +5,10 @@ from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
 
 
 def assert_track_playlist_1(
-    tmp_path: Path, playlist_folder: str = "test playlist", check_metadata: bool = True
-):
+    tmp_path: Path,
+    playlist_folder: str = "test playlist",
+    check_metadata: bool = True,
+) -> None:
     expected_name = "1_testing - test track.mp3"
     assert_track(
         tmp_path / playlist_folder,
@@ -19,8 +21,10 @@ def assert_track_playlist_1(
 
 
 def assert_track_playlist_2(
-    tmp_path: Path, playlist_folder: str = "test playlist", check_metadata: bool = True
-):
+    tmp_path: Path,
+    playlist_folder: str = "test playlist",
+    check_metadata: bool = True,
+) -> None:
     expected_name = "2_test track 2.mp3"
     assert_track(
         tmp_path / playlist_folder,
@@ -33,7 +37,7 @@ def assert_track_playlist_2(
     )
 
 
-def test_playlist(tmp_path: Path):
+def test_playlist(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -47,7 +51,7 @@ def test_playlist(tmp_path: Path):
     assert_track_playlist_2(tmp_path)
 
 
-def test_n(tmp_path: Path):
+def test_n(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -63,7 +67,7 @@ def test_n(tmp_path: Path):
     assert_not_track(tmp_path / "test playlist", "2_testing - test track.mp3")
 
 
-def test_offset(tmp_path: Path):
+def test_offset(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -82,7 +86,7 @@ def test_offset(tmp_path: Path):
     assert_track_playlist_2(tmp_path)
 
 
-def test_no_playlist_folder(tmp_path: Path):
+def test_no_playlist_folder(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -99,7 +103,7 @@ def test_no_playlist_folder(tmp_path: Path):
     assert_not_track(tmp_path / "test playlist", "2_test track 2.mp3")
 
 
-def test_no_strict_playlist(tmp_path: Path):
+def test_no_strict_playlist(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -114,7 +118,7 @@ def test_no_strict_playlist(tmp_path: Path):
     assert_not_track(tmp_path / "test playlist", "2_test track 2.mp3")
 
 
-def test_strict_playlist(tmp_path: Path):
+def test_strict_playlist(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
@@ -130,7 +134,7 @@ def test_strict_playlist(tmp_path: Path):
     assert_not_track(tmp_path / "test playlist", "2_test track 2.mp3")
 
 
-def test_sync(tmp_path: Path):
+def test_sync(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     os.makedirs("test playlist")
     r = call_scdl_with_auth(
@@ -159,8 +163,6 @@ def test_sync(tmp_path: Path):
         "archive.txt",
     )
     assert r.returncode == 0
-    assert_not_track(
-        tmp_path / "test playlist", "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3"
-    )
-    with open("archive.txt", "r") as f:
+    assert_not_track(tmp_path / "test playlist", "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3")
+    with open("archive.txt") as f:
         assert f.read().split() == ["1855267053", "1855318536"]

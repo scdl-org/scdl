@@ -3,21 +3,26 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-import music_tag
+import music_tag  # type: ignore[import]
 from soundcloud import SoundCloud
 
 client_id = SoundCloud().client_id
 
 
-def call_scdl_with_auth(*args) -> subprocess.CompletedProcess[str]:
+def call_scdl_with_auth(
+    *args: str,
+    encoding: Optional[str] = "utf-8",
+) -> subprocess.CompletedProcess:
     auth_token = os.getenv("AUTH_TOKEN")
     assert auth_token
-    args = (
-        ["scdl"]
-        + list(args)
-        + [f"--auth-token={auth_token}", f"--client-id={client_id}"]
+    args = ("scdl", *args, f"--auth-token={auth_token}", f"--client-id={client_id}")
+    return subprocess.run(
+        args,
+        capture_output=True,
+        encoding=encoding,
+        errors="ignore" if encoding is not None else None,
+        check=False,
     )
-    return subprocess.run(args, capture_output=True, encoding="utf-8")
 
 
 def assert_track(
@@ -26,17 +31,18 @@ def assert_track(
     expected_title: str = "testing - test track",
     expected_artist: str = "7x11x13-testing",
     expected_genre: Optional[str] = "Testing",
-    expected_artwork_len: int = 16136,
+    expected_artwork_len: Optional[int] = 16136,
     expected_album: Optional[str] = None,
     expected_albumartist: Optional[str] = None,
     expected_tracknumber: Optional[int] = None,
     check_metadata: bool = True,
-):
+) -> None:
     file = tmp_path / expected_name
     assert file.exists()
 
     if check_metadata:
         f = music_tag.load_file(file)
+        assert f["#length"].value
         assert f["title"].value == expected_title
         assert f["artist"].value == expected_artist
         if expected_genre:
@@ -54,6 +60,6 @@ def assert_track(
             assert f["tracknumber"].value == expected_tracknumber
 
 
-def assert_not_track(tmp_path: Path, expected_name: str):
+def assert_not_track(tmp_path: Path, expected_name: str) -> None:
     file = tmp_path / expected_name
     assert not file.exists()
