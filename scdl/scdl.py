@@ -9,6 +9,7 @@ Usage:
     [--original-name][--original-metadata][--no-original][--only-original]
     [--name-format <format>][--strict-playlist][--playlist-name-format <format>]
     [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
+    [--add-description]
 
     scdl -h | --help
     scdl --version
@@ -68,6 +69,7 @@ Options:
     --overwrite                     Overwrite file if it already exists
     --strict-playlist               Abort playlist downloading if one track fails to download
     --no-playlist                   Skip downloading playlists
+    --add-description               Adds the description to a separate txt file
     --opus                          Prefer downloading opus streams over mp3 streams
 """
 
@@ -147,6 +149,7 @@ files_to_keep = []
 class SCDLArgs(TypedDict):
     C: bool
     a: bool
+    add_description: bool
     addtimestamp: bool
     addtofile: bool
     auth_token: Optional[str]
@@ -1070,6 +1073,8 @@ def download_track(
             files_to_keep.append(filename)
 
         record_download_archive(track, kwargs)
+        if kwargs["add_description"]:
+            create_description_file(track.description, filename)
 
         to_stdout = is_downloading_to_stdout(kwargs)
 
@@ -1109,6 +1114,22 @@ def download_track(
 def can_convert(filename: str) -> bool:
     ext = os.path.splitext(filename)[1]
     return "wav" in ext or "aif" in ext
+
+
+def create_description_file(description: Optional[str], filename: str) -> None:
+    """
+    Creates txt file containing the description
+    """
+    desc = description or ""
+    if desc:
+        try:
+            description_filename = pathlib.Path(filename).with_suffix(".txt")
+            with open(description_filename, "w", encoding="utf-8") as f:
+                f.write(desc)
+            logger.info("Created description txt file")
+        except OSError as ioe:
+            logger.error("Error trying to write description txt file...")
+            logger.error(ioe)
 
 
 def already_downloaded(

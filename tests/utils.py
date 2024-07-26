@@ -13,8 +13,7 @@ def call_scdl_with_auth(
     *args: str,
     encoding: Optional[str] = "utf-8",
 ) -> subprocess.CompletedProcess:
-    auth_token = os.getenv("AUTH_TOKEN")
-    assert auth_token
+    auth_token = os.getenv("AUTH_TOKEN", "")
     args = ("scdl", *args, f"--auth-token={auth_token}", f"--client-id={client_id}")
     return subprocess.run(
         args,

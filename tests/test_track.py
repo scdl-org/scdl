@@ -7,6 +7,7 @@ import pytest
 from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
 
 
+@pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
 def test_original_download(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -54,6 +55,7 @@ def test_mp3_to_stdout(tmp_path: Path) -> None:
     assert_track(tmp_path, "track.mp3")
 
 
+@pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
 def test_flac_to_stdout(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -73,6 +75,7 @@ def test_flac_to_stdout(tmp_path: Path) -> None:
     assert_track(tmp_path, "track.flac", "copy", "saves", None)
 
 
+@pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
 def test_flac(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -86,6 +89,7 @@ def test_flac(tmp_path: Path) -> None:
     assert_track(tmp_path, "track.flac", "copy", "saves", None)
 
 
+@pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
 def test_m4a(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -163,6 +167,7 @@ def test_original_art(tmp_path: Path) -> None:
     assert_track(tmp_path, "track.mp3", expected_artwork_len=3409)
 
 
+@pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
 def test_original_name(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -176,6 +181,7 @@ def test_original_name(tmp_path: Path) -> None:
     assert_track(tmp_path, "original.wav", check_metadata=False)
 
 
+@pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
 def test_original_metadata(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -189,6 +195,7 @@ def test_original_metadata(tmp_path: Path) -> None:
     assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", 0)
 
 
+@pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
 def test_force_metadata(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -378,3 +385,20 @@ def test_download_archive(tmp_path: Path) -> None:
     )
     assert r.returncode == 1
     assert "already exists" in r.stderr
+
+
+def test_description_file(tmp_path: Path) -> None:
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--name-format",
+        "track",
+        "--onlymp3",
+        "--add-description",
+    )
+    assert r.returncode == 0
+    desc_file = Path("./track.txt")
+    assert desc_file.exists()
+    with open(desc_file, encoding="utf-8") as f:
+        assert f.read().splitlines() == ["test description:", "9439290883"]
