@@ -888,6 +888,7 @@ def download_original_file(
         not encoding_to_flac,  # copy the stream only if we aren't re-encoding to flac
         filename,
         kwargs,
+        playlist_info=playlist_info,
         skip_re_encoding=not encoding_to_flac,
     )
 
@@ -1381,7 +1382,7 @@ def re_encode_to_out(
     should_copy: bool,
     filename: str,
     kwargs: SCDLArgs,
-    playlist_info: Optional[PlaylistInfo] = None,
+    playlist_info: Optional[PlaylistInfo],
     skip_re_encoding: bool = False,
 ) -> None:
     to_stdout = is_downloading_to_stdout(kwargs)
