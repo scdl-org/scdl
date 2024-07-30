@@ -888,6 +888,7 @@ def download_original_file(
         not encoding_to_flac,  # copy the stream only if we aren't re-encoding to flac
         filename,
         kwargs,
+        playlist_info=playlist_info,
         skip_re_encoding=not encoding_to_flac,
     )
 
