@@ -45,6 +45,7 @@ scdl me -f
 -h --help                       Show this screen
 --version                       Show version
 -l [url]                        URL can be track/playlist/user
+-s [search_query]               Search for a track/playlist/user and use the first result
 -n [maxtracks]                  Download the n last tracks of a playlist according to the creation date
 -a                              Download all tracks of user (including reposts)
 -t                              Download all uploads of a user (no reposts)
