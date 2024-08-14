@@ -107,7 +107,8 @@ url = {
     'trackinfo': ('https://api-v2.soundcloud.com/tracks/{0}'),
     'original_download' : ("https://api-v2.soundcloud.com/tracks/{0}/download"),
     'user': ('https://api-v2.soundcloud.com/users/{0}'),
-    'me': ('https://api-v2.soundcloud.com/me?oauth_token={0}')
+    'me': ('https://api-v2.soundcloud.com/me?oauth_token={0}'),
+    'search': ('https://api-v2.soundcloud.com/search/queries?q={0}&client_id={1}&limit=1&offset=0')
 }
 client = client.Client()
 
@@ -183,6 +184,15 @@ def main():
 
     if arguments['-l']:
         parse_url(arguments['-l'])
+    elif arguments['-q']:
+        search_query = arguments['-q']
+        url = search_soundcloud(search_query)
+        if url:
+            parse_url(url)
+        else:
+            logger.error("Search failed. Exiting...")
+            sys.exit(1)
+
     elif arguments['me']:
         if arguments['-f']:
             download(who_am_i(), 'favorites', 'likes')
@@ -199,6 +209,34 @@ def main():
 
     if arguments['--remove']:
         remove_files()
+
+def search_soundcloud(query: str, client_id=CLIENT_ID):
+   """
+   Search SoundCloud and return the URL of the first result
+   """
+   try:
+       search_url = url['search'].format(query, client_id)
+       r = requests.get(search_url)
+       logger.debug(r.url)
+       if r.status_code == 403:
+           return search_soundcloud(query, ALT_CLIENT_ID)
+
+       results = r.json()
+       logger.debug(results)
+       if results['collection']:
+           item = results['collection'][0]
+           if item['kind'] in ['track', 'playlist', 'user']:
+               return item['permalink_url']
+           logger.warning(f"Unexpected search result type: {item['kind']}")
+       logger.error(f"No results found for query: {query}")
+   except Exception:
+       if client_id == ALT_CLIENT_ID:
+           logger.error('Failed to search...')
+           return None
+       logger.error('Error searching, retrying...')
+       time.sleep(5)
+       return search_soundcloud(query, ALT_CLIENT_ID)
+   return None
 
 
 def get_config():
