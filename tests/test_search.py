@@ -1,4 +1,5 @@
 import os
+import secrets
 from pathlib import Path
 
 from tests.utils import assert_track, call_scdl_with_auth
@@ -21,7 +22,7 @@ def test_search_no_results(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-s",
-        "this query should not return any results xyzabc123",
+        f"this query should not return any results {secrets.token_hex(16)}",
         "--name-format",
         "track",
         "--onlymp3",
