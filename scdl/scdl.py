@@ -108,7 +108,7 @@ url = {
     'original_download' : ("https://api-v2.soundcloud.com/tracks/{0}/download"),
     'user': ('https://api-v2.soundcloud.com/users/{0}'),
     'me': ('https://api-v2.soundcloud.com/me?oauth_token={0}'),
-    'search': ('https://api-v2.soundcloud.com/search/queries?q={0}&client_id={1}&limit=1&offset=0')
+    'search': ('https://api-v2.soundcloud.com/search/queries?q={0}&limit=1&offset=0')
 }
 client = client.Client()
 
@@ -188,6 +188,7 @@ def main():
         search_query = arguments['-q']
         url = search_soundcloud(search_query)
         if url:
+            logger.info(url)
             parse_url(url)
         else:
             logger.error("Search failed. Exiting...")
@@ -215,9 +216,10 @@ def search_soundcloud(query: str, client_id=CLIENT_ID):
    Search SoundCloud and return the URL of the first result
    """
    try:
-       search_url = url['search'].format(query, client_id)
-       r = requests.get(search_url)
+       search_url = url['search'].format(query)
+       r = requests.get(search_url, params={'client_id': client_id})
        logger.debug(r.url)
+       logger.debug(r.status_code)
        if r.status_code == 403:
            return search_soundcloud(query, ALT_CLIENT_ID)
 
@@ -229,10 +231,11 @@ def search_soundcloud(query: str, client_id=CLIENT_ID):
                return item['permalink_url']
            logger.warning(f"Unexpected search result type: {item['kind']}")
        logger.error(f"No results found for query: {query}")
-   except Exception:
+   except Exception as e:
        if client_id == ALT_CLIENT_ID:
            logger.error('Failed to search...')
            return None
+       logger.error(e)
        logger.error('Error searching, retrying...')
        time.sleep(5)
        return search_soundcloud(query, ALT_CLIENT_ID)
