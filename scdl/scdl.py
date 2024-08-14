@@ -4,52 +4,55 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl -l <track_url> [-a | -f | -C | -t | -p][-c][-n <maxtracks>][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
-[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
-    scdl me (-s | -a | -f | -t | -p | -m)[-c][-o <offset>]\
-[--hidewarnings][--debug | --error][--path <path>][--addtofile][--addtimestamp]
-[--onlymp3][--hide-progress][--min-size <size>][--max-size <size>][--remove]
-[--no-playlist-folder][--download-archive <file>][--extract-artist][--flac]
+    scdl (-l <track_url> | -q <search_query>) [options]
+    scdl me (-s | -a | -f | -t | -p | -m) [options]
     scdl -h | --help
     scdl --version
 
-
 Options:
-    -h --help                   Show this screen
-    --version                   Show version
-    me                          Use the user profile from the auth_token
-    -l [url]                    URL can be track/playlist/user
-    -n [maxtracks]              Download the n last tracks of a playlist according to the creation date
-    -s                          Download the stream of a user (token needed)
-    -a                          Download all tracks of user (including reposts)
-    -t                          Download all uploads of a user (no reposts)
-    -f                          Download all favorites of a user
-    -C                          Download all commented by a user
-    -p                          Download all playlists of a user
-    -m                          Download all liked and owned playlists of user
-    -c                          Continue if a downloaded file already exists
-    -o [offset]                 Begin with a custom offset
-    --addtimestamp              Add track creation timestamp to filename,
-                                which allows for chronological sorting
-    --addtofile                 Add artist to filename if missing
-    --debug                     Set log level to DEBUG
-    --download-archive [file]   Keep track of track IDs in an archive file,
-                                and skip already-downloaded files
-    --error                     Set log level to ERROR
-    --extract-artist            Set artist tag from title instead of username
-    --hide-progress             Hide the wget progress bar
-    --hidewarnings              Hide Warnings. (use with precaution)
-    --max-size [max-size]       Skip tracks larger than size (k/m/g)
-    --min-size [min-size]       Skip tracks smaller than size (k/m/g)
-    --no-playlist-folder        Download playlist tracks into main directory,
-                                instead of making a playlist subfolder
-    --onlymp3                   Download only the streamable mp3 file,
-                                even if track has a Downloadable file
-    --path [path]               Use a custom path for downloaded files
-    --remove                    Remove any files not downloaded from execution
-    --flac                      Convert original files to .flac
+    -h --help                       Show this screen
+    --version                       Show version
+    -l <track_url>                  URL can be track/playlist/user
+    -q <search_query>               Search for a track/playlist/user and use the first result
+    -s                              Download the stream of a user
+    -a                              Download all tracks of user (including reposts)
+    -t                              Download all uploads of a user (no reposts)
+    -f                              Download all favorites of a user
+    -C                              Download all commented by a user
+    -p                              Download all playlists of a user
+    -m                              Download all likes and owned playlists of user
+    -c                              Continue if a downloaded file already exists
+    -n <maxtracks>                  Download the n last tracks of a playlist [default: all]
+    -o <offset>                     Begin with a custom offset
+    --addtimestamp                  Add track creation timestamp to filename
+    --addtofile                     Add artist to filename if missing
+    --debug                         Set log level to DEBUG
+    --download-archive <file>       Keep track of track IDs in an archive file, and skip already-downloaded files
+    --error                         Set log level to ERROR
+    --extract-artist                Set artist tag from title instead of username
+    --hide-progress                 Hide the wget progress bar
+    --hidewarnings                  Hide Warnings (use with precaution)
+    --max-size <size>               Skip tracks larger than size (k/m/g)
+    --min-size <size>               Skip tracks smaller than size (k/m/g)
+    --no-playlist-folder            Download playlist tracks into main directory
+    --onlymp3                       Download only the streamable mp3 file
+    --path <path>                   Use a custom path for downloaded files
+    --remove                        Remove any files not downloaded from execution
+    --flac                          Convert original files to .flac
+    --original-art                  Download original cover art
+    --original-name                 Do not change name of original file downloads
+    --original-metadata             Do not change metadata of original file downloads
+    --no-original                   Do not download original file
+    --only-original                 Only download songs with original file available
+    --name-format <format>          Specify the downloaded file name format
+    --playlist-name-format <format> Specify the playlist name format
+    --client-id <id>                Specify the client_id to use
+    --auth-token <token>            Specify the auth token to use
+    --overwrite                     Overwrite file if it already exists
+    --strict-playlist               Abort playlist downloading if one track fails
+    --add-description               Adds the description to a separate txt file
+    --no-playlist                   Skip downloading playlists
+    --opus                          Prefer downloading opus streams over mp3 streams
 """
 
 import logging
