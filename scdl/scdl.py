@@ -1,9 +1,9 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl (-l <track_url> | -s <search_query> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata]
-    [-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error][--path <path>]
-    [--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
+    scdl (-l <track_url> | -s <search_query> | me) [-a | -f | -C | -t | -p | -r]
+    [-c | --force-metadata][-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error]
+    [--path <path>][--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
     [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
     [--original-name][--original-metadata][--no-original][--only-original]
@@ -448,6 +448,7 @@ def validate_url(client: SoundCloud, url: str) -> str:
     logger.error("URL is not valid")
     sys.exit(1)
 
+
 def search_soundcloud(client: SoundCloud, query: str) -> Optional[str]:
     """Search SoundCloud and return the URL of the first result."""
     try:
@@ -463,6 +464,7 @@ def search_soundcloud(client: SoundCloud, query: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Error searching SoundCloud: {e}")
         return None
+
 
 def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     """Gets config from scdl.cfg"""

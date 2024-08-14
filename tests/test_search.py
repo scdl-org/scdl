@@ -41,4 +41,8 @@ def test_search_playlist(tmp_path: Path) -> None:
     )
     assert r.returncode == 0
     assert_track(tmp_path / "playlist1", "1_OK Bye.mp3", check_metadata=False)
-    assert_track(tmp_path / "playlist1", "2_Wan Bushi - Eurodance Vibes (part 1+2+3).mp3", check_metadata=False)
+    assert_track(
+        tmp_path / "playlist1",
+        "2_Wan Bushi - Eurodance Vibes (part 1+2+3).mp3",
+        check_metadata=False,
+    )
