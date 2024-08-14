@@ -1,7 +1,7 @@
 """scdl allows you to download music from Soundcloud
 
 Usage:
-    scdl (-l <track_url> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata]
+    scdl (-l <track_url> | -s <search_query> | me) [-a | -f | -C | -t | -p | -r][-c | --force-metadata]
     [-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error][--path <path>]
     [--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
     [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
@@ -19,6 +19,7 @@ Options:
     -h --help                       Show this screen
     --version                       Show version
     -l [url]                        URL can be track/playlist/user
+    -s [search_query]               Search for a track/playlist/user and use the first result
     -n [maxtracks]                  Download the n last tracks of a playlist according to the
                                     creation date
     -a                              Download all tracks of user (including reposts)
@@ -191,6 +192,7 @@ class SCDLArgs(TypedDict):
     remove: bool
     strict_playlist: bool
     sync: Optional[str]
+    s: Optional[str]
     t: bool
 
 
@@ -366,6 +368,14 @@ def main() -> None:
         assert me is not None
         arguments["-l"] = me.permalink_url
 
+    if arguments["-s"]:
+        url = search_soundcloud(client, arguments["-s"])
+        if url:
+            arguments["-l"] = url
+        else:
+            logger.error("Search failed. Exiting...")
+            sys.exit(1)
+
     arguments["-l"] = validate_url(client, arguments["-l"])
 
     if arguments["--download-archive"]:
@@ -438,6 +448,21 @@ def validate_url(client: SoundCloud, url: str) -> str:
     logger.error("URL is not valid")
     sys.exit(1)
 
+def search_soundcloud(client: SoundCloud, query: str) -> Optional[str]:
+    """Search SoundCloud and return the URL of the first result."""
+    try:
+        results = list(client.search(query, limit=1))
+        if results:
+            item = results[0]
+            logger.info(f"Search resolved to url {item.permalink_url}")
+            if isinstance(item, (Track, AlbumPlaylist, User)):
+                return item.permalink_url
+            logger.warning(f"Unexpected search result type: {type(item)}")
+        logger.error(f"No results found for query: {query}")
+        return None
+    except Exception as e:
+        logger.error(f"Error searching SoundCloud: {e}")
+        return None
 
 def get_config(config_file: pathlib.Path) -> configparser.ConfigParser:
     """Gets config from scdl.cfg"""
