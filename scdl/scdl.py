@@ -136,6 +136,8 @@ from soundcloud import (
 from scdl import __version__, utils
 from scdl.metadata_assembler import MetadataInfo, assemble_metadata
 
+LockType: Type[filelock.BaseFileLock] = filelock.FileLock
+
 mimetypes.init()
 
 logger = logging.getLogger(__name__)
@@ -260,14 +262,21 @@ def clean_up_locks() -> None:
 
 atexit.register(clean_up_locks)
 
-
-def get_filelock(path: Union[pathlib.Path, str], timeout: int = 10) -> filelock.FileLock:
+def get_filelock(path: Union[pathlib.Path, str], timeout: int = 10) -> filelock.BaseFileLock:
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path = path.resolve()
     file_lock_dirs.append(path.parent)
     lock_path = str(path) + ".scdl.lock"
-    return filelock.FileLock(lock_path, timeout=timeout)
+    return LockType(lock_path, timeout=timeout)
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    try:
+        with get_filelock(tmp + "/lock") as lock:
+            pass
+    except NotImplementedError:
+        LockType = filelock.SoftFileLock
 
 
 def main() -> None:
