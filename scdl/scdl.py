@@ -262,6 +262,7 @@ def clean_up_locks() -> None:
 
 atexit.register(clean_up_locks)
 
+
 def get_filelock(path: Union[pathlib.Path, str], timeout: int = 10) -> filelock.BaseFileLock:
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
