@@ -12,7 +12,7 @@ def test_original_download(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/57v/original",  # thanks saves for hosting
+        "https://soundcloud.com/violinbutterflynet/original",  # thanks saves for hosting
         "--name-format",
         "track",
     )
@@ -24,7 +24,7 @@ def test_original_to_stdout(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/57v/original",
+        "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "-",
         encoding=None,
@@ -60,7 +60,7 @@ def test_flac_to_stdout(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/57v/original",
+        "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "-",
         "--flac",
@@ -80,7 +80,7 @@ def test_flac(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/57v/original",
+        "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "track",
         "--flac",
@@ -172,7 +172,7 @@ def test_original_name(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/57v/original",
+        "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "track",
         "--original-name",
@@ -186,7 +186,7 @@ def test_original_metadata(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/57v/original",
+        "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "track",
         "--original-metadata",
@@ -200,7 +200,7 @@ def test_force_metadata(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/57v/original",
+        "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "track",
         "--original-metadata",
@@ -210,7 +210,7 @@ def test_force_metadata(tmp_path: Path) -> None:
 
     r = call_scdl_with_auth(
         "-l",
-        "https://soundcloud.com/57v/original",
+        "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "track",
         "--force-metadata",
