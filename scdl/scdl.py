@@ -264,7 +264,7 @@ atexit.register(clean_up_locks)
 class SafeLock:
     def __init__(
         self,
-        lock_file: Union[str, os.PathLike[str]],
+        lock_file: Union[str, os.PathLike],
         timeout: float = -1,
         mode: int = 0o644,
         thread_local: bool = True,
