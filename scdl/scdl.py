@@ -136,8 +136,6 @@ from soundcloud import (
 from scdl import __version__, utils
 from scdl.metadata_assembler import MetadataInfo, assemble_metadata
 
-LockType: Type[filelock.BaseFileLock] = filelock.FileLock
-
 mimetypes.init()
 
 logger = logging.getLogger(__name__)
@@ -263,21 +261,54 @@ def clean_up_locks() -> None:
 atexit.register(clean_up_locks)
 
 
-def get_filelock(path: Union[pathlib.Path, str], timeout: int = 10) -> filelock.BaseFileLock:
+class SafeLock:
+    def __init__(
+        self,
+        lock_file: str | os.PathLike[str],
+        timeout: float = -1,
+        mode: int = 0o644,
+        thread_local: bool = True,
+        *,
+        blocking: bool = True,
+        is_singleton: bool = False,
+    ) -> None:
+        self._lock = filelock.FileLock(
+            lock_file, timeout, mode, thread_local, blocking=blocking, is_singleton=is_singleton
+        )
+        self._soft_lock = filelock.SoftFileLock(
+            lock_file, timeout, mode, thread_local, blocking=blocking, is_singleton=is_singleton
+        )
+        self._using_soft_lock = False
+
+    def __enter__(self):
+        try:
+            self._lock.acquire()
+            self._using_soft_lock = False
+            return self._lock
+        except NotImplementedError:
+            self._soft_lock.acquire()
+            self._using_soft_lock = True
+            return self._soft_lock
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        if self._using_soft_lock:
+            self._soft_lock.release()
+        else:
+            self._lock.release()
+
+
+def get_filelock(path: Union[pathlib.Path, str], timeout: int = 10) -> SafeLock:
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path = path.resolve()
     file_lock_dirs.append(path.parent)
     lock_path = str(path) + ".scdl.lock"
-    return LockType(lock_path, timeout=timeout)
-
-
-with tempfile.TemporaryDirectory() as tmp:
-    try:
-        with get_filelock(tmp + "/lock") as lock:
-            pass
-    except NotImplementedError:
-        LockType = filelock.SoftFileLock
+    return SafeLock(lock_path, timeout=timeout)
 
 
 def main() -> None:
