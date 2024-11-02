@@ -264,20 +264,13 @@ atexit.register(clean_up_locks)
 class SafeLock:
     def __init__(
         self,
-        lock_file: str | os.PathLike[str],
+        lock_file: Union[str, os.PathLike[str]],
         timeout: float = -1,
         mode: int = 0o644,
         thread_local: bool = True,
-        *,
-        blocking: bool = True,
-        is_singleton: bool = False,
     ) -> None:
-        self._lock = filelock.FileLock(
-            lock_file, timeout, mode, thread_local, blocking=blocking, is_singleton=is_singleton
-        )
-        self._soft_lock = filelock.SoftFileLock(
-            lock_file, timeout, mode, thread_local, blocking=blocking, is_singleton=is_singleton
-        )
+        self._lock = filelock.FileLock(lock_file, timeout, mode, thread_local)
+        self._soft_lock = filelock.SoftFileLock(lock_file, timeout, mode, thread_local)
         self._using_soft_lock = False
 
     def __enter__(self):

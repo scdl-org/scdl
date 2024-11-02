@@ -38,7 +38,7 @@ class MetadataInfo:
 
 
 @singledispatch
-def assemble_metadata(file: FileType, meta: MetadataInfo) -> None:  # noqa: ARG001
+def assemble_metadata(file: FileType, meta: MetadataInfo) -> None:
     raise NotImplementedError
 
 
