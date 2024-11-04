@@ -2,7 +2,7 @@
 
 Usage:
     scdl (-l <track_url> | -s <search_query> | me) [-a | -f | -C | -t | -p | -r]
-    [-c | --force-metadata][-n <maxtracks>][-I <interval>][-o <offset>][--hidewarnings][--debug | --error]
+    [-c | --force-metadata][-n][-I <interval>][--hidewarnings][--debug | --error]
     [--path <path>][--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
     [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
@@ -21,9 +21,12 @@ Options:
     --version                       Show version
     -l [url]                        URL can be track/playlist/user
     -s [search_query]               Search for a track/playlist/user and use the first result
-    -n [maxtracks]                  Download the n last tracks of a playlist according to the
-                                    creation date
-    -I [interval]                   Interval damn
+    -n                              Sort the tracks of a playlist according to the
+                                    creation date in descending order
+    -I [interval]                   Download a subset of the query results
+                                    Format: [start index, end index]
+                                    Bounds are inclusive.
+                                    Indexing starts with 1.
     -a                              Download all tracks of user (including reposts)
     -t                              Download all uploads of a user (no reposts)
     -f                              Download all favorites (likes) of a user
@@ -32,8 +35,6 @@ Options:
     -r                              Download all reposts of user
     -c                              Continue if a downloaded file already exists
     --force-metadata                This will set metadata on already downloaded track
-    -o [offset]                     Start downloading a playlist from the [offset]th track
-                                    Indexing starts with 1.
     --addtimestamp                  Add track creation timestamp to filename,
                                     which allows for chronological sorting
                                     (Deprecated. Use --name-format instead.)
@@ -172,14 +173,12 @@ class SCDLArgs(TypedDict):
     max_size: Optional[int]
     me: bool
     min_size: Optional[int]
-    n: Optional[str]
+    n: bool
     name_format: str
     no_album_tag: bool
     no_original: bool
     no_playlist: bool
     no_playlist_folder: bool
-    o: Optional[int]
-    offset: NotRequired[int]
     only_original: bool
     onlymp3: bool
     opus: bool
@@ -190,7 +189,6 @@ class SCDLArgs(TypedDict):
     p: bool
     path: Optional[str]
     playlist_name_format: str
-    playlist_offset: NotRequired[int]
     r: bool
     remove: bool
     strict_playlist: bool
@@ -494,6 +492,7 @@ def validate_url(client: SoundCloud, url: str) -> str:
 def validate_interval(interval: str) -> (int,int):
     """
     """
+    #TODO
     pattern = re.compile(r"\[([1-9][0-9]*)?,(\d*)\]")
     search_result = pattern.search(interval)
 
@@ -586,8 +585,9 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
     url = kwargs["l"]
     item = client.resolve(url)
     logger.debug(item)
-    # offset = kwargs.get("offset", 0)
     interval = kwargs.get("interval",(1,1000))
+    interval_start = interval[0]
+    interval_end = interval[1]
     if item is None:
         logger.error("URL is not valid")
         sys.exit(1)
@@ -599,102 +599,102 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
         # kwargs["playlist_offset"] = offset
         kwargs["playlist_interval"] = interval
         download_playlist(client, item, kwargs)
-    # elif isinstance(item, User):
-    #     user = item
-    #     logger.info("Found a user profile")
-    #     if kwargs.get("f"):
-    #         logger.info(f"Retrieving all likes of user {user.username}...")
-    #         likes = client.get_user_likes(user.id, limit=1000)
-    #         for i, like in itertools.islice(enumerate(likes, 1), offset, None):
-    #             logger.info(f"like n°{i} of {user.likes_count}")
-    #             if isinstance(like, TrackLike):
-    #                 download_track(
-    #                     client,
-    #                     like.track,
-    #                     kwargs,
-    #                     exit_on_fail=kwargs["strict_playlist"],
-    #                 )
-    #             elif isinstance(like, PlaylistLike):
-    #                 playlist = client.get_playlist(like.playlist.id)
-    #                 assert playlist is not None
-    #                 download_playlist(client, playlist, kwargs)
-    #             else:
-    #                 logger.error(f"Unknown like type {like}")
-    #                 if kwargs.get("strict_playlist"):
-    #                     sys.exit(1)
-    #         logger.info(f"Downloaded all likes of user {user.username}!")
-    #     elif kwargs.get("C"):
-    #         logger.info(f"Retrieving all commented tracks of user {user.username}...")
-    #         comments = client.get_user_comments(user.id, limit=1000)
-    #         for i, comment in itertools.islice(enumerate(comments, 1), offset, None):
-    #             logger.info(f"comment n°{i} of {user.comments_count}")
-    #             track = client.get_track(comment.track.id)
-    #             assert track is not None
-    #             download_track(
-    #                 client,
-    #                 track,
-    #                 kwargs,
-    #                 exit_on_fail=kwargs["strict_playlist"],
-    #             )
-    #         logger.info(f"Downloaded all commented tracks of user {user.username}!")
-    #     elif kwargs.get("t"):
-    #         logger.info(f"Retrieving all tracks of user {user.username}...")
-    #         tracks = client.get_user_tracks(user.id, limit=1000)
-    #         for i, track in itertools.islice(enumerate(tracks, 1), offset, None):
-    #             logger.info(f"track n°{i} of {user.track_count}")
-    #             download_track(client, track, kwargs, exit_on_fail=kwargs["strict_playlist"])
-    #         logger.info(f"Downloaded all tracks of user {user.username}!")
-    #     elif kwargs.get("a"):
-    #         logger.info(f"Retrieving all tracks & reposts of user {user.username}...")
-    #         items = client.get_user_stream(user.id, limit=1000)
-    #         for i, stream_item in itertools.islice(enumerate(items, 1), offset, None):
-    #             logger.info(
-    #                 f"item n°{i} of "
-    #                 f"{user.track_count + user.reposts_count if user.reposts_count else '?'}",
-    #             )
-    #             if isinstance(stream_item, (TrackStreamItem, TrackStreamRepostItem)):
-    #                 download_track(
-    #                     client,
-    #                     stream_item.track,
-    #                     kwargs,
-    #                     exit_on_fail=kwargs["strict_playlist"],
-    #                 )
-    #             elif isinstance(stream_item, (PlaylistStreamItem, PlaylistStreamRepostItem)):
-    #                 download_playlist(client, stream_item.playlist, kwargs)
-    #             else:
-    #                 logger.error(f"Unknown item type {stream_item.type}")
-    #                 if kwargs.get("strict_playlist"):
-    #                     sys.exit(1)
-    #         logger.info(f"Downloaded all tracks & reposts of user {user.username}!")
-    #     elif kwargs.get("p"):
-    #         logger.info(f"Retrieving all playlists of user {user.username}...")
-    #         playlists = client.get_user_playlists(user.id, limit=1000)
-    #         for i, playlist in itertools.islice(enumerate(playlists, 1), offset, None):
-    #             logger.info(f"playlist n°{i} of {user.playlist_count}")
-    #             download_playlist(client, playlist, kwargs)
-    #         logger.info(f"Downloaded all playlists of user {user.username}!")
-    #     elif kwargs.get("r"):
-    #         logger.info(f"Retrieving all reposts of user {user.username}...")
-    #         reposts = client.get_user_reposts(user.id, limit=1000)
-    #         for i, repost in itertools.islice(enumerate(reposts, 1), offset, None):
-    #             logger.info(f"item n°{i} of {user.reposts_count or '?'}")
-    #             if isinstance(repost, TrackStreamRepostItem):
-    #                 download_track(
-    #                     client,
-    #                     repost.track,
-    #                     kwargs,
-    #                     exit_on_fail=kwargs["strict_playlist"],
-    #                 )
-    #             elif isinstance(repost, PlaylistStreamRepostItem):
-    #                 download_playlist(client, repost.playlist, kwargs)
-    #             else:
-    #                 logger.error(f"Unknown item type {repost.type}")
-    #                 if kwargs.get("strict_playlist"):
-    #                     sys.exit(1)
-    #         logger.info(f"Downloaded all reposts of user {user.username}!")
-    #     else:
-    #         logger.error("Please provide a download type...")
-    #         sys.exit(1)
+    elif isinstance(item, User):
+        user = item
+        logger.info("Found a user profile")
+        if kwargs.get("f"):
+            logger.info(f"Retrieving all likes of user {user.username}...")
+            likes = client.get_user_likes(user.id, limit=1000)
+            for i, like in itertools.islice(enumerate(likes, 1), interval_start-1, interval_end):
+                logger.info(f"like n°{i} of {user.likes_count}")
+                if isinstance(like, TrackLike):
+                    download_track(
+                        client,
+                        like.track,
+                        kwargs,
+                        exit_on_fail=kwargs["strict_playlist"],
+                    )
+                elif isinstance(like, PlaylistLike):
+                    playlist = client.get_playlist(like.playlist.id)
+                    assert playlist is not None
+                    download_playlist(client, playlist, kwargs)
+                else:
+                    logger.error(f"Unknown like type {like}")
+                    if kwargs.get("strict_playlist"):
+                        sys.exit(1)
+            logger.info(f"Downloaded all likes of user {user.username}!")
+        elif kwargs.get("C"):
+            logger.info(f"Retrieving all commented tracks of user {user.username}...")
+            comments = client.get_user_comments(user.id, limit=1000)
+            for i, comment in itertools.islice(enumerate(comments, 1), interval_start-1, interval_end):
+                logger.info(f"comment n°{i} of {user.comments_count}")
+                track = client.get_track(comment.track.id)
+                assert track is not None
+                download_track(
+                    client,
+                    track,
+                    kwargs,
+                    exit_on_fail=kwargs["strict_playlist"],
+                )
+            logger.info(f"Downloaded all commented tracks of user {user.username}!")
+        elif kwargs.get("t"):
+            logger.info(f"Retrieving all tracks of user {user.username}...")
+            tracks = client.get_user_tracks(user.id, limit=1000)
+            for i, track in itertools.islice(enumerate(tracks, 1), interval_start-1, interval_end):
+                logger.info(f"track n°{i} of {user.track_count}")
+                download_track(client, track, kwargs, exit_on_fail=kwargs["strict_playlist"])
+            logger.info(f"Downloaded all tracks of user {user.username}!")
+        elif kwargs.get("a"):
+            logger.info(f"Retrieving all tracks & reposts of user {user.username}...")
+            items = client.get_user_stream(user.id, limit=1000)
+            for i, stream_item in itertools.islice(enumerate(items, 1), interval_start-1, interval_end):
+                logger.info(
+                    f"item n°{i} of "
+                    f"{user.track_count + user.reposts_count if user.reposts_count else '?'}",
+                )
+                if isinstance(stream_item, (TrackStreamItem, TrackStreamRepostItem)):
+                    download_track(
+                        client,
+                        stream_item.track,
+                        kwargs,
+                        exit_on_fail=kwargs["strict_playlist"],
+                    )
+                elif isinstance(stream_item, (PlaylistStreamItem, PlaylistStreamRepostItem)):
+                    download_playlist(client, stream_item.playlist, kwargs)
+                else:
+                    logger.error(f"Unknown item type {stream_item.type}")
+                    if kwargs.get("strict_playlist"):
+                        sys.exit(1)
+            logger.info(f"Downloaded all tracks & reposts of user {user.username}!")
+        elif kwargs.get("p"):
+            logger.info(f"Retrieving all playlists of user {user.username}...")
+            playlists = client.get_user_playlists(user.id, limit=1000)
+            for i, playlist in itertools.islice(enumerate(playlists, 1), interval_start-1, interval_end):
+                logger.info(f"playlist n°{i} of {user.playlist_count}")
+                download_playlist(client, playlist, kwargs)
+            logger.info(f"Downloaded all playlists of user {user.username}!")
+        elif kwargs.get("r"):
+            logger.info(f"Retrieving all reposts of user {user.username}...")
+            reposts = client.get_user_reposts(user.id, limit=1000)
+            for i, repost in itertools.islice(enumerate(reposts, 1), interval_start-1, interval_end):
+                logger.info(f"item n°{i} of {user.reposts_count or '?'}")
+                if isinstance(repost, TrackStreamRepostItem):
+                    download_track(
+                        client,
+                        repost.track,
+                        kwargs,
+                        exit_on_fail=kwargs["strict_playlist"],
+                    )
+                elif isinstance(repost, PlaylistStreamRepostItem):
+                    download_playlist(client, repost.playlist, kwargs)
+                else:
+                    logger.error(f"Unknown item type {repost.type}")
+                    if kwargs.get("strict_playlist"):
+                        sys.exit(1)
+            logger.info(f"Downloaded all reposts of user {user.username}!")
+        else:
+            logger.error("Please provide a download type...")
+            sys.exit(1)
     else:
         logger.error(f"Unknown item type {item.kind}")
         sys.exit(1)
@@ -793,6 +793,11 @@ def download_playlist(
         "tracknumber_total": playlist.track_count,
     }
 
+    interval_start, interval_stop = kwargs.get("playlist_interval",(1,500))
+
+    if interval_start > playlist.track_count:
+        return
+
     if not kwargs.get("no_playlist_folder"):
         if not os.path.exists(playlist_name):
             os.makedirs(playlist_name)
@@ -800,12 +805,12 @@ def download_playlist(
 
     try:
         n = kwargs.get("n")
-        if n is not None:  # Order by creation date and get the n lasts tracks
+        if n:  # Order by creation date
             playlist.tracks = tuple(
-                sorted(playlist.tracks, key=lambda track: track.id, reverse=True)[: int(n)],
+                sorted(playlist.tracks, key=lambda track: track.id, reverse=True),
             )
-            kwargs["playlist_offset"] = 0
         s = kwargs.get("sync")
+        #TODO
         if s:
             if os.path.isfile(s):
                 playlist.tracks = sync(client, playlist, playlist_info, kwargs)
@@ -813,13 +818,11 @@ def download_playlist(
                 logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
                 sys.exit(1)
 
-        start, stop = kwargs.get("playlist_interval")
-
         tracknumber_digits = len(str(len(playlist.tracks)))
         for counter, track in itertools.islice(
             enumerate(playlist.tracks, 1),
-            start-1,
-            stop
+            interval_start-1,
+            interval_stop
         ):
             logger.debug(track)
             logger.info(f"Track n°{counter}")
