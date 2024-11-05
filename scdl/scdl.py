@@ -11,7 +11,6 @@ Usage:
     [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
     [--add-description]
 
-
     scdl -h | --help
     scdl --version
 
@@ -21,10 +20,10 @@ Options:
     --version                       Show version
     -l [url]                        URL can be track/playlist/user
     -s [search_query]               Search for a track/playlist/user and use the first result
-    -n                              Sort the tracks of a playlist according to the
-                                    creation date in descending order
-    -I [interval]                   Download a subset of the query results
-                                    Format: [start index, end index]
+    -n                              Sort the tracks of a playlist according to the creation date
+                                    in descending order
+    -I [interval]                   Download a subset of a playlist/user's uploads/user's favorites/...
+                                    Format: [start index,end index]
                                     Bounds are inclusive.
                                     Either bound can be omitted to represent a left/right
                                     unbounded interval.
@@ -252,6 +251,7 @@ def handle_exception(
 
 
 sys.excepthook = handle_exception
+
 
 file_lock_dirs: List[pathlib.Path] = []
 
@@ -494,7 +494,7 @@ def validate_interval(interval: str) -> (int, int):
     if search_result is not None:
         start = int(search_result.group(1) or 1)
         end = int(search_result.group(2) or sys.maxsize)
-        if start < end:
+        if start <= end:
             return start, end
 
     logger.error("Interval is not valid")
@@ -786,6 +786,12 @@ def download_playlist(
         "tracknumber_total": playlist.track_count,
     }
 
+    n = kwargs.get("n")
+    if n:  # Order by creation date
+        playlist.tracks = tuple(
+            sorted(playlist.tracks, key=lambda track: track.id, reverse=True),
+        )
+
     interval_start, interval_stop = kwargs.get("playlist_interval", (1, 500))
 
     if interval_start > playlist.track_count:
@@ -801,11 +807,6 @@ def download_playlist(
         os.chdir(playlist_name)
 
     try:
-        n = kwargs.get("n")
-        if n:  # Order by creation date
-            playlist.tracks = tuple(
-                sorted(playlist.tracks, key=lambda track: track.id, reverse=True),
-            )
         s = kwargs.get("sync")
         if s:
             if os.path.isfile(s):
