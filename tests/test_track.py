@@ -107,7 +107,7 @@ def test_m4a(tmp_path: Path) -> None:
         tmp_path,
         "track.m4a",
         "Wan Bushi - Eurodance Vibes (part 1+2+3)",
-        "7x11x13",
+        "Wan Bushi",
         "Electronic",
         None,
     )

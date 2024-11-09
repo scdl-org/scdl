@@ -28,6 +28,7 @@ setup(
         "soundcloud-v2>=1.5.2",
         "filelock>=3.0.0",
         "typing_extensions; python_version < '3.11'",
+        "yt-dlp>=2024.11.4",
     ],
     extras_require={
         "dev": [

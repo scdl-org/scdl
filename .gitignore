@@ -4,6 +4,9 @@ dist/
 *.egg-info/
 __pycache__/
 *.mp3
+*.opus
+*.m4a
+*.flac
 .vscode
 .venv
 .env

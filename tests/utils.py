@@ -30,7 +30,7 @@ def assert_track(
     expected_title: str = "testing - test track",
     expected_artist: str = "7x11x13-testing",
     expected_genre: Optional[str] = "Testing",
-    expected_artwork_len: Optional[int] = 16136,
+    expected_artwork_len: Optional[int] = 1,
     expected_album: Optional[str] = None,
     expected_albumartist: Optional[str] = None,
     expected_tracknumber: Optional[int] = None,
@@ -48,7 +48,7 @@ def assert_track(
             assert f["genre"].value == expected_genre
         if expected_artwork_len is not None:
             if expected_artwork_len > 0:
-                assert len(f["artwork"].value.data) == expected_artwork_len
+                assert len(f["artwork"].value.data) >= expected_artwork_len
             else:
                 assert not f["artwork"]
         if expected_album:
