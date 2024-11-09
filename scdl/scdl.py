@@ -525,8 +525,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
         raise NotImplementedError
 
     if scdl_args["flac"]:
-        params["--extract-audio"] = True
-        params["--audio-format"] = "alac>flac/wav>flac"
+        params["--recode-video"] = "aiff>flac/alac>flac/wav>flac"
 
     if scdl_args["no_album_tag"]:
         # TODO
