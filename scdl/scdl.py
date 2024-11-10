@@ -479,6 +479,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     params["--remux-video"] = "aac>m4a"
     params["--extractor-args"] = "soundcloud:formats=*_aac,*_mp3"  # ignore opus by default
     params["--use-extractors"] = "soundcloud"
+    params["--postprocessor-args"] = "Metadata:-vn"
 
     if scdl_args["n"]:
         # TODO
