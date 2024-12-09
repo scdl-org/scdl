@@ -1021,7 +1021,7 @@ def download_hls(
     if not kwargs.get("onlymp3"):
         if kwargs.get("opus"):
             valid_presets = [("opus", ".opus"), *valid_presets]
-        valid_presets = [("aac", ".m4a"), *valid_presets]
+        valid_presets = [("aac_256k", ".m4a"), ("aac", ".m4a"), *valid_presets]
 
     transcoding = None
     ext = None
@@ -1052,7 +1052,7 @@ def download_hls(
         track,
         url,
         preset_name
-        if preset_name != "aac"
+        if not preset_name.startswith("aac")
         else "ipod",  # We are encoding aac files to m4a, so an ipod codec is used
         True,  # no need to fully re-encode the whole hls stream
         filename,
