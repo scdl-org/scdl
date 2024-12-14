@@ -110,7 +110,6 @@ if typing.TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addFilter(utils.ColorizeFilter())
 
 
 class SCDLArgs(TypedDict):
@@ -440,7 +439,7 @@ def build_ytdl_output_filename(scdl_args: SCDLArgs, is_playlist: bool) -> str:
 
 
 def build_ytdl_format_specifier(scdl_args: SCDLArgs) -> str:
-    fmt = "ba"
+    fmt = "ba*"
     if scdl_args["min_size"]:
         fmt += f"[filesize_approx>={scdl_args['min_size']}]"
     if scdl_args["max_size"]:
@@ -479,7 +478,6 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     params["--remux-video"] = "aac>m4a"
     params["--extractor-args"] = "soundcloud:formats=*_aac,*_mp3"  # ignore opus by default
     params["--use-extractors"] = "soundcloud"
-    params["--postprocessor-args"] = "Metadata:-vn"
 
     if scdl_args["n"]:
         # TODO
@@ -533,8 +531,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
         raise NotImplementedError
 
     if not scdl_args["original_art"]:
-        # not possible - see https://github.com/yt-dlp/yt-dlp/issues/237
-        pass
+        params["--thumbnail-id"] = "t500x500"
 
     if scdl_args["original_metadata"]:
         params["--embed-metadata"] = False
@@ -542,16 +539,15 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     if scdl_args["name_format"] == "-":
         params["--embed-thumbnail"] = False
 
-    if scdl_args["client_id"]:
-        # TODO
-        pass
-
     if scdl_args["auth_token"]:
         params["--username"] = "oauth"
         params["--password"] = scdl_args["auth_token"]
 
+    # TODO
     if scdl_args["overwrite"]:
         params["--force-overwrites"] = True
+    else:
+        params["--no-overwrites"] = True
 
     if scdl_args["no_playlist"]:
         # TODO

@@ -2,33 +2,9 @@
 https://github.com/davidfischer-ch/pytoolbox/blob/master/pytoolbox/logging.py
 """
 
-import logging
-from types import MappingProxyType
 
 import yt_dlp
 import yt_dlp.options
-from termcolor import colored
-
-__all__ = ("ColorizeFilter",)
-
-
-class ColorizeFilter(logging.Filter):
-    COLOR_BY_LEVEL = MappingProxyType(
-        {
-            logging.DEBUG: "blue",
-            logging.WARNING: "yellow",
-            logging.ERROR: "red",
-            logging.INFO: "white",
-        },
-    )
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.raw_msg = record.msg
-        color = self.COLOR_BY_LEVEL.get(record.levelno)
-        if color:
-            record.msg = colored(record.msg, color)  # type: ignore[arg-type]
-        return True
-
 
 create_parser = yt_dlp.options.create_parser
 
