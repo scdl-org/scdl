@@ -12,7 +12,7 @@ dependencies = [
     "filelock>=3.16.1",
     "mutagen>=1.47.0",
     "soundcloud-v2>=1.6.0",
-    "yt-dlp>=2024.12.13",
+    "yt-dlp>=2024.12.23",
 ]
 classifiers = [
     "Programming Language :: Python",

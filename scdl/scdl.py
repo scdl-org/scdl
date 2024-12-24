@@ -104,6 +104,7 @@ from soundcloud import (
 from yt_dlp import YoutubeDL
 
 from scdl import __version__, utils
+from scdl.patches.mutagen_postprocessor import MutagenPostProcessorError, MutagenPP
 
 if typing.TYPE_CHECKING:
     from types import TracebackType
@@ -439,7 +440,7 @@ def build_ytdl_output_filename(scdl_args: SCDLArgs, is_playlist: bool) -> str:
 
 
 def build_ytdl_format_specifier(scdl_args: SCDLArgs) -> str:
-    fmt = "ba*"
+    fmt = "ba"
     if scdl_args["min_size"]:
         fmt += f"[filesize_approx>={scdl_args['min_size']}]"
     if scdl_args["max_size"]:
@@ -478,6 +479,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     params["--remux-video"] = "aac>m4a"
     params["--extractor-args"] = "soundcloud:formats=*_aac,*_mp3"  # ignore opus by default
     params["--use-extractors"] = "soundcloud"
+    postprocessors = []
 
     if scdl_args["n"]:
         # TODO
@@ -533,11 +535,16 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     if not scdl_args["original_art"]:
         params["--thumbnail-id"] = "t500x500"
 
+    if scdl_args["name_format"] == "-":
+        # https://github.com/yt-dlp/yt-dlp/issues/126
+        params["--embed-metadata"] = False
+        params["--embed-thumbnail"] = False
+
     if scdl_args["original_metadata"]:
         params["--embed-metadata"] = False
-
-    if scdl_args["name_format"] == "-":
         params["--embed-thumbnail"] = False
+    else:
+        postprocessors.append(MutagenPP())
 
     if scdl_args["auth_token"]:
         params["--username"] = "oauth"
@@ -570,13 +577,21 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
             argv.append(param)
             argv.append(value)
 
-    return url, utils.cli_to_api(argv)
+    return url, utils.cli_to_api(argv), postprocessors
 
 
 def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
-    url, params = build_ytdl_params(client, scdl_args)
+    url, params, postprocessors = build_ytdl_params(client, scdl_args)
+    # we handle this with custom MutagenPP for now
+    params["postprocessors"] = [
+        pp
+        for pp in params["postprocessors"]
+        if pp["key"] not in ("EmbedThumbnail", "FFmpegMetadata")
+    ]
     with YoutubeDL(params) as ydl:
         ydl.cache.store("soundcloud", "client_id", client.client_id)
+        for pp in postprocessors:
+            ydl.add_post_processor(pp)
         ydl.download(url)
 
 
