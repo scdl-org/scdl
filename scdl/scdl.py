@@ -478,7 +478,11 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     params["--embed-thumbnail"] = True
     params["--remux-video"] = "aac>m4a"
     params["--extractor-args"] = "soundcloud:formats=*_aac,*_mp3"  # ignore opus by default
-    params["--use-extractors"] = "soundcloud"
+    params["--use-extractors"] = "soundcloud.*"
+    params["--parse-metadata"] = [
+        "%(playlist)s:%(meta_album)s",
+        "%(playlist_uploader)s:%(meta_album_artist)s",
+    ]
     postprocessors = []
 
     if scdl_args["n"]:
@@ -500,7 +504,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     params["--output"] = build_ytdl_output_filename(scdl_args, is_playlist)
 
     if scdl_args["extract_artist"]:
-        params["--parse-metadata"] = r"title:(?P<artist>)\s*[-−–—―]\s(?P<title>)"  # noqa: RUF001
+        params["--parse-metadata"].append(r"title:(?P<meta_artist>)\s*[-−–—―]\s+(?P<meta_title>)")  # noqa: RUF001
 
     if scdl_args["debug"]:
         params["--verbose"] = True
@@ -573,6 +577,10 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
             continue
         if value is True:
             argv.append(param)
+        elif isinstance(value, list):
+            for v in value:
+                argv.append(param)
+                argv.append(v)
         else:
             argv.append(param)
             argv.append(value)

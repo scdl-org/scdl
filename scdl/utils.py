@@ -1,7 +1,6 @@
 """Copied from
-https://github.com/davidfischer-ch/pytoolbox/blob/master/pytoolbox/logging.py
+https://github.com/yt-dlp/yt-dlp/blob/0b6b7742c2e7f2a1fcb0b54ef3dd484bab404b3f/devscripts/cli_to_api.py
 """
-
 
 import yt_dlp
 import yt_dlp.options
