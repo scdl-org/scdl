@@ -81,10 +81,10 @@ import configparser
 import contextlib
 import logging
 import os
+import posixpath
 import sys
 import traceback
 import typing
-import urllib.parse
 from pathlib import Path
 from typing import NoReturn, TypedDict
 
@@ -456,20 +456,24 @@ def build_ytdl_format_specifier(scdl_args: SCDLArgs) -> str:
 
 def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dict]:
     # return download url, and ytdl params
+
     url = scdl_args["l"]
+    print(url)
     if scdl_args["a"]:
         pass
     elif scdl_args["t"]:
-        url = urllib.parse.urljoin(url, "tracks")
+        url = posixpath.join(url, "tracks")
     elif scdl_args["f"]:
-        url = urllib.parse.urljoin(url, "likes")
+        url = posixpath.join(url, "likes")
     elif scdl_args["C"]:
         # TODO
         raise NotImplementedError
     elif scdl_args["p"]:
-        url = urllib.parse.urljoin(url, "sets")
+        url = posixpath.join(url, "sets")
     elif scdl_args["r"]:
-        url = urllib.parse.urljoin(url, "reposts")
+        url = posixpath.join(url, "reposts")
+
+    print(url)
 
     params: dict = {}
 
