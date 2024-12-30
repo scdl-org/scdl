@@ -482,6 +482,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     params["--parse-metadata"] = [
         "%(playlist)s:%(meta_album)s",
         "%(playlist_uploader)s:%(meta_album_artist)s",
+        "%(playlist_index)s:%(meta_track)s",
     ]
     postprocessors = []
 
