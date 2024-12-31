@@ -88,10 +88,7 @@ import typing
 from pathlib import Path
 from typing import NoReturn, TypedDict
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
-    from typing import NotRequired
+from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
 
 import filelock
 from docopt import docopt
@@ -142,7 +139,6 @@ class SCDLArgs(TypedDict):
     no_playlist: bool
     no_playlist_folder: bool
     o: int | None
-    offset: NotRequired[int]
     only_original: bool
     onlymp3: bool
     opus: bool
@@ -153,7 +149,6 @@ class SCDLArgs(TypedDict):
     p: bool
     path: Path
     playlist_name_format: str
-    playlist_offset: NotRequired[int]
     r: bool
     remove: bool
     strict_playlist: bool
@@ -301,13 +296,13 @@ def main() -> None:
 
     if arguments["-o"] is not None:
         try:
-            arguments["--offset"] = int(arguments["-o"]) - 1
-            if arguments["--offset"] < 0:
+            arguments["-o"] = int(arguments["-o"])
+            if arguments["-o"] < 1:
                 raise ValueError
         except Exception:
             logger.error("Offset should be a positive integer...")
             sys.exit(1)
-        logger.debug("offset: %d", arguments["--offset"])
+        logger.debug("offset: %d", arguments["-o"])
 
     if not arguments["--name-format"]:
         arguments["--name-format"] = config["scdl"]["name_format"]
@@ -413,7 +408,7 @@ def convert_scdl_name_format(s: str) -> str:
     return s
 
 
-def build_ytdl_output_filename(scdl_args: SCDLArgs, is_playlist: bool) -> str:
+def build_ytdl_output_filename(scdl_args: SCDLArgs, in_playlist: bool) -> str:
     if scdl_args["original_name"]:
         raise NotImplementedError
 
@@ -421,7 +416,7 @@ def build_ytdl_output_filename(scdl_args: SCDLArgs, is_playlist: bool) -> str:
         return "-"
 
     playlist_format = "%(playlist|)s"
-    if is_playlist:
+    if in_playlist:
         track_format = convert_scdl_name_format(scdl_args["playlist_name_format"])
     else:
         track_format = convert_scdl_name_format(scdl_args["name_format"])
@@ -434,7 +429,7 @@ def build_ytdl_output_filename(scdl_args: SCDLArgs, is_playlist: bool) -> str:
             track_format = "%(timestamp)s_" + track_format
 
     base = scdl_args["path"]
-    if scdl_args["no_playlist_folder"]:
+    if scdl_args["no_playlist_folder"] or not in_playlist:
         return (base / track_format).as_posix()
     return (base / playlist_format / track_format).as_posix()
 
@@ -454,11 +449,11 @@ def build_ytdl_format_specifier(scdl_args: SCDLArgs) -> str:
     return fmt
 
 
-def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dict]:
-    # return download url, and ytdl params
+def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
+    # return download url, ytdl params, and postprocessors
 
     url = scdl_args["l"]
-    print(url)
+
     if scdl_args["a"]:
         pass
     elif scdl_args["t"]:
@@ -473,8 +468,6 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
     elif scdl_args["r"]:
         url = posixpath.join(url, "reposts")
 
-    print(url)
-
     params: dict = {}
 
     # default params
@@ -488,7 +481,16 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
         "%(playlist_uploader)s:%(meta_album_artist)s",
         "%(playlist_index)s:%(meta_track)s",
     ]
-    postprocessors = []
+    params["--output-na-placeholder"] = ""
+    postprocessors = [
+        (
+            OuttmplPP(
+                build_ytdl_output_filename(scdl_args, False),
+                build_ytdl_output_filename(scdl_args, True),
+            ),
+            "pre_process",
+        )
+    ]
 
     if scdl_args["n"]:
         # TODO
@@ -503,10 +505,6 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
 
     if scdl_args["o"]:
         params["--playlist-items"] = f"{scdl_args["o"]}:"
-
-    resource = client.resolve(url)
-    is_playlist = isinstance(resource, AlbumPlaylist)
-    params["--output"] = build_ytdl_output_filename(scdl_args, is_playlist)
 
     if scdl_args["extract_artist"]:
         params["--parse-metadata"].append(r"title:(?P<meta_artist>)\s*[-−–—―]\s+(?P<meta_title>)")  # noqa: RUF001
@@ -545,6 +543,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
         params["--thumbnail-id"] = "t500x500"
 
     if scdl_args["name_format"] == "-":
+        # https://github.com/yt-dlp/yt-dlp/issues/8815
         # https://github.com/yt-dlp/yt-dlp/issues/126
         params["--embed-metadata"] = False
         params["--embed-thumbnail"] = False
@@ -553,7 +552,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
         params["--embed-metadata"] = False
         params["--embed-thumbnail"] = False
     else:
-        postprocessors.append(MutagenPP())
+        postprocessors.append((MutagenPP(), "post_process"))
 
     if scdl_args["auth_token"]:
         params["--username"] = "oauth"
@@ -594,7 +593,7 @@ def build_ytdl_params(client: SoundCloud, scdl_args: SCDLArgs) -> tuple[str, dic
 
 
 def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
-    url, params, postprocessors = build_ytdl_params(client, scdl_args)
+    url, params, postprocessors = build_ytdl_params(scdl_args)
     # we handle this with custom MutagenPP for now
     params["postprocessors"] = [
         pp
@@ -603,8 +602,9 @@ def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
     ]
     with YoutubeDL(params) as ydl:
         ydl.cache.store("soundcloud", "client_id", client.client_id)
-        for pp in postprocessors:
-            ydl.add_post_processor(pp)
+        for pp, when in postprocessors:
+            ydl.add_post_processor(pp, when)
+
         ydl.download(url)
 
 
