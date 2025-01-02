@@ -481,6 +481,7 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
     params["--extractor-args"] = "soundcloud:formats=*_aac,*_mp3"  # ignore opus by default
     params["--use-extractors"] = "soundcloud.*"
     params["--output-na-placeholder"] = ""
+    params["--parse-metadata"] = []
     postprocessors = [
         (
             OuttmplPP(
@@ -509,7 +510,9 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
         params["--playlist-items"] = f"{scdl_args["o"]}:"
 
     if scdl_args["extract_artist"]:
-        params["--parse-metadata"].append(r"title:(?P<meta_artist>)\s*[-−–—―]\s+(?P<meta_title>)")  # noqa: RUF001
+        params["--parse-metadata"] += [
+            r"%(title)s:(?P<artist>.*?)\s*[-−–—―]\s*(?P<title>.*)",  # noqa: RUF001
+        ]
 
     if scdl_args["debug"]:
         params["--verbose"] = True
@@ -538,7 +541,7 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
         params["--recode-video"] = "aiff>flac/alac>flac/wav>flac"
 
     if not scdl_args["no_album_tag"]:
-        params["--parse-metadata"] = [
+        params["--parse-metadata"] += [
             "%(playlist)s:%(meta_album)s",
             "%(playlist_uploader)s:%(meta_album_artist)s",
             "%(playlist_index)s:%(meta_track)s",
