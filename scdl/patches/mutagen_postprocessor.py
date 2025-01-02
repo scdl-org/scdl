@@ -3,8 +3,8 @@ import base64
 import collections
 import functools
 import os
-from pprint import pprint
 import re
+from typing import ClassVar
 
 import mutagen
 from mutagen import (
@@ -34,7 +34,7 @@ class MutagenPostProcessorError(PostProcessingError):
 
 class MutagenPP(PostProcessor):
     _MUTAGEN_SUPPORTED_EXTS = ("alac", "aiff", "flac", "mp3", "m4a", "ogg", "opus", "vorbis", "wav")
-    _VORBIS_METADATA = {
+    _VORBIS_METADATA: ClassVar[dict[str, str]] = {
         "title": "title",
         "artist": "artist",
         "genre": "genre",
@@ -45,7 +45,7 @@ class MutagenPP(PostProcessor):
         "tracknumber": "track",
         "WWWAUDIOFILE": "purl",  # https://getmusicbee.com/forum/index.php?topic=39759.0
     }
-    _ID3_METADATA = {
+    _ID3_METADATA: ClassVar[dict[str, str]] = {
         "TIT2": "title",
         "TPE1": "artist",
         "COMM": "description",
@@ -57,7 +57,7 @@ class MutagenPP(PostProcessor):
         "TCOM": "composer",
         "TPOS": "disc",
     }
-    _MP4_METADATA = {
+    _MP4_METADATA: ClassVar[dict[str, str]] = {
         "\251ART": "artist",
         "\251nam": "title",
         "\251gen": "genre",
@@ -133,7 +133,7 @@ class MutagenPP(PostProcessor):
         return metadata
 
     @functools.singledispatchmethod
-    def _assemble_metadata(self, file: FileType, meta: dict) -> None:
+    def _assemble_metadata(self, file: FileType, meta: dict) -> None:  # noqa: ARG002
         raise MutagenPostProcessorError(
             f"Filetype {file.__class__.__name__} is not currently supported"
         )
@@ -251,7 +251,8 @@ class MutagenPP(PostProcessor):
         if not type_:
             self.report_warning("Could not determine thumbnail image type")
             return None
-        elif type_ not in {"jpeg", "png"}:
+
+        if type_ not in {"jpeg", "png"}:
             self.report_warning(f"Incompatible thumbnail image type: {type_}")
             return None
 

@@ -1,2 +1,1 @@
-from . import thumbnail_selection
-from . import playlist_metadata
+from . import playlist_metadata, thumbnail_selection

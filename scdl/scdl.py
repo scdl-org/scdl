@@ -87,9 +87,6 @@ import typing
 from pathlib import Path
 from typing import NoReturn, TypedDict
 
-from scdl.patches.original_filename_preprocessor import OriginalFilenamePP
-from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
-
 import filelock
 from docopt import docopt
 from soundcloud import (
@@ -101,7 +98,9 @@ from soundcloud import (
 from yt_dlp import YoutubeDL
 
 from scdl import __version__, utils
-from scdl.patches.mutagen_postprocessor import MutagenPostProcessorError, MutagenPP
+from scdl.patches.mutagen_postprocessor import MutagenPP
+from scdl.patches.original_filename_preprocessor import OriginalFilenamePP
+from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
 
 if typing.TYPE_CHECKING:
     from types import TracebackType
@@ -408,7 +407,7 @@ def convert_scdl_name_format(s: str) -> str:
 
 
 def build_ytdl_output_filename(
-    scdl_args: SCDLArgs, in_playlist: bool, force_suffix: str = None
+    scdl_args: SCDLArgs, in_playlist: bool, force_suffix: str | None = None
 ) -> str:
     if scdl_args["name_format"] == "-":
         return "-"
@@ -504,7 +503,7 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
 
     # if not scdl_args["force_metadata"]:
     #     https://github.com/yt-dlp/yt-dlp/issues/1467
-    #     params["--no-post-overwrites"] = True
+    #     params["--no-post-overwrites"] = True  # noqa: ERA001
 
     if scdl_args["o"]:
         params["--playlist-items"] = f"{scdl_args["o"]}:"

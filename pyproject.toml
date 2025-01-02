@@ -54,6 +54,7 @@ line-length = 100
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "ANN",
     "C90", "D",
     "S", "BLE", "FBT", "A", "EM", "FA", "G", "SLF", "PTH",
     "PLR", "TRY",

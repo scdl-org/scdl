@@ -1,5 +1,5 @@
 # https://github.com/yt-dlp/yt-dlp/pull/11945
-from yt_dlp.extractor.soundcloud import SoundcloudPlaylistBaseIE, SoundcloudIE
+from yt_dlp.extractor.soundcloud import SoundcloudIE, SoundcloudPlaylistBaseIE
 from yt_dlp.utils import str_or_none, traverse_obj
 
 
