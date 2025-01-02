@@ -1310,6 +1310,16 @@ def build_ffmpeg_encoding_args(
                 "0.1",
             ]
 
+    reconnect_args = [
+        ["-reconnect", "1"],
+        ["-reconnect_streamed", "1"],
+        ["-reconnect_max_retries", "10"],
+        ["-reconnect_delay_total_max", "60"],
+    ]
+    for rargs in reconnect_args:
+        if rargs[0] in supported:
+            ffmpeg_args += rargs
+
     ffmpeg_args += [
         # User provided arguments
         *args,
