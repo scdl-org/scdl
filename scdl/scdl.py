@@ -408,7 +408,9 @@ def convert_scdl_name_format(s: str) -> str:
     return s
 
 
-def build_ytdl_output_filename(scdl_args: SCDLArgs, in_playlist: bool) -> str:
+def build_ytdl_output_filename(
+    scdl_args: SCDLArgs, in_playlist: bool, force_suffix: str = None
+) -> str:
     if scdl_args["original_name"]:
         raise NotImplementedError
 
@@ -430,8 +432,14 @@ def build_ytdl_output_filename(scdl_args: SCDLArgs, in_playlist: bool) -> str:
 
     base = scdl_args["path"]
     if scdl_args["no_playlist_folder"] or not in_playlist:
-        return (base / track_format).as_posix()
-    return (base / playlist_format / track_format).as_posix()
+        ret = base / track_format
+    else:
+        ret = base / playlist_format / track_format
+
+    if force_suffix:
+        ret = ret.with_suffix(force_suffix)
+
+    return ret.as_posix()
 
 
 def build_ytdl_format_specifier(scdl_args: SCDLArgs) -> str:
@@ -569,8 +577,10 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
         raise NotImplementedError
 
     if scdl_args["add_description"]:
-        # TODO
-        params["--write-description"] = True
+        params["--print-to-file"] = (
+            "description",
+            build_ytdl_output_filename(scdl_args, False, ".txt"),
+        )
 
     if scdl_args["opus"]:
         params["--extractor-args"] = "soundcloud:formats=*_aac,*_opus,*_mp3"
@@ -585,6 +595,9 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
             for v in value:
                 argv.append(param)
                 argv.append(v)
+        elif isinstance(value, tuple):
+            argv.append(param)
+            argv += list(value)
         else:
             argv.append(param)
             argv.append(value)
