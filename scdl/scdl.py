@@ -502,9 +502,9 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
     if not scdl_args["c"]:
         params["--break-on-existing"] = True
 
-    if not scdl_args["force_metadata"]:
-        # TODO
-        pass
+    # if not scdl_args["force_metadata"]:
+    #     https://github.com/yt-dlp/yt-dlp/issues/1467
+    #     params["--no-post-overwrites"] = True
 
     if scdl_args["o"]:
         params["--playlist-items"] = f"{scdl_args["o"]}:"
@@ -563,17 +563,14 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
         params["--embed-metadata"] = False
         params["--embed-thumbnail"] = False
     else:
-        postprocessors.append((MutagenPP(), "post_process"))
+        postprocessors.append((MutagenPP(scdl_args["force_metadata"]), "post_process"))
 
     if scdl_args["auth_token"]:
         params["--username"] = "oauth"
         params["--password"] = scdl_args["auth_token"]
 
-    # TODO
     if scdl_args["overwrite"]:
         params["--force-overwrites"] = True
-    else:
-        params["--no-overwrites"] = True
 
     if scdl_args["no_playlist"]:
         # TODO

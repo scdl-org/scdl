@@ -3,6 +3,7 @@ import base64
 import collections
 import functools
 import os
+from pprint import pprint
 import re
 
 import mutagen
@@ -70,6 +71,10 @@ class MutagenPP(PostProcessor):
         "egid": "episode_id",
         "tven": "episode_sort",
     }
+
+    def __init__(self, post_overwrites: bool, downloader=None):
+        super().__init__(downloader)
+        self._post_overwrites = post_overwrites
 
     def _get_flac_pic(self, thumbnail: dict) -> flac.Picture:
         pic = flac.Picture()
@@ -253,6 +258,9 @@ class MutagenPP(PostProcessor):
         return {"data": thumb_data, "type": type_}
 
     def run(self, info: dict):
+        if not info["__real_download"] and not self._post_overwrites:
+            return [], info
+
         filename = info["filepath"]
         metadata = self._get_metadata_dict(info)["common"]
         thumbnail = self._get_thumbnail(info)

@@ -1,4 +1,4 @@
-# https://github.com/yt-dlp/yt-dlp/pull/11817 workaround
+# https://github.com/yt-dlp/yt-dlp/issues/11583 workaround
 from yt_dlp.postprocessor.common import PostProcessor
 
 

@@ -216,6 +216,14 @@ def test_force_metadata(tmp_path: Path) -> None:
         "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "track",
+    )
+    assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", 0)
+
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/violinbutterflynet/original",
+        "--name-format",
+        "track",
         "--force-metadata",
     )
     assert r.returncode == 0
@@ -266,10 +274,10 @@ def test_maxsize(tmp_path: Path) -> None:
         "-l",
         "https://soundcloud.com/one-thousand-and-one/test-track",
         "--onlymp3",
-        "--max-size=10kb",
+        "--max-size=10k",
     )
-    assert r.returncode == 1
-    assert "not within --min-size=0 and --max-size=10240" in r.stderr
+    assert r.returncode == 0
+    assert "format is not available" in r.stderr
 
 
 def test_minsize(tmp_path: Path) -> None:
@@ -278,10 +286,10 @@ def test_minsize(tmp_path: Path) -> None:
         "-l",
         "https://soundcloud.com/one-thousand-and-one/test-track",
         "--onlymp3",
-        "--min-size=1mb",
+        "--min-size=1m",
     )
-    assert r.returncode == 1
-    assert f"not within --min-size={1024**2} and --max-size={math.inf}" in r.stderr
+    assert r.returncode == 0
+    assert "format is not available" in r.stderr
 
 
 def test_only_original(tmp_path: Path) -> None:
@@ -291,7 +299,7 @@ def test_only_original(tmp_path: Path) -> None:
         "https://soundcloud.com/one-thousand-and-one/test-track-2/s-fgLQFAzNIMP",
         "--only-original",
     )
-    assert r.returncode == 1
+    assert r.returncode == 0
     assert "Requested format is not available" in r.stderr
 
 
@@ -313,8 +321,8 @@ def test_overwrite(tmp_path: Path) -> None:
         "track",
         "--onlymp3",
     )
-    assert r.returncode == 1
-    assert "already exists" in r.stderr
+    assert r.returncode == 0
+    assert "has already been downloaded" in r.stdout
 
     r = call_scdl_with_auth(
         "-l",
@@ -325,6 +333,7 @@ def test_overwrite(tmp_path: Path) -> None:
         "--overwrite",
     )
     assert r.returncode == 0
+    assert "Deleting existing file" in r.stdout
 
 
 def test_path(tmp_path: Path) -> None:
