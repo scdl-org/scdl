@@ -484,11 +484,6 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
     params["--remux-video"] = "aac>m4a"
     params["--extractor-args"] = "soundcloud:formats=*_aac,*_mp3"  # ignore opus by default
     params["--use-extractors"] = "soundcloud.*"
-    params["--parse-metadata"] = [
-        "%(playlist)s:%(meta_album)s",
-        "%(playlist_uploader)s:%(meta_album_artist)s",
-        "%(playlist_index)s:%(meta_track)s",
-    ]
     params["--output-na-placeholder"] = ""
     postprocessors = [
         (
@@ -543,9 +538,12 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
     if scdl_args["flac"]:
         params["--recode-video"] = "aiff>flac/alac>flac/wav>flac"
 
-    if scdl_args["no_album_tag"]:
-        # TODO
-        raise NotImplementedError
+    if not scdl_args["no_album_tag"]:
+        params["--parse-metadata"] = [
+            "%(playlist)s:%(meta_album)s",
+            "%(playlist_uploader)s:%(meta_album_artist)s",
+            "%(playlist_index)s:%(meta_track)s",
+        ]
 
     if not scdl_args["original_art"]:
         params["--thumbnail-id"] = "t500x500"
