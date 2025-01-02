@@ -612,6 +612,11 @@ def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
         if pp["key"] not in ("EmbedThumbnail", "FFmpegMetadata")
     ]
     with YoutubeDL(params) as ydl:
+        # handle old version archive files
+        for id_ in ydl.archive:
+            if not id_.startswith("soundcloud"):
+                ydl.archive.discard(id_)
+                ydl.archive.add(f"soundcloud {id_}")
         ydl.cache.store("soundcloud", "client_id", client.client_id)
         for pp, when in postprocessors:
             ydl.add_post_processor(pp, when)
