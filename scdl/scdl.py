@@ -87,6 +87,7 @@ import typing
 from pathlib import Path
 from typing import NoReturn, TypedDict
 
+from scdl.patches.original_filename_postprocessor import OriginalFilenamePP
 from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
 
 import filelock
@@ -409,9 +410,6 @@ def convert_scdl_name_format(s: str) -> str:
 def build_ytdl_output_filename(
     scdl_args: SCDLArgs, in_playlist: bool, force_suffix: str = None
 ) -> str:
-    if scdl_args["original_name"]:
-        raise NotImplementedError
-
     if scdl_args["name_format"] == "-":
         return "-"
 
@@ -542,6 +540,9 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
             "%(playlist_uploader)s:%(meta_album_artist)s",
             "%(playlist_index)s:%(meta_track)s",
         ]
+
+    if scdl_args["original_name"] and not scdl_args["no_original"]:
+        postprocessors.append((OriginalFilenamePP(), "pre_process"))
 
     if not scdl_args["original_art"]:
         params["--thumbnail-id"] = "t500x500"

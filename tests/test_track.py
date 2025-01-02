@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
+from tests.utils import assert_track, call_scdl_with_auth
 
 
 @pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
@@ -33,7 +33,8 @@ def test_original_to_stdout(tmp_path: Path) -> None:
     with open("track.wav", "wb") as f:
         assert isinstance(r.stdout, bytes)
         f.write(r.stdout)
-    assert_track(tmp_path, "track.wav", "copy", "saves", None)
+    # https://github.com/yt-dlp/yt-dlp/issues/8815
+    assert_track(tmp_path, "track.wav", "copy", "saves", None, check_metadata=False)
 
 
 def test_mp3_to_stdout(tmp_path: Path) -> None:
@@ -52,7 +53,8 @@ def test_mp3_to_stdout(tmp_path: Path) -> None:
         assert isinstance(r.stdout, bytes)
         f.write(r.stdout)
 
-    assert_track(tmp_path, "track.mp3")
+    # https://github.com/yt-dlp/yt-dlp/issues/8815
+    assert_track(tmp_path, "track.mp3", check_metadata=False)
 
 
 @pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
@@ -72,7 +74,8 @@ def test_flac_to_stdout(tmp_path: Path) -> None:
         f.write(r.stdout)
 
     assert r.returncode == 0
-    assert_track(tmp_path, "track.flac", "copy", "saves", None)
+    # https://github.com/yt-dlp/yt-dlp/issues/8815
+    assert_track(tmp_path, "track.flac", "copy", "saves", None, check_metadata=False)
 
 
 @pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
@@ -289,7 +292,7 @@ def test_only_original(tmp_path: Path) -> None:
         "--only-original",
     )
     assert r.returncode == 1
-    assert "does not have original file available" in r.stderr
+    assert "Requested format is not available" in r.stderr
 
 
 def test_overwrite(tmp_path: Path) -> None:
