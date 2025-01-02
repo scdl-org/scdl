@@ -4,7 +4,7 @@ Usage:
     scdl (-l <track_url> | -s <search_query> | me) [-a | -f | -C | -t | -p | -r]
     [-c | --force-metadata][-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error]
     [--path <path>][--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
-    [--max-size <size>][--remove][--no-album-tag][--no-playlist-folder]
+    [--max-size <size>][--no-album-tag][--no-playlist-folder]
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
     [--original-name][--original-metadata][--no-original][--only-original]
     [--name-format <format>][--strict-playlist][--playlist-name-format <format>]
@@ -49,7 +49,6 @@ Options:
                                     instead of making a playlist subfolder
     --onlymp3                       Download only mp3 files
     --path [path]                   Use a custom path for downloaded files
-    --remove                        Remove any files not downloaded from execution
     --sync [file]                   Compares an archive file to a playlist and downloads/removes
                                     any changed tracks
     --flac                          Convert original files to .flac. Only works if the original
@@ -150,7 +149,6 @@ class SCDLArgs(TypedDict):
     path: Path
     playlist_name_format: str
     r: bool
-    remove: bool
     strict_playlist: bool
     sync: str | None
     s: str | None

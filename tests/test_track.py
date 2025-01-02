@@ -338,30 +338,6 @@ def test_path(tmp_path: Path) -> None:
     assert_track(tmp_path, "track.mp3", check_metadata=False)
 
 
-def test_remove(tmp_path: Path) -> None:
-    os.chdir(tmp_path)
-    r = call_scdl_with_auth(
-        "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
-        "--name-format",
-        "track",
-        "--onlymp3",
-    )
-    assert r.returncode == 0
-    assert_track(tmp_path, "track.mp3", check_metadata=False)
-    r = call_scdl_with_auth(
-        "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track-2/s-fgLQFAzNIMP",
-        "--name-format",
-        "track2",
-        "--remove",
-        "--onlymp3",
-    )
-    assert r.returncode == 0
-    assert_track(tmp_path, "track2.mp3", check_metadata=False)
-    assert_not_track(tmp_path, "track.mp3")
-
-
 def test_download_archive(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
