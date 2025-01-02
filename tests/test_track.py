@@ -363,7 +363,7 @@ def test_download_archive(tmp_path: Path) -> None:
         "--download-archive=archive.txt",
     )
     assert r.returncode == 1
-    assert "already exists" in r.stderr
+    assert "already in the archive" in r.stderr
 
 
 def test_description_file(tmp_path: Path) -> None:

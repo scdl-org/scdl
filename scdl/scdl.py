@@ -495,8 +495,11 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
         # TODO
         raise NotImplementedError
 
-    if not scdl_args["c"] or scdl_args["strict_playlist"]:
+    if scdl_args["strict_playlist"]:
         params["--abort-on-error"] = True
+
+    if not scdl_args["c"]:
+        params["--break-on-existing"] = True
 
     if not scdl_args["force_metadata"]:
         # TODO
