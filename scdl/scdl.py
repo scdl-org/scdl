@@ -87,7 +87,7 @@ import typing
 from pathlib import Path
 from typing import NoReturn, TypedDict
 
-from scdl.patches.original_filename_postprocessor import OriginalFilenamePP
+from scdl.patches.original_filename_preprocessor import OriginalFilenamePP
 from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
 
 import filelock
