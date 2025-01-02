@@ -1,8 +1,10 @@
+# https://github.com/yt-dlp/yt-dlp/pull/11817
 import base64
 import collections
 import functools
 import os
 import re
+
 import mutagen
 from mutagen import (
     FileType,
@@ -20,10 +22,9 @@ from mutagen import (
     trueaudio,
     wave,
 )
-
 from yt_dlp.compat import imghdr
 from yt_dlp.postprocessor.common import PostProcessor
-from yt_dlp.utils import date_from_str, PostProcessingError, variadic
+from yt_dlp.utils import PostProcessingError, date_from_str, variadic
 
 
 class MutagenPostProcessorError(PostProcessingError):
@@ -272,6 +273,6 @@ class MutagenPP(PostProcessor):
             self._assemble_metadata(f, metadata)
             f.save()
         except Exception as err:
-            raise MutagenPostProcessorError(f"Unable to embed metadata; {err}")
+            raise MutagenPostProcessorError("Unable to embed metadata") from err
 
         return [], info
