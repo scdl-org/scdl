@@ -572,8 +572,7 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
         params["--force-overwrites"] = True
 
     if scdl_args["no_playlist"]:
-        # TODO
-        raise NotImplementedError
+        params["--match-filters"] = "!playlist_uploader"
 
     if scdl_args["add_description"]:
         params["--print-to-file"] = (
