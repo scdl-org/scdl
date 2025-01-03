@@ -111,7 +111,7 @@ def test_no_strict_playlist(tmp_path: Path) -> None:
         "--playlist-name-format",
         "{playlist[tracknumber]}_{title}",
         "--onlymp3",
-        "--max-size=10kb",
+        "--max-size=10k",
     )
     assert r.returncode == 0
     assert_not_track(tmp_path / "test playlist", "1_testing - test track.mp3")
