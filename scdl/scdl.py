@@ -75,9 +75,7 @@ Options:
 
 from __future__ import annotations
 
-import atexit
 import configparser
-import contextlib
 import logging
 import os
 import posixpath
@@ -101,6 +99,7 @@ from scdl import __version__, utils
 from scdl.patches.mutagen_postprocessor import MutagenPP
 from scdl.patches.original_filename_preprocessor import OriginalFilenamePP
 from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
+from scdl.patches.sync_download_archive import SyncDownloadHelper
 
 if typing.TYPE_CHECKING:
     from types import TracebackType
@@ -179,19 +178,6 @@ def handle_exception(
 sys.excepthook = handle_exception
 
 
-file_lock_dirs: list[Path] = []
-
-
-def clean_up_locks() -> None:
-    with contextlib.suppress(OSError):
-        for dir in file_lock_dirs:
-            for lock in dir.glob("*.scdl.lock"):
-                lock.unlink()
-
-
-atexit.register(clean_up_locks)
-
-
 def main() -> None:
     """Main function, parses the URL from command line arguments"""
     logger.addHandler(logging.StreamHandler())
@@ -239,7 +225,7 @@ def main() -> None:
         config["scdl"]["client_id"] = client.client_id
         # save client_id
         config_file.parent.mkdir(parents=True, exist_ok=True)
-        with locked_file(config_file, "w", encoding="UTF-8") as f:
+        with locked_file(config_file, "w", encoding="utf-8") as f:
             config.write(f)
 
     if (token or arguments["me"]) and not client.is_auth_token_valid():
@@ -318,20 +304,20 @@ def get_config(config_file: Path) -> configparser.ConfigParser:
     config_file.parent.mkdir(parents=True, exist_ok=True)
 
     # load default config first
-    with open(default_config_file, encoding="UTF-8") as f:
+    with open(default_config_file, encoding="utf-8") as f:
         config.read_file(f)
 
-    with locked_file(config_file, "r", encoding="UTF-8") as f:
-        try:
+    try:
+        with locked_file(config_file, "r", encoding="utf-8") as f:
             config.read_file(f)
-        except Exception as err:
-            logger.warning(f"Error while reading config file: {err}")
+    except Exception as err:
+        logger.warning(f"Error while reading config file: {err}")
 
-    with locked_file(config_file, "w", encoding="UTF-8") as f:
-        try:
+    try:
+        with locked_file(config_file, "w", encoding="utf-8") as f:
             config.write(f)
-        except Exception as err:
-            logger.warning(f"Error while writing config file: {err}")
+    except Exception as err:
+        logger.warning(f"Error while writing config file: {err}")
 
     return config
 
@@ -492,10 +478,6 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
 
     params["-f"] = build_ytdl_format_specifier(scdl_args)
 
-    if scdl_args["sync"]:
-        # TODO
-        raise NotImplementedError
-
     if scdl_args["flac"]:
         params["--recode-video"] = "aiff>flac/alac>flac/wav>flac"
 
@@ -572,22 +554,14 @@ def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
         if pp["key"] not in ("EmbedThumbnail", "FFmpegMetadata")
     ]
 
-    downloaded = set()
-
-    def track_downloaded(d):
-        if d["status"] == "finished":
-            downloaded.add(d["filename"])
-
-    params["progress_hooks"] = [track_downloaded]
-
     with YoutubeDL(params) as ydl:
         ydl.cache.store("soundcloud", "client_id", client.client_id)
         for pp, when in postprocessors:
             ydl.add_post_processor(pp, when)
 
+        sync = SyncDownloadHelper(scdl_args, ydl)
         ydl.download(url)
-
-        print(downloaded)
+        sync.post_download()
 
 
 if __name__ == "__main__":

@@ -370,8 +370,8 @@ def test_download_archive(tmp_path: Path) -> None:
         "--onlymp3",
         "--download-archive=archive.txt",
     )
-    assert r.returncode == 1
-    assert "already in the archive" in r.stderr
+    assert r.returncode == 0
+    assert "already been recorded in the archive" in r.stdout
 
 
 def test_description_file(tmp_path: Path) -> None:
