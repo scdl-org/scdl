@@ -87,7 +87,6 @@ import typing
 from pathlib import Path
 from typing import NoReturn, TypedDict
 
-import filelock
 from docopt import docopt
 from soundcloud import (
     AlbumPlaylist,
@@ -96,6 +95,7 @@ from soundcloud import (
     User,
 )
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import locked_file
 
 from scdl import __version__, utils
 from scdl.patches.mutagen_postprocessor import MutagenPP
@@ -192,49 +192,6 @@ def clean_up_locks() -> None:
 atexit.register(clean_up_locks)
 
 
-class SafeLock:
-    def __init__(
-        self,
-        lock_file: str | os.PathLike,
-        timeout: float = -1,
-        mode: int = 0o644,
-        thread_local: bool = True,
-    ) -> None:
-        self._lock = filelock.FileLock(lock_file, timeout, mode, thread_local)
-        self._soft_lock = filelock.SoftFileLock(lock_file, timeout, mode, thread_local)
-        self._using_soft_lock = False
-
-    def __enter__(self):
-        try:
-            self._lock.acquire()
-            self._using_soft_lock = False
-            return self._lock
-        except NotImplementedError:
-            self._soft_lock.acquire()
-            self._using_soft_lock = True
-            return self._soft_lock
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        if self._using_soft_lock:
-            self._soft_lock.release()
-        else:
-            self._lock.release()
-
-
-def get_filelock(path: Path | str, timeout: int = 10) -> SafeLock:
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path = path.resolve()
-    file_lock_dirs.append(path.parent)
-    lock_path = str(path) + ".scdl.lock"
-    return SafeLock(lock_path, timeout=timeout)
-
-
 def main() -> None:
     """Main function, parses the URL from command line arguments"""
     logger.addHandler(logging.StreamHandler())
@@ -282,7 +239,7 @@ def main() -> None:
         config["scdl"]["client_id"] = client.client_id
         # save client_id
         config_file.parent.mkdir(parents=True, exist_ok=True)
-        with get_filelock(config_file), open(config_file, "w", encoding="UTF-8") as f:
+        with locked_file(config_file, "w", encoding="UTF-8") as f:
             config.write(f)
 
     if (token or arguments["me"]) and not client.is_auth_token_valid():
@@ -358,20 +315,23 @@ def get_config(config_file: Path) -> configparser.ConfigParser:
 
     default_config_file = Path(__file__).with_name("scdl.cfg")
 
-    with get_filelock(config_file):
-        # load default config first
-        with open(default_config_file, encoding="UTF-8") as f:
+    config_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # load default config first
+    with open(default_config_file, encoding="UTF-8") as f:
+        config.read_file(f)
+
+    with locked_file(config_file, "r", encoding="UTF-8") as f:
+        try:
             config.read_file(f)
+        except Exception as err:
+            logger.warning(f"Error while reading config file: {err}")
 
-        # load config file if it exists
-        if config_file.exists():
-            with open(config_file, encoding="UTF-8") as f:
-                config.read_file(f)
-
-        # save config to disk
-        config_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_file, "w", encoding="UTF-8") as f:
+    with locked_file(config_file, "w", encoding="UTF-8") as f:
+        try:
             config.write(f)
+        except Exception as err:
+            logger.warning(f"Error while writing config file: {err}")
 
     return config
 
@@ -498,7 +458,7 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
     if scdl_args["strict_playlist"]:
         params["--abort-on-error"] = True
 
-    if not scdl_args["c"]:
+    if not scdl_args["c"] and not scdl_args["download_archive"] and not scdl_args["sync"]:
         params["--break-on-existing"] = True
 
     # if not scdl_args["force_metadata"]:
@@ -611,12 +571,23 @@ def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
         for pp in params["postprocessors"]
         if pp["key"] not in ("EmbedThumbnail", "FFmpegMetadata")
     ]
+
+    downloaded = set()
+
+    def track_downloaded(d):
+        if d["status"] == "finished":
+            downloaded.add(d["filename"])
+
+    params["progress_hooks"] = [track_downloaded]
+
     with YoutubeDL(params) as ydl:
         ydl.cache.store("soundcloud", "client_id", client.client_id)
         for pp, when in postprocessors:
             ydl.add_post_processor(pp, when)
 
         ydl.download(url)
+
+        print(downloaded)
 
 
 if __name__ == "__main__":

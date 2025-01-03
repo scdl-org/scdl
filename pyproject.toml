@@ -9,7 +9,6 @@ readme = "README.md"
 requires-python = ">=3.12.0"
 dependencies = [
     "docopt-ng>=0.9.0",
-    "filelock>=3.16.1",
     "mutagen>=1.47.0",
     "soundcloud-v2>=1.6.0",
     "yt-dlp>=2024.12.23",
