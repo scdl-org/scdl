@@ -259,12 +259,12 @@ class MutagenPP(PostProcessor):
         return {"data": thumb_data, "type": type_}
 
     def run(self, info: dict):
+        thumbnail = self._get_thumbnail(info)
         if not info["__real_download"] and not self._post_overwrites:
             return [], info
 
         filename = info["filepath"]
         metadata = self._get_metadata_dict(info)["common"]
-        thumbnail = self._get_thumbnail(info)
 
         if thumbnail:
             metadata["thumbnail"] = thumbnail
