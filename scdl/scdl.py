@@ -80,10 +80,9 @@ import logging
 import os
 import posixpath
 import sys
-import traceback
 import typing
 from pathlib import Path
-from typing import NoReturn, TypedDict
+from typing import TypedDict
 
 from docopt import docopt
 from soundcloud import (
@@ -104,6 +103,7 @@ from scdl.patches.sync_download_archive import SyncDownloadHelper
 if typing.TYPE_CHECKING:
     from types import TracebackType
 
+logging.setLoggerClass(utils.YTLogger)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -163,21 +163,6 @@ class PlaylistInfo(TypedDict):
     tracknumber_total: int
 
 
-def handle_exception(
-    exc_type: type[BaseException],
-    exc_value: BaseException,
-    exc_traceback: TracebackType | None,
-) -> NoReturn:
-    if issubclass(exc_type, KeyboardInterrupt):
-        logger.error("\nGoodbye!")
-    else:
-        logger.error("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
-    sys.exit(1)
-
-
-sys.excepthook = handle_exception
-
-
 def main() -> None:
     """Main function, parses the URL from command line arguments"""
     logger.addHandler(logging.StreamHandler())
@@ -198,8 +183,7 @@ def main() -> None:
     # import conf file
     config = get_config(config_file)
 
-    logger.info("Soundcloud Downloader")
-    logger.debug(arguments)
+    logger.info(f"[scdl] SCDL version {__version__}")
 
     client_id = arguments["--client-id"] or config["scdl"]["client_id"]
     token = arguments["--auth-token"] or config["scdl"]["auth_token"]
@@ -209,18 +193,18 @@ def main() -> None:
     if not client.is_client_id_valid():
         if arguments["--client-id"]:
             logger.warning(
-                "Invalid client_id specified by --client-id argument. "
-                "Using a dynamically generated client_id...",
+                "[scdl] Invalid client_id specified by --client-id argument. "
+                "Using a dynamically generated client_id",
             )
         elif config["scdl"]["client_id"]:
             logger.warning(
-                f"Invalid client_id in {config_file}. Using a dynamically generated client_id...",
+                f"[scdl] Invalid client_id in {config_file}. Using a dynamically generated client_id",
             )
         else:
-            logger.info("Generating dynamic client_id")
+            logger.info("[scdl] Generating dynamic client_id")
         client = SoundCloud(None, token if token else None)
         if not client.is_client_id_valid():
-            logger.error("Dynamically generated client_id is not valid")
+            logger.error("[scdl] Dynamically generated client_id is not valid")
             sys.exit(1)
         config["scdl"]["client_id"] = client.client_id
         # save client_id
@@ -230,9 +214,9 @@ def main() -> None:
 
     if (token or arguments["me"]) and not client.is_auth_token_valid():
         if arguments["--auth-token"]:
-            logger.error("Invalid auth_token specified by --auth-token argument")
+            logger.error("[scdl] Invalid auth_token specified by --auth-token argument")
         else:
-            logger.error(f"Invalid auth_token in {config_file}")
+            logger.error(f"[scdl] Invalid auth_token in {config_file}")
         sys.exit(1)
 
     if arguments["-o"] is not None:
@@ -241,9 +225,8 @@ def main() -> None:
             if arguments["-o"] < 1:
                 raise ValueError
         except Exception:
-            logger.error("Offset should be a positive integer...")
+            logger.error("[scdl] Offset should be a positive integer")
             sys.exit(1)
-        logger.debug("offset: %d", arguments["-o"])
 
     if not arguments["--name-format"]:
         arguments["--name-format"] = config["scdl"]["name_format"]
@@ -262,7 +245,7 @@ def main() -> None:
         if url:
             arguments["-l"] = url
         else:
-            logger.error("Search failed. Exiting...")
+            logger.error("[scdl] Search failed")
             sys.exit(1)
 
     arguments["--path"] = Path(arguments["--path"] or config["scdl"]["path"] or ".").resolve()
@@ -272,8 +255,6 @@ def main() -> None:
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
-
-    logger.debug("Downloading to " + os.getcwd() + "...")
 
     download_url(client, typing.cast(SCDLArgs, python_args))
 
@@ -295,9 +276,9 @@ def search_soundcloud(client: SoundCloud, query: str) -> str | None:
         return None
 
 
-def get_config(config_file: Path) -> configparser.ConfigParser:
+def get_config(config_file: Path) -> configparser.RawConfigParser:
     """Gets config from scdl.cfg"""
-    config = configparser.ConfigParser()
+    config = configparser.RawConfigParser()
 
     default_config_file = Path(__file__).with_name("scdl.cfg")
 
@@ -542,11 +523,16 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
             argv.append(param)
             argv.append(value)
 
+    logger.debug(f"[debug] yt-dlp args: {url} {' '.join(argv)}")
+
     return url, utils.cli_to_api(argv), postprocessors
 
 
 def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
     url, params, postprocessors = build_ytdl_params(scdl_args)
+
+    params["logger"] = logger
+
     # we handle this with custom MutagenPP for now
     params["postprocessors"] = [
         pp
