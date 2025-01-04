@@ -391,8 +391,7 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
     elif scdl_args["f"]:
         url = posixpath.join(url, "likes")
     elif scdl_args["C"]:
-        # TODO
-        raise NotImplementedError
+        url = posixpath.join(url, "comments")
     elif scdl_args["p"]:
         url = posixpath.join(url, "sets")
     elif scdl_args["r"]:
