@@ -47,18 +47,13 @@ class SyncDownloadHelper:
                 raise
 
         # track ids checked against the archive
-        def in_download_archive(ydl, info_dict):
-            if not ydl.archive:
-                return False
+        old_match_entry = self._ydl._match_entry
 
-            vid_ids = [ydl._make_archive_id(info_dict)]
-            vid_ids.extend(info_dict.get("_old_archive_ids") or [])
-            self._downloaded.update(vid_ids)
-            return any(id_ in ydl.archive for id_ in vid_ids) or any(
-                id_.split()[1] in ydl.archive for id_ in vid_ids if id_
-            )
+        def _match_entry(ydl, info_dict, incomplete=False, silent=False):
+            self._downloaded.add(ydl._make_archive_id(info_dict))
+            return old_match_entry(info_dict, incomplete, silent)
 
-        self._ydl.in_download_archive = partial(in_download_archive, self._ydl)
+        self._ydl._match_entry = partial(_match_entry, self._ydl)
 
     def post_download(self):
         if not self._enabled:
