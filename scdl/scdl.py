@@ -80,9 +80,8 @@ import logging
 import os
 import posixpath
 import sys
-import typing
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from docopt import docopt
 from soundcloud import (
@@ -100,8 +99,11 @@ from scdl.patches.original_filename_preprocessor import OriginalFilenamePP
 from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
 from scdl.patches.sync_download_archive import SyncDownloadHelper
 
-if typing.TYPE_CHECKING:
-    from types import TracebackType
+if TYPE_CHECKING:
+    if sys.version_info < (3, 11):
+        from typing_extensions import Unpack
+    else:
+        from typing import Unpack
 
 logging.setLoggerClass(utils.YTLogger)
 logger = logging.getLogger(__name__)
@@ -154,16 +156,7 @@ class SCDLArgs(TypedDict):
     t: bool
 
 
-class PlaylistInfo(TypedDict):
-    author: str
-    id: int
-    title: str
-    tracknumber_int: int
-    tracknumber: str
-    tracknumber_total: int
-
-
-def main() -> None:
+def _main() -> None:
     """Main function, parses the URL from command line arguments"""
     logger.addHandler(logging.StreamHandler())
 
@@ -181,7 +174,7 @@ def main() -> None:
         config_file = Path.home().joinpath(".config", "scdl", "scdl.cfg")
 
     # import conf file
-    config = get_config(config_file)
+    config = _get_config(config_file)
 
     logger.info(f"[scdl] SCDL version {__version__}")
 
@@ -207,6 +200,7 @@ def main() -> None:
             logger.error("[scdl] Dynamically generated client_id is not valid")
             sys.exit(1)
         config["scdl"]["client_id"] = client.client_id
+        arguments["--client-id"] = client.client_id
         # save client_id
         config_file.parent.mkdir(parents=True, exist_ok=True)
         with locked_file(config_file, "w", encoding="utf-8") as f:
@@ -241,7 +235,7 @@ def main() -> None:
         arguments["-l"] = me.permalink_url
 
     if arguments["-s"]:
-        url = search_soundcloud(client, arguments["-s"])
+        url = _search_soundcloud(client, arguments["-s"])
         if url:
             arguments["-l"] = url
         else:
@@ -250,16 +244,18 @@ def main() -> None:
 
     arguments["--path"] = Path(arguments["--path"] or config["scdl"]["path"] or ".").resolve()
 
-    # convert arguments dict to python-friendly names (no hyphens)
+    # convert arguments dict to python-friendly kwarg names (no hyphens)
     python_args = {}
     for key, value in arguments.items():
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
 
-    download_url(client, typing.cast(SCDLArgs, python_args))
+    url = python_args.pop("l")
+
+    download_url(url, **python_args)
 
 
-def search_soundcloud(client: SoundCloud, query: str) -> str | None:
+def _search_soundcloud(client: SoundCloud, query: str) -> str | None:
     """Search SoundCloud and return the URL of the first result."""
     try:
         results = list(client.search(query, limit=1))
@@ -276,7 +272,7 @@ def search_soundcloud(client: SoundCloud, query: str) -> str | None:
         return None
 
 
-def get_config(config_file: Path) -> configparser.RawConfigParser:
+def _get_config(config_file: Path) -> configparser.RawConfigParser:
     """Gets config from scdl.cfg"""
     config = configparser.RawConfigParser()
 
@@ -303,7 +299,7 @@ def get_config(config_file: Path) -> configparser.RawConfigParser:
     return config
 
 
-def convert_scdl_name_format(s: str) -> str:
+def _convert_v2_name_format(s: str) -> str:
     # {user[id]}_{id}_{user[username]}_{title}
     replacements = {
         "{id}": "%(id)s",
@@ -333,27 +329,27 @@ def convert_scdl_name_format(s: str) -> str:
     return s
 
 
-def build_ytdl_output_filename(
+def _build_ytdl_output_filename(
     scdl_args: SCDLArgs, in_playlist: bool, force_suffix: str | None = None
 ) -> str:
-    if scdl_args["name_format"] == "-":
+    if scdl_args.get("name_format") == "-":
         return "-"
 
     playlist_format = "%(playlist|)s"
     if in_playlist:
-        track_format = convert_scdl_name_format(scdl_args["playlist_name_format"])
+        track_format = _convert_v2_name_format(scdl_args.get("playlist_name_format"))
     else:
-        track_format = convert_scdl_name_format(scdl_args["name_format"])
+        track_format = _convert_v2_name_format(scdl_args.get("name_format"))
 
-    if scdl_args["addtimestamp"] or scdl_args["addtofile"]:
+    if scdl_args.get("addtimestamp") or scdl_args.get("addtofile"):
         track_format = "%(title)s.%(ext)s"
-        if scdl_args["addtofile"]:
+        if scdl_args.get("addtofile"):
             track_format = "%(uploader)s - " + track_format
-        if scdl_args["addtimestamp"]:
+        if scdl_args.get("addtimestamp"):
             track_format = "%(timestamp)s_" + track_format
 
-    base = scdl_args["path"]
-    if scdl_args["no_playlist_folder"] or not in_playlist:
+    base = scdl_args.get("path")
+    if scdl_args.get("no_playlist_folder") or not in_playlist:
         ret = base / track_format
     else:
         ret = base / playlist_format / track_format
@@ -364,37 +360,35 @@ def build_ytdl_output_filename(
     return ret.as_posix()
 
 
-def build_ytdl_format_specifier(scdl_args: SCDLArgs) -> str:
+def _build_ytdl_format_specifier(scdl_args: SCDLArgs) -> str:
     fmt = "ba"
-    if scdl_args["min_size"]:
+    if scdl_args.get("min_size"):
         fmt += f"[filesize_approx>={scdl_args['min_size']}]"
-    if scdl_args["max_size"]:
+    if scdl_args.get("max_size"):
         fmt += f"[filesize_approx<={scdl_args['max_size']}]"
-    if scdl_args["no_original"]:
+    if scdl_args.get("no_original"):
         fmt += "[format_id!=download]"
-    if scdl_args["only_original"]:
+    if scdl_args.get("only_original"):
         fmt += "[format_id=download]"
-    if scdl_args["onlymp3"]:
+    if scdl_args.get("onlymp3"):
         fmt += "[format_id*=mp3]"
     return fmt
 
 
-def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
+def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     # return download url, ytdl params, and postprocessors
 
-    url = scdl_args["l"]
-
-    if scdl_args["a"]:
+    if scdl_args.get("a"):
         pass
-    elif scdl_args["t"]:
+    elif scdl_args.get("t"):
         url = posixpath.join(url, "tracks")
-    elif scdl_args["f"]:
+    elif scdl_args.get("f"):
         url = posixpath.join(url, "likes")
-    elif scdl_args["C"]:
+    elif scdl_args.get("C"):
         url = posixpath.join(url, "comments")
-    elif scdl_args["p"]:
+    elif scdl_args.get("p"):
         url = posixpath.join(url, "sets")
-    elif scdl_args["r"]:
+    elif scdl_args.get("r"):
         url = posixpath.join(url, "reposts")
 
     params: dict = {}
@@ -410,99 +404,103 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
     postprocessors = [
         (
             OuttmplPP(
-                build_ytdl_output_filename(scdl_args, False),
-                build_ytdl_output_filename(scdl_args, True),
+                _build_ytdl_output_filename(scdl_args, False),
+                _build_ytdl_output_filename(scdl_args, True),
             ),
             "pre_process",
         )
     ]
 
-    if scdl_args["n"]:
+    if scdl_args.get("n"):
         # TODO
         raise NotImplementedError
 
-    if scdl_args["strict_playlist"]:
+    if scdl_args.get("strict_playlist"):
         params["--abort-on-error"] = True
 
-    if not scdl_args["c"] and not scdl_args["download_archive"] and not scdl_args["sync"]:
+    if (
+        not scdl_args.get("c")
+        and not scdl_args.get("download_archive")
+        and not scdl_args.get("sync")
+    ):
         params["--break-on-existing"] = True
 
-    # if not scdl_args["force_metadata"]:
+    # if not scdl_args.get("force_metadata"):
     #     https://github.com/yt-dlp/yt-dlp/issues/1467
     #     params["--no-post-overwrites"] = True  # noqa: ERA001
 
-    if scdl_args["o"]:
-        params["--playlist-items"] = f"{scdl_args["o"]}:"
+    if scdl_args.get("o"):
+        params["--playlist-items"] = f"{scdl_args.get("o")}:"
 
-    if scdl_args["extract_artist"]:
+    if scdl_args.get("extract_artist"):
         params["--parse-metadata"] += [
             r"%(title)s:(?P<uploader>.*?)\s*[-−–—―]\s*(?P<title>.*)",  # noqa: RUF001
         ]
 
-    if scdl_args["debug"]:
+    if scdl_args.get("debug"):
         params["--verbose"] = True
 
-    if scdl_args["error"]:
+    if scdl_args.get("error"):
         params["--quiet"] = True
 
-    if scdl_args["download_archive"]:
-        params["--download-archive"] = scdl_args["download_archive"]
+    if scdl_args.get("download_archive"):
+        params["--download-archive"] = scdl_args.get("download_archive")
 
-    if scdl_args["hide_progress"]:
+    if scdl_args.get("hide_progress"):
         params["--no-progress"] = True
 
-    if scdl_args["max_size"]:
-        params["--max-filesize"] = scdl_args["max_size"]
-    if scdl_args["min_size"]:
-        params["--min-filesize"] = scdl_args["min_size"]
+    if scdl_args.get("max_size"):
+        params["--max-filesize"] = scdl_args.get("max_size")
+    if scdl_args.get("min_size"):
+        params["--min-filesize"] = scdl_args.get("min_size")
 
-    params["-f"] = build_ytdl_format_specifier(scdl_args)
+    params["-f"] = _build_ytdl_format_specifier(scdl_args)
 
-    if scdl_args["flac"]:
+    if scdl_args.get("flac"):
         params["--recode-video"] = "aiff>flac/alac>flac/wav>flac"
 
-    if not scdl_args["no_album_tag"]:
+    if not scdl_args.get("no_album_tag"):
         params["--parse-metadata"] += [
             "%(playlist)s:%(meta_album)s",
             "%(playlist_uploader)s:%(meta_album_artist)s",
             "%(playlist_index)s:%(meta_track)s",
         ]
 
-    if scdl_args["original_name"] and not scdl_args["no_original"]:
+    if scdl_args.get("original_name") and not scdl_args.get("no_original"):
         postprocessors.append((OriginalFilenamePP(), "pre_process"))
 
-    if not scdl_args["original_art"]:
+    if not scdl_args.get("original_art"):
         params["--thumbnail-id"] = "t500x500"
 
-    if scdl_args["name_format"] == "-":
+    if scdl_args.get("name_format") == "-":
         # https://github.com/yt-dlp/yt-dlp/issues/8815
         # https://github.com/yt-dlp/yt-dlp/issues/126
         params["--embed-metadata"] = False
         params["--embed-thumbnail"] = False
 
-    if scdl_args["original_metadata"]:
+    if scdl_args.get("original_metadata"):
         params["--embed-metadata"] = False
         params["--embed-thumbnail"] = False
     else:
-        postprocessors.append((MutagenPP(scdl_args["force_metadata"]), "post_process"))
+        postprocessors.append((MutagenPP(scdl_args.get("force_metadata")), "post_process"))
 
-    if scdl_args["auth_token"]:
+    if scdl_args.get("auth_token"):
         params["--username"] = "oauth"
-        params["--password"] = scdl_args["auth_token"]
+        params["--password"] = scdl_args.get("auth_token")
 
-    if scdl_args["overwrite"]:
+    if scdl_args.get("overwrite"):
         params["--force-overwrites"] = True
 
-    if scdl_args["no_playlist"]:
+    if scdl_args.get("no_playlist"):
         params["--match-filters"] = "!playlist_uploader"
 
-    if scdl_args["add_description"]:
+    if scdl_args.get("add_description"):
         params["--print-to-file"] = (
             "description",
-            build_ytdl_output_filename(scdl_args, False, ".txt"),
+            _build_ytdl_output_filename(scdl_args, False, ".txt"),
         )
 
-    if scdl_args["opus"]:
+    if scdl_args.get("opus"):
         params["--extractor-args"] = "soundcloud:formats=*_aac,*_opus,*_mp3"
 
     argv = []
@@ -527,8 +525,8 @@ def build_ytdl_params(scdl_args: SCDLArgs) -> tuple[str, dict]:
     return url, utils.cli_to_api(argv), postprocessors
 
 
-def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
-    url, params, postprocessors = build_ytdl_params(scdl_args)
+def download_url(url: str, client_id: str | None = None, **scdl_args: Unpack[SCDLArgs]) -> None:
+    url, params, postprocessors = _build_ytdl_params(url, scdl_args)
 
     params["logger"] = logger
 
@@ -540,7 +538,8 @@ def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
     ]
 
     with YoutubeDL(params) as ydl:
-        ydl.cache.store("soundcloud", "client_id", client.client_id)
+        if client_id:
+            ydl.cache.store("soundcloud", "client_id", client_id)
         for pp, when in postprocessors:
             ydl.add_post_processor(pp, when)
 
@@ -550,4 +549,4 @@ def download_url(client: SoundCloud, scdl_args: SCDLArgs) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    _main()

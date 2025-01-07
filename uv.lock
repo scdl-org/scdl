@@ -287,6 +287,7 @@ dev = [
     { name = "pytest-dotenv", specifier = ">=0.5.2" },
     { name = "ruff", specifier = ">=0.8.3" },
     { name = "types-requests", specifier = ">=2.32.0.20241016" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'", specifier = ">=4.12.2" },
 ]
 
 [[package]]

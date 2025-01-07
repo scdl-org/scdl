@@ -34,20 +34,22 @@ dev = [
     "pytest-dotenv>=0.5.2",
     "ruff>=0.8.3",
     "types-requests>=2.32.0.20241016",
+    "typing_extensions>=4.12.2; python_version < '3.11'",
 ]
 
 [project.urls]
 Issues = "https://github.com/scdl-org/scdl/issues"
 Repository = "https://github.com/scdl-org/scdl"
+Changelog = "https://github.com/scdl-org/scdl/blob/master/CHANGELOG.md"
 
 [project.scripts]
-scdl = "scdl.scdl:main"
+scdl = "scdl.scdl:_main"
 
 [tool.uv]
 package = true
 
 [tool.ruff]
-target-version = "py37"
+target-version = "py39"
 line-length = 100
 
 [tool.ruff.lint]

@@ -9,8 +9,8 @@ from yt_dlp.utils import locked_file
 class SyncDownloadHelper:
     def __init__(self, scdl_args, ydl: YoutubeDL):
         self._ydl = ydl
-        self._enabled = bool(scdl_args["sync"])
-        self._sync_file = scdl_args["sync"]
+        self._enabled = bool(scdl_args.get("sync"))
+        self._sync_file = scdl_args.get("sync")
         self._all_files: dict[str, Path] = {}
         self._downloaded: set[str] = set()
         self._init()

@@ -1,4 +1,5 @@
 from logging import Logger
+
 import yt_dlp
 import yt_dlp.options
 
