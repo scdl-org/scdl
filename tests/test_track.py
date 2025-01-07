@@ -321,7 +321,7 @@ def test_overwrite(tmp_path: Path) -> None:
         "--onlymp3",
     )
     assert r.returncode == 0
-    assert "has already been downloaded" in r.stdout
+    assert "has already been downloaded" in r.stderr
 
     r = call_scdl_with_auth(
         "-l",
@@ -332,7 +332,7 @@ def test_overwrite(tmp_path: Path) -> None:
         "--overwrite",
     )
     assert r.returncode == 0
-    assert "Deleting existing file" in r.stdout
+    assert "Deleting existing file" in r.stderr
 
 
 def test_path(tmp_path: Path) -> None:
@@ -371,7 +371,7 @@ def test_download_archive(tmp_path: Path) -> None:
         "--download-archive=archive.txt",
     )
     assert r.returncode == 0
-    assert "already been recorded in the archive" in r.stdout
+    assert "already been recorded in the archive" in r.stderr
 
 
 def test_description_file(tmp_path: Path) -> None:
