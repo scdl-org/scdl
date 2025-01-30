@@ -562,6 +562,8 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
     item = client.resolve(url)
     logger.debug(item)
     offset = kwargs.get("offset", 0)
+    stop = offset+int(kwargs.get("n")) if kwargs.get("n") else None
+
     if item is None:
         logger.error("URL is not valid")
         sys.exit(1)
@@ -578,7 +580,7 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
         if kwargs.get("f"):
             logger.info(f"Retrieving all likes of user {user.username}...")
             likes = client.get_user_likes(user.id, limit=1000)
-            for i, like in itertools.islice(enumerate(likes, 1), offset, None):
+            for i, like in itertools.islice(enumerate(likes, 1), offset, stop):
                 logger.info(f"like n°{i} of {user.likes_count}")
                 if isinstance(like, TrackLike):
                     download_track(
@@ -599,7 +601,7 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
         elif kwargs.get("C"):
             logger.info(f"Retrieving all commented tracks of user {user.username}...")
             comments = client.get_user_comments(user.id, limit=1000)
-            for i, comment in itertools.islice(enumerate(comments, 1), offset, None):
+            for i, comment in itertools.islice(enumerate(comments, 1), offset, stop):
                 logger.info(f"comment n°{i} of {user.comments_count}")
                 track = client.get_track(comment.track.id)
                 assert track is not None
@@ -613,14 +615,14 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
         elif kwargs.get("t"):
             logger.info(f"Retrieving all tracks of user {user.username}...")
             tracks = client.get_user_tracks(user.id, limit=1000)
-            for i, track in itertools.islice(enumerate(tracks, 1), offset, None):
+            for i, track in itertools.islice(enumerate(tracks, 1), offset, stop):
                 logger.info(f"track n°{i} of {user.track_count}")
                 download_track(client, track, kwargs, exit_on_fail=kwargs["strict_playlist"])
             logger.info(f"Downloaded all tracks of user {user.username}!")
         elif kwargs.get("a"):
             logger.info(f"Retrieving all tracks & reposts of user {user.username}...")
             items = client.get_user_stream(user.id, limit=1000)
-            for i, stream_item in itertools.islice(enumerate(items, 1), offset, None):
+            for i, stream_item in itertools.islice(enumerate(items, 1), offset, stop):
                 logger.info(
                     f"item n°{i} of "
                     f"{user.track_count + user.reposts_count if user.reposts_count else '?'}",
@@ -649,7 +651,7 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
         elif kwargs.get("r"):
             logger.info(f"Retrieving all reposts of user {user.username}...")
             reposts = client.get_user_reposts(user.id, limit=1000)
-            for i, repost in itertools.islice(enumerate(reposts, 1), offset, None):
+            for i, repost in itertools.islice(enumerate(reposts, 1), offset, stop):
                 logger.info(f"item n°{i} of {user.reposts_count or '?'}")
                 if isinstance(repost, TrackStreamRepostItem):
                     download_track(
