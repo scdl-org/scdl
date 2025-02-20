@@ -10,3 +10,4 @@ __pycache__/
 .coverage*
 .idea
 .python-version
+.DS_store

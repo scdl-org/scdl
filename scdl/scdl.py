@@ -266,11 +266,9 @@ class SafeLock:
         self,
         lock_file: Union[str, os.PathLike],
         timeout: float = -1,
-        mode: int = 0o644,
-        thread_local: bool = True,
     ) -> None:
-        self._lock = filelock.FileLock(lock_file, timeout, mode, thread_local)
-        self._soft_lock = filelock.SoftFileLock(lock_file, timeout, mode, thread_local)
+        self._lock = filelock.FileLock(lock_file, timeout=timeout)
+        self._soft_lock = filelock.SoftFileLock(lock_file, timeout=timeout)
         self._using_soft_lock = False
 
     def __enter__(self):
