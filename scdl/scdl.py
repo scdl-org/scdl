@@ -781,7 +781,7 @@ def download_playlist(
             if os.path.isfile(s):
                 playlist.tracks = sync(client, playlist, playlist_info, kwargs)
             else:
-                logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
+                logger.error(f"Invalid sync archive file {kwargs.get('sync')}")
                 sys.exit(1)
 
         tracknumber_digits = len(str(len(playlist.tracks)))
