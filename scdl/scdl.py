@@ -1067,8 +1067,8 @@ def download_track(
     kwargs: SCDLArgs,
     playlist_info: Optional[PlaylistInfo] = None,
     exit_on_fail: bool = True,
-) -> None:
-    """Downloads a track"""
+) -> Optional[str]:
+    """Downloads a track. Returns filename if download succeededed, else None"""
     try:
         title = track.title
         title = title.encode("utf-8", "ignore").decode("utf-8")
@@ -1165,6 +1165,7 @@ def download_track(
             try_utime(filename, filetime)
 
         logger.info(f"{filename} Downloaded.\n")
+        return filename
     except SoundCloudException as err:
         logger.error(err)
         if exit_on_fail:
