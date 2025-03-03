@@ -776,6 +776,7 @@ def download_playlist(
                 sorted(playlist.tracks, key=lambda track: track.id, reverse=True)[: int(n)],
             )
             kwargs["playlist_offset"] = 0
+
         s = kwargs.get("sync")
         if s:
             if os.path.isfile(s):
@@ -785,8 +786,48 @@ def download_playlist(
                 sys.exit(1)
 
         tracknumber_digits = len(str(len(playlist.tracks)))
+
+        # soundcloud api only returns info for the first 5
+        # & ids on the rest, so we need to fetch the rest
+        tracks = []
+        ids = []
+        for _, track in itertools.islice(enumerate(playlist.tracks, 0), 5):
+            tracks.append(track)
+
+        for _, track in enumerate(playlist.tracks, 5):
+            ids.append(track.id)
+
+        # the endpoint for bulk fetching tracks has a max of 50,
+        # so we need to chunk the ids array into groups of 50
+        if len(ids) > 0:
+            chunk_size = 50
+            for i in range(0, len(ids), chunk_size):
+                tmp_ids = ids[i:i + chunk_size]
+                if playlist.secret_token:
+                    tracks = client.get_tracks(tmp_ids, playlist.id, playlist.secret_token)
+                else:
+                    tracks = client.get_tracks(tmp_ids)
+
+                # get_tracks returns tracks out of order, so we need
+                # to sort them in the same order as the ids array
+                tracks = sorted(
+                    tracks,
+                    key=lambda track: ids.index(track.id)
+                )
+
+                tracks.extend(tracks)
+
+        # current implementation seems to be doubling every track
+        # inside the playlist?? need to investigate, this is just a workaround
+        _tracks = []
+        for track in tracks:
+            if any(track.id == _track.id for _track in _tracks):
+                continue
+
+            _tracks.append(track)
+
         for counter, track in itertools.islice(
-            enumerate(playlist.tracks, 1),
+            enumerate(_tracks, 1),
             kwargs.get("playlist_offset", 0),
             None,
         ):
@@ -794,11 +835,7 @@ def download_playlist(
             logger.info(f"Track n°{counter}")
             playlist_info["tracknumber_int"] = counter
             playlist_info["tracknumber"] = str(counter).zfill(tracknumber_digits)
-            if isinstance(track, MiniTrack):
-                if playlist.secret_token:
-                    track = client.get_tracks([track.id], playlist.id, playlist.secret_token)[0]
-                else:
-                    track = client.get_track(track.id)  # type: ignore[assignment]
+
             assert isinstance(track, BasicTrack)
             download_track(
                 client,
@@ -883,6 +920,10 @@ def download_original_file(
 ) -> Tuple[Optional[str], bool]:
     logger.info("Downloading the original file.")
     to_stdout = is_downloading_to_stdout(kwargs)
+
+    if not track.downloadable:
+        logger.error("Track has downloads disabled")
+        return None, False
 
     # Get the requests stream
     url = client.get_track_original_download(track.id, track.secret_token)
