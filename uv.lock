@@ -276,7 +276,7 @@ requires-dist = [
     { name = "docopt-ng", specifier = ">=0.9.0" },
     { name = "mutagen", specifier = ">=1.47.0" },
     { name = "soundcloud-v2", specifier = ">=1.6.0" },
-    { name = "yt-dlp", specifier = ">=2024.12.23" },
+    { name = "yt-dlp", specifier = ">=2025.2.19" },
 ]
 
 [package.metadata.requires-dev]
@@ -345,9 +345,9 @@ wheels = [
 
 [[package]]
 name = "yt-dlp"
-version = "2024.12.23"
+version = "2025.2.19"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/88/ea/f30e5925c5b9109d2f8e47b87bb7e7feac1a6c496b5324deb352c2002cf4/yt_dlp-2024.12.23.tar.gz", hash = "sha256:ac0e72b5a9017ba104b4258546201a7cedc38e8bd20727e0c63b77c829b425e9", size = 2914953 }
+sdist = { url = "https://files.pythonhosted.org/packages/53/36/ef300ba4a228b74612d4013b43ed303a0d6d2de17a71fc37e0b821577e0a/yt_dlp-2025.2.19.tar.gz", hash = "sha256:f33ca76df2e4db31880f2fe408d44f5058d9f135015b13e50610dfbe78245bea", size = 2929199 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/d3/dc656c921f45baaba4d439292194b5be7f48b3558fcc38941aca16fa5afa/yt_dlp-2024.12.23-py3-none-any.whl", hash = "sha256:2fc08a5221a0379628ac4e7324c6c69a95b9fdfa7a7ca3187444b3b7451e38be", size = 3176724 },
+    { url = "https://files.pythonhosted.org/packages/9e/45/6d1b759e68f5363b919828fb0e0c167a1cd5003b5b7c74cc0f0c2096be4f/yt_dlp-2025.2.19-py3-none-any.whl", hash = "sha256:3ed218eaeece55e9d715afd41abc450dc406ee63bf79355169dfde312d38fdb8", size = 3186543 },
 ]

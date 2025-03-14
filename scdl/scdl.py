@@ -430,7 +430,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     #     params["--no-post-overwrites"] = True  # noqa: ERA001
 
     if scdl_args.get("o"):
-        params["--playlist-items"] = f"{scdl_args.get("o")}:"
+        params["--playlist-items"] = f"{scdl_args.get('o')}:"
 
     if scdl_args.get("extract_artist"):
         params["--parse-metadata"] += [
