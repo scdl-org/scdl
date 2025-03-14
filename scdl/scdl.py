@@ -441,7 +441,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
 
     if scdl_args.get("extract_artist"):
         params["--parse-metadata"] += [
-            r"%(title)s:(?P<uploader>.*?)\s*[-−–—―]\s*(?P<title>.*)",  # noqa: RUF001
+            r"%(title)s:(?P<meta_artist>.*?)\s+[-−–—―]\s*(?P<meta_title>.*)",  # noqa: RUF001
         ]
 
     if scdl_args.get("debug"):
