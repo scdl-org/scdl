@@ -14,12 +14,10 @@ def test_all(tmp_path: Path) -> None:
         "-l",
         "https://soundcloud.com/one-thousand-and-one",
         "-a",
-        "-o",
-        "3",
         "--onlymp3",
     )
     assert r.returncode == 0
-    assert count_files(tmp_path) == 3
+    assert count_files(tmp_path) == 5
 
 
 def test_tracks(tmp_path: Path) -> None:
