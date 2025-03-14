@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - This changelog file
-  
+
 ### Fixed
+
 - Make `--sync` method work as intended
 
 ### Changed
@@ -21,12 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change default track format string to include track artist and ID
 - Drop `termcolor`, `requests`, `tqdm`, `pathvalidate`, `filelock` dependencies
 - Switch to `pyproject.toml` instead of `setup.py`
-- When writing to stdout, files no longer contain metadata
 - **Breaking:** Change `--sync` file format to include downloaded filenames
 
 ### Removed
 
 - **Breaking:** Remove `--remove`
 - **Breaking:** Drop support for Python 3.7 and 3.8
+- **Breaking:** When writing to stdout, files no longer contain metadata
 
 [unreleased]: https://github.com/scdl-org/scdl/compare/v2.12.3...HEAD

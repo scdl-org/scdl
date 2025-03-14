@@ -401,6 +401,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     params["--use-extractors"] = "soundcloud.*"
     params["--output-na-placeholder"] = ""
     params["--parse-metadata"] = []
+    params["--trim-filenames"] = "255b"
     postprocessors = [
         (
             OuttmplPP(
