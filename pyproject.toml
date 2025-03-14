@@ -63,3 +63,12 @@ ignore = [
     "COM812", "ISC001",
     "EXE"
 ]
+
+[tool.mypy]
+packages = ["scdl", "tests"]
+check_untyped_defs = true
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = "scdl.patches.*"
+ignore_errors = true

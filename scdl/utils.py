@@ -42,10 +42,10 @@ def cli_to_api(opts):
 
 
 class YTLogger(Logger):
-    def debug(self, msg):
+    def debug(self, msg: object, *args, **kwargs):
         # For compatibility with youtube-dl, both debug and info are passed into debug
         # You can distinguish them by the prefix '[debug] '
         if isinstance(msg, str) and msg.startswith("[debug] "):
-            super().debug(msg)
+            super().debug(msg, *args, **kwargs)
         else:
-            self.info(msg)
+            self.info(msg, *args, **kwargs)

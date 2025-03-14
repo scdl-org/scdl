@@ -76,6 +76,8 @@ Options:
 from __future__ import annotations
 
 import configparser
+import importlib
+import importlib.metadata
 import logging
 import os
 import posixpath
@@ -93,7 +95,7 @@ from soundcloud import (
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import locked_file
 
-from scdl import __version__, utils
+from scdl import utils
 from scdl.patches.mutagen_postprocessor import MutagenPP
 from scdl.patches.original_filename_preprocessor import OriginalFilenamePP
 from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
@@ -154,6 +156,9 @@ class SCDLArgs(TypedDict):
     sync: str | None
     s: str | None
     t: bool
+
+
+__version__ = importlib.metadata.version("scdl")
 
 
 def _main() -> None:
@@ -252,6 +257,8 @@ def _main() -> None:
 
     url = python_args.pop("l")
 
+    assert url is not None
+
     download_url(url, **python_args)
 
 
@@ -300,7 +307,6 @@ def _get_config(config_file: Path) -> configparser.RawConfigParser:
 
 
 def _convert_v2_name_format(s: str) -> str:
-    # {user[id]}_{id}_{user[username]}_{title}
     replacements = {
         "{id}": "%(id)s",
         "{user[username]}": "%(uploader)s",
@@ -337,9 +343,9 @@ def _build_ytdl_output_filename(
 
     playlist_format = "%(playlist|)s"
     if in_playlist:
-        track_format = _convert_v2_name_format(scdl_args.get("playlist_name_format"))
+        track_format = _convert_v2_name_format(scdl_args["playlist_name_format"])
     else:
-        track_format = _convert_v2_name_format(scdl_args.get("name_format"))
+        track_format = _convert_v2_name_format(scdl_args["name_format"])
 
     if scdl_args.get("addtimestamp") or scdl_args.get("addtofile"):
         track_format = "%(title)s.%(ext)s"
@@ -348,7 +354,7 @@ def _build_ytdl_output_filename(
         if scdl_args.get("addtimestamp"):
             track_format = "%(timestamp)s_" + track_format
 
-    base = scdl_args.get("path")
+    base = scdl_args["path"]
     if scdl_args.get("no_playlist_folder") or not in_playlist:
         ret = base / track_format
     else:
@@ -401,7 +407,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     params["--use-extractors"] = "soundcloud.*"
     params["--output-na-placeholder"] = ""
     params["--parse-metadata"] = []
-    params["--trim-filenames"] = "255b"
+    params["--trim-filenames"] = "240b"
     postprocessors = [
         (
             OuttmplPP(
@@ -483,7 +489,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
         params["--embed-metadata"] = False
         params["--embed-thumbnail"] = False
     else:
-        postprocessors.append((MutagenPP(scdl_args.get("force_metadata")), "post_process"))
+        postprocessors.append((MutagenPP(scdl_args["force_metadata"]), "post_process"))
 
     if scdl_args.get("auth_token"):
         params["--username"] = "oauth"
@@ -526,7 +532,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     return url, utils.cli_to_api(argv), postprocessors
 
 
-def download_url(url: str, client_id: str | None = None, **scdl_args: Unpack[SCDLArgs]) -> None:
+def download_url(url: str, **scdl_args: Unpack[SCDLArgs]) -> None:
     url, params, postprocessors = _build_ytdl_params(url, scdl_args)
 
     params["logger"] = logger
@@ -539,8 +545,8 @@ def download_url(url: str, client_id: str | None = None, **scdl_args: Unpack[SCD
     ]
 
     with YoutubeDL(params) as ydl:
-        if client_id:
-            ydl.cache.store("soundcloud", "client_id", client_id)
+        if scdl_args["client_id"]:
+            ydl.cache.store("soundcloud", "client_id", scdl_args["client_id"])
         for pp, when in postprocessors:
             ydl.add_post_processor(pp, when)
 

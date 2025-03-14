@@ -46,7 +46,7 @@ def evaluate_outtmpl(self, outtmpl, info_dict, *args, trim_filename=False, **kwa
             return name.decode(encoding, "ignore")
         return name[:max_file_name]
 
-    filename = os.path.join(*map(trim_filename, Path(filename).parts))
+    filename = os.path.join(*map(trim_filename, Path(filename).parts or "."))
     return filename + suffix
 
 

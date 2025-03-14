@@ -389,3 +389,16 @@ def test_description_file(tmp_path: Path) -> None:
     assert desc_file.exists()
     with open(desc_file, encoding="utf-8") as f:
         assert f.read().splitlines() == ["test description:", "9439290883"]
+
+
+def test_trim_filenames(tmp_path: Path) -> None:
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--name-format",
+        "a" * 500,
+        "--onlymp3",
+    )
+    assert r.returncode == 0
+    assert_track(tmp_path, "a" * 240 + ".mp3")
