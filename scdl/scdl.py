@@ -9,7 +9,7 @@ Usage:
     [--original-name][--original-metadata][--no-original][--only-original]
     [--name-format <format>][--strict-playlist][--playlist-name-format <format>]
     [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
-    [--add-description]
+    [--add-description][--max-length <length>]
 
     scdl -h | --help
     scdl --version
@@ -45,6 +45,7 @@ Options:
     --hidewarnings                  Hide Warnings. (use with precaution)
     --max-size [max-size]           Skip tracks larger than size (k/m/g)
     --min-size [min-size]           Skip tracks smaller than size (k/m/g)
+    --max-length [max-length]       Skip tracks audio length smaller then length (s)
     --no-playlist-folder            Download playlist tracks into main directory,
                                     instead of making a playlist subfolder
     --onlymp3                       Download only mp3 files
@@ -194,6 +195,7 @@ class SCDLArgs(TypedDict):
     sync: Optional[str]
     s: Optional[str]
     t: bool
+    max_length: Optional[int]
 
 
 class PlaylistInfo(TypedDict):
@@ -1082,6 +1084,10 @@ def download_track(
         if track.policy == "BLOCK":
             raise RegionBlockError
 
+        # Skip if track length is longer than given max length
+        if is_exceeded_max_duration(track, kwargs):
+            raise SoundCloudException(f"{title} length is longer than passed max allowed length {kwargs.get("max_length")}")
+
         # Get user_id from the client
         me = client.get_me() if kwargs["auth_token"] else None
         client_user_id = me and me.id
@@ -1190,6 +1196,15 @@ def create_description_file(description: Optional[str], filename: str) -> None:
         except OSError as ioe:
             logger.error("Error trying to write description txt file...")
             logger.error(ioe)
+
+def is_exceeded_max_duration(
+        track: Union[BasicTrack, Track],
+        kwargs: SCDLArgs
+) -> bool:
+    max_length_ms = int(kwargs.get("max_length")) * 1000
+    is_exceeded = max_length_ms < track.full_duration
+
+    return is_exceeded
 
 
 def already_downloaded(
