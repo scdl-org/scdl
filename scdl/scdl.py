@@ -1234,7 +1234,7 @@ def is_exceeded_max_duration(
     max_length_ms = int(kwargs.get("max_length")) * 1000
     return max_length_ms < track.full_duration
 
-def is_shorter__min_duration(
+def is_shorter_min_duration(
         track: Union[BasicTrack, Track],
         kwargs: SCDLArgs
 ) -> bool:
