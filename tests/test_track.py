@@ -413,7 +413,7 @@ def test_max_length(tmp_path: Path) -> None:
         "--max-length=0",
     )
     assert r.returncode == 1
-    assert "length is longer than passed max allowed length" in r.stderr
+    assert "length is longer than maximum length" in r.stderr
 
     r = call_scdl_with_auth(
         "-l",
@@ -422,7 +422,7 @@ def test_max_length(tmp_path: Path) -> None:
         "--max-length=10",
     )
     assert r.returncode == 1
-    assert not "length is longer than passed max allowed length" in r.stderr
+    assert not "length is longer than maximum length" in r.stderr
 
 def test_min_length(tmp_path: Path) -> None:
     os.chdir(tmp_path)

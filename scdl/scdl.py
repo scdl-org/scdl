@@ -391,20 +391,20 @@ def main() -> None:
 
     if arguments["--min-length"] is not None:
         try:
-            if int(arguments["--min-length"]) <= 0:
-                logger.error("Min length should be an integer and be greater than 0")
+            if int(arguments["--min-length"]) < 0:
+                logger.error("Min length should be greater than 0")
                 sys.exit(1)
         except Exception:
-            logger.exception(f"Error trying to convert --min-length {arguments["--min-length"]} to integer")
+            logger.exception("Min-length should be an integer")
             sys.exit(1)
 
     if arguments["--max-length"] is not None:
         try:
-            if int(arguments["--max-length"]) <= 0:
-                logger.error("Max length should be an integer and be greater than 0")
+            if int(arguments["--max-length"]) < 0:
+                logger.error("Max length should be greater than 0")
                 sys.exit(1)
         except Exception:
-            logger.exception(f"Error trying to convert {arguments["--max-length"]} --max-length to integer")
+            logger.exception("Max length should be an integer")
             sys.exit(1)
 
     if arguments.get("--min-length") and arguments.get("--max-length") and arguments.get("--min-length") >= arguments.get("--max-length"):
@@ -1111,12 +1111,12 @@ def download_track(
         # Skip if track length is shorter than given min length
         if kwargs.get("min_length"):
             if is_shorter__min_duration(track, kwargs):
-                raise SoundCloudException(f"{title} length is shorter than minimum length {kwargs.get("min_length")}s")
+                raise SoundCloudException(f"Skipping track... {title} length is shorter than minimum length {kwargs.get("min_length")}s")
 
         # Skip if track length is longer than given max length
         if kwargs.get("max_length"):
             if is_exceeded_max_duration(track, kwargs):
-                raise SoundCloudException(f"{title} length is longer than maximum length {kwargs.get("max_length")}s")
+                raise SoundCloudException(f"Skipping track... {title} length is longer than maximum length {kwargs.get("max_length")}s")
 
         # Get user_id from the client
         me = client.get_me() if kwargs["auth_token"] else None
