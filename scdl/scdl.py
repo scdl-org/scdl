@@ -1110,7 +1110,7 @@ def download_track(
 
         # Skip if track length is shorter than given min length
         if kwargs.get("min_length"):
-            if is_shorter__min_duration(track, kwargs):
+            if is_shorter_than_min_duration(track, kwargs):
                 raise SoundCloudException(f"Skipping track... {title} length is shorter than minimum length {kwargs.get("min_length")}s")
 
         # Skip if track length is longer than given max length
@@ -1234,7 +1234,7 @@ def is_exceeded_max_duration(
     max_length_ms = int(kwargs.get("max_length")) * 1000
     return max_length_ms < track.full_duration
 
-def is_shorter_min_duration(
+def is_shorter_than_min_duration(
         track: Union[BasicTrack, Track],
         kwargs: SCDLArgs
 ) -> bool:
