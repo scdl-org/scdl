@@ -402,3 +402,44 @@ def test_description_file(tmp_path: Path) -> None:
     assert desc_file.exists()
     with open(desc_file, encoding="utf-8") as f:
         assert f.read().splitlines() == ["test description:", "9439290883"]
+
+
+def test_max_length(tmp_path: Path) -> None:
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--onlymp3",
+        "--max-length=0",
+    )
+    assert r.returncode == 1
+    assert "length is longer than maximum length" in r.stderr
+
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--onlymp3",
+        "--max-length=10",
+    )
+    assert r.returncode == 1
+    assert not "length is longer than maximum length" in r.stderr
+
+def test_min_length(tmp_path: Path) -> None:
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--onlymp3",
+        "--min-length=10",
+    )
+    assert r.returncode == 1
+    assert "length is shorter than minimum length" in r.stderr
+
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--onlymp3",
+        "--min-length=0",
+    )
+    assert r.returncode == 1
+    assert not "length is shorter than minimum length" in r.stderr

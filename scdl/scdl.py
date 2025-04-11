@@ -9,7 +9,7 @@ Usage:
     [--original-name][--original-metadata][--no-original][--only-original]
     [--name-format <format>][--strict-playlist][--playlist-name-format <format>]
     [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
-    [--add-description]
+    [--add-description][--min-length <length>][--max-length <length>]
 
     scdl -h | --help
     scdl --version
@@ -45,6 +45,8 @@ Options:
     --hidewarnings                  Hide Warnings. (use with precaution)
     --max-size [max-size]           Skip tracks larger than size (k/m/g)
     --min-size [min-size]           Skip tracks smaller than size (k/m/g)
+    --min-length [min-length]       Skip tracks shorter than minimum length in seconds
+    --max-length [max-length]       Skip tracks longer than maximum length in seconds
     --no-playlist-folder            Download playlist tracks into main directory,
                                     instead of making a playlist subfolder
     --onlymp3                       Download only mp3 files
@@ -194,6 +196,8 @@ class SCDLArgs(TypedDict):
     sync: Optional[str]
     s: Optional[str]
     t: bool
+    min_length: Optional[int]
+    max_length: Optional[int]
 
 
 class PlaylistInfo(TypedDict):
@@ -384,6 +388,28 @@ def main() -> None:
             logger.error("Max size should be an integer with a possible unit suffix")
             sys.exit(1)
         logger.debug("max-size: %d", arguments["--max-size"])
+
+    if arguments["--min-length"] is not None:
+        try:
+            if int(arguments["--min-length"]) < 0:
+                logger.error("Min length should be greater than 0")
+                sys.exit(1)
+        except Exception:
+            logger.exception("Min-length should be an integer")
+            sys.exit(1)
+
+    if arguments["--max-length"] is not None:
+        try:
+            if int(arguments["--max-length"]) < 0:
+                logger.error("Max length should be greater than 0")
+                sys.exit(1)
+        except Exception:
+            logger.exception("Max length should be an integer")
+            sys.exit(1)
+
+    if arguments.get("--min-length") and arguments.get("--max-length") and arguments.get("--min-length") >= arguments.get("--max-length"):
+        logger.error(f"min_length {arguments.get("--min-length")} cannot be equal or greater than max_length {arguments.get("--max-length")}")
+        sys.exit(1)
 
     if arguments["--hidewarnings"]:
         warnings.filterwarnings("ignore")
@@ -1082,6 +1108,16 @@ def download_track(
         if track.policy == "BLOCK":
             raise RegionBlockError
 
+        # Skip if track length is shorter than given min length
+        if kwargs.get("min_length"):
+            if is_shorter_than_min_duration(track, kwargs):
+                raise SoundCloudException(f"Skipping track... {title} length is shorter than minimum length {kwargs.get("min_length")}s")
+
+        # Skip if track length is longer than given max length
+        if kwargs.get("max_length"):
+            if is_exceeded_max_duration(track, kwargs):
+                raise SoundCloudException(f"Skipping track... {title} length is longer than maximum length {kwargs.get("max_length")}s")
+
         # Get user_id from the client
         me = client.get_me() if kwargs["auth_token"] else None
         client_user_id = me and me.id
@@ -1191,6 +1227,19 @@ def create_description_file(description: Optional[str], filename: str) -> None:
             logger.error("Error trying to write description txt file...")
             logger.error(ioe)
 
+def is_exceeded_max_duration(
+        track: Union[BasicTrack, Track],
+        kwargs: SCDLArgs
+) -> bool:
+    max_length_ms = int(kwargs.get("max_length")) * 1000
+    return max_length_ms < track.full_duration
+
+def is_shorter_than_min_duration(
+        track: Union[BasicTrack, Track],
+        kwargs: SCDLArgs
+) -> bool:
+    min_length_ms = int(kwargs.get("min_length")) * 1000
+    return min_length_ms > track.full_duration
 
 def already_downloaded(
     track: Union[BasicTrack, Track],

@@ -69,6 +69,8 @@ scdl me -f
 --hidewarnings                  Hide Warnings. (use with precaution)
 --max-size [max-size]           Skip tracks larger than size (k/m/g)
 --min-size [min-size]           Skip tracks smaller than size (k/m/g)
+--min-length [min-length]       Skip tracks shorter than minimum length in seconds
+--max-length [max-length]       Skip tracks longer than maximum length in seconds
 --no-playlist-folder            Download playlist tracks into main directory,
                                 instead of making a playlist subfolder
 --onlymp3                       Download only mp3 files
