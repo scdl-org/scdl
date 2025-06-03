@@ -470,7 +470,8 @@ def validate_url(client: SoundCloud, url: str) -> str:
     # see if link redirects to soundcloud.com
     try:
         resp = requests.get(url)
-        if url.startswith(("https://soundcloud.com", "http://soundcloud.com")):
+        if url.startswith(("https://soundcloud.com", "http://soundcloud.com", 
+                           "https://on.soundcloud.com", "http://on.soundcloud.com")):
             return urllib.parse.urljoin(resp.url, urllib.parse.urlparse(resp.url).path)
     except Exception:
         # see if given a username instead of url
