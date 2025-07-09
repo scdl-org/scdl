@@ -36,6 +36,8 @@ Options:
     -r                              Download all reposts of user
     -c                              Continue if a downloaded file already exists
     --force-metadata                This will set metadata on already downloaded track
+    -o [offset]                     Start downloading a playlist from the [offset]th track
+                                    Indexing starts with 1.
     --addtimestamp                  Add track creation timestamp to filename,
                                     which allows for chronological sorting
                                     (Deprecated. Use --name-format instead.)
@@ -268,14 +270,12 @@ atexit.register(clean_up_locks)
 
 class SafeLock:
     def __init__(
-            self,
-            lock_file: Union[str, os.PathLike],
-            timeout: float = -1,
-            mode: int = 0o644,
-            thread_local: bool = True,
+        self,
+        lock_file: Union[str, os.PathLike],
+        timeout: float = -1,
     ) -> None:
-        self._lock = filelock.FileLock(lock_file, timeout, mode, thread_local)
-        self._soft_lock = filelock.SoftFileLock(lock_file, timeout, mode, thread_local)
+        self._lock = filelock.FileLock(lock_file, timeout=timeout)
+        self._soft_lock = filelock.SoftFileLock(lock_file, timeout=timeout)
         self._using_soft_lock = False
 
     def __enter__(self):
@@ -815,7 +815,7 @@ def download_playlist(
                                       if track_tuple[1] in filtered_tracks]
 
             else:
-                logger.error(f'Invalid sync archive file {kwargs.get("sync")}')
+                logger.error(f"Invalid sync archive file {kwargs.get('sync')}")
                 sys.exit(1)
 
         tracknumber_digits = len(str(len(playlist.tracks)))
@@ -1049,7 +1049,7 @@ def download_hls(
     if not kwargs.get("onlymp3"):
         if kwargs.get("opus"):
             valid_presets = [("opus", ".opus"), *valid_presets]
-        valid_presets = [("aac", ".m4a"), *valid_presets]
+        valid_presets = [("aac_256k", ".m4a"), ("aac", ".m4a"), *valid_presets]
 
     transcoding = None
     ext = None
@@ -1080,7 +1080,7 @@ def download_hls(
         track,
         url,
         preset_name
-        if preset_name != "aac"
+        if not preset_name.startswith("aac")
         else "ipod",  # We are encoding aac files to m4a, so an ipod codec is used
         True,  # no need to fully re-encode the whole hls stream
         filename,
