@@ -23,11 +23,14 @@ Options:
     -n                              Sort the tracks of a playlist according to the creation date
                                     in descending order
     -I [interval]                   Download a subset of a playlist/user's uploads/user's favorites/...
-                                    Format: [start index,end index]
+                                    Format: Start index-end index
                                     Bounds are inclusive.
                                     Either bound can be omitted to represent a left/right
                                     unbounded interval.
                                     Indexing starts with 1.
+                                    If only one number is given without hyphen,
+                                    only the track at that index will be downloaded.
+                                    Examples: 10-27, 30-, -50, 58
     -a                              Download all tracks of user (including reposts)
     -t                              Download all uploads of a user (no reposts)
     -f                              Download all favorites (likes) of a user
@@ -254,7 +257,6 @@ def handle_exception(
 
 sys.excepthook = handle_exception
 
-
 file_lock_dirs: List[pathlib.Path] = []
 
 
@@ -270,9 +272,9 @@ atexit.register(clean_up_locks)
 
 class SafeLock:
     def __init__(
-        self,
-        lock_file: Union[str, os.PathLike],
-        timeout: float = -1,
+            self,
+            lock_file: Union[str, os.PathLike],
+            timeout: float = -1,
     ) -> None:
         self._lock = filelock.FileLock(lock_file, timeout=timeout)
         self._soft_lock = filelock.SoftFileLock(lock_file, timeout=timeout)
@@ -488,14 +490,16 @@ def validate_interval(interval: str) -> (int, int):
     In the case of a right-unbounded interval, default upper bound to system max value.
     Both cases are not mutually exclusive.
     """
-    pattern = re.compile(r"^([1-9][0-9]*)?-(\d*)$")
+    pattern = re.compile(r"^(?P<start>[1-9][0-9]*)?-(?P<end>\d*)$|^(?P<single>[1-9][0-9]*)$")
     search_result = pattern.search(interval)
 
     if search_result is not None:
-        start = int(search_result.group(1) or 1)
-        end = int(search_result.group(2) or sys.maxsize)
-        if start <= end:
-            return start, end
+        if (search_result.group('single') is not None):
+            start = end = int(search_result.group('single'))
+        else:
+            start = int(search_result.group('start') or 1)
+            end = int(search_result.group('end') or sys.maxsize)
+        return min(start, end), max(start, end)
 
     logger.error("Interval is not valid")
     sys.exit(1)
