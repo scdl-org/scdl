@@ -488,7 +488,7 @@ def validate_interval(interval: str) -> (int, int):
     In the case of a right-unbounded interval, default upper bound to system max value.
     Both cases are not mutually exclusive.
     """
-    pattern = re.compile(r"^\[([1-9][0-9]*)?,(\d*)]$")
+    pattern = re.compile(r"^([1-9][0-9]*)?-(\d*)$")
     search_result = pattern.search(interval)
 
     if search_result is not None:
