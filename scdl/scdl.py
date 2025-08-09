@@ -9,7 +9,7 @@ Usage:
     [--original-name][--original-metadata][--no-original][--only-original]
     [--name-format <format>][--strict-playlist][--playlist-name-format <format>]
     [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
-    [--add-description]
+    [--add-description][--yt-dlp-args <argstring>]
 
     scdl -h | --help
     scdl --version
@@ -71,6 +71,7 @@ Options:
     --no-playlist                   Skip downloading playlists
     --add-description               Adds the description to a separate txt file
     --opus                          Prefer downloading opus streams over mp3 streams
+    --yt-dlp-args                   String with custom args to forward to yt-dlp
 """
 
 from __future__ import annotations
@@ -81,6 +82,7 @@ import importlib.metadata
 import logging
 import os
 import posixpath
+import shlex
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
@@ -156,6 +158,7 @@ class SCDLArgs(TypedDict):
     sync: str | None
     s: str | None
     t: bool
+    yt_dlp_args: str
 
 
 __version__ = importlib.metadata.version("scdl")
@@ -531,6 +534,11 @@ def download_url(url: str, **scdl_args: Unpack[SCDLArgs]) -> None:
     params["postprocessors"] = [
         pp for pp in params["postprocessors"] if pp["key"] not in ("EmbedThumbnail", "FFmpegMetadata")
     ]
+
+    if scdl_args.get("yt_dlp_args"):
+        argv = shlex.split(scdl_args.get("yt_dlp_args"))
+        overrides = utils.cli_to_api(argv)
+        params = {**params, **overrides}
 
     with YoutubeDL(params) as ydl:
         if scdl_args["client_id"]:

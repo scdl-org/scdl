@@ -91,6 +91,7 @@ scdl me -f
 --add-description               Adds the description to a seperate txt file (can be read by some players)
 --no-playlist                   Skip downloading playlists
 --opus                          Prefer downloading opus streams over mp3 streams
+--yt-dlp-args                   String with custom args to forward to yt-dlp
 ```
 
 
