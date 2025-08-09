@@ -1,0 +1,74 @@
+[project]
+name = "scdl"
+version = "3.0.0"
+authors=[
+    {name = "7x11x13"}, {name = "FlyinGrub"}
+]
+description = "Download Music from Souncloud"
+readme = "README.md"
+requires-python = ">=3.9.0"
+dependencies = [
+    "docopt-ng>=0.9.0",
+    "mutagen>=1.47.0",
+    "soundcloud-v2>=1.6.0",
+    "yt-dlp>=2025.2.19",
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+
+[dependency-groups]
+dev = [
+    "music-tag>=0.4.3",
+    "mypy>=1.13.0",
+    "pytest>=8.3.4",
+    "pytest-dotenv>=0.5.2",
+    "ruff>=0.8.3",
+    "types-requests>=2.32.0.20241016",
+    "typing_extensions>=4.12.2; python_version < '3.11'",
+]
+
+[project.urls]
+Issues = "https://github.com/scdl-org/scdl/issues"
+Repository = "https://github.com/scdl-org/scdl"
+Changelog = "https://github.com/scdl-org/scdl/blob/master/CHANGELOG.md"
+
+[project.scripts]
+scdl = "scdl.scdl:_main"
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN",
+    "C90", "D",
+    "S", "BLE", "FBT", "A", "EM", "FA", "G", "SLF", "PTH",
+    "PLR", "TRY",
+    "PLW2901", "ANN204",
+    "COM812", "ISC001",
+    "EXE"
+]
+
+[tool.mypy]
+packages = ["scdl", "tests"]
+check_untyped_defs = true
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = "scdl.patches.*"
+ignore_errors = true

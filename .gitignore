@@ -4,10 +4,13 @@ dist/
 *.egg-info/
 __pycache__/
 *.mp3
+*.opus
+*.m4a
+*.flac
 .vscode
 .venv
 .env
 .coverage*
 .idea
 .python-version
-.DS_store
+.DS_Store

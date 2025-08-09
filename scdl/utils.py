@@ -1,83 +1,49 @@
+from logging import Logger
+
+import yt_dlp
+import yt_dlp.options
+
 """Copied from
-https://github.com/davidfischer-ch/pytoolbox/blob/master/pytoolbox/logging.py
+https://github.com/yt-dlp/yt-dlp/blob/0b6b7742c2e7f2a1fcb0b54ef3dd484bab404b3f/devscripts/cli_to_api.py
 """
-
-import email.message
-import logging
-import re
-from types import MappingProxyType
-from typing import Dict, Optional
-
-from termcolor import colored
-
-__all__ = ("ColorizeFilter",)
+_create_parser = yt_dlp.options.create_parser
 
 
-class ColorizeFilter(logging.Filter):
-    COLOR_BY_LEVEL = MappingProxyType(
+def _parse_patched_options(opts):
+    patched_parser = _create_parser()
+    patched_parser.defaults.update(
         {
-            logging.DEBUG: "blue",
-            logging.WARNING: "yellow",
-            logging.ERROR: "red",
-            logging.INFO: "white",
-        },
+            "ignoreerrors": False,
+            "retries": 0,
+            "fragment_retries": 0,
+            "extract_flat": False,
+            "concat_playlist": "never",
+        }
     )
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.raw_msg = record.msg
-        color = self.COLOR_BY_LEVEL.get(record.levelno)
-        if color:
-            record.msg = colored(record.msg, color)  # type: ignore[arg-type]
-        return True
+    yt_dlp.options.create_parser = lambda: patched_parser
+    try:
+        return yt_dlp.parse_options(opts)
+    finally:
+        yt_dlp.options.create_parser = _create_parser
 
 
-def size_in_bytes(insize: str) -> int:
-    """Return the size in bytes from strings such as '5 mb' into 5242880.
-
-    >>> size_in_bytes('1m')
-    1048576
-    >>> size_in_bytes('1.5m')
-    1572864
-    >>> size_in_bytes('2g')
-    2147483648
-    >>> size_in_bytes(None)
-    Traceback (most recent call last):
-        raise ValueError('no string specified')
-    ValueError: no string specified
-    >>> size_in_bytes('')
-    Traceback (most recent call last):
-        raise ValueError('no string specified')
-    ValueError: no string specified
-    """
-    if insize is None or insize.strip() == "":
-        raise ValueError("no string specified")
-
-    units = {
-        "k": 1024,
-        "m": 1024**2,
-        "g": 1024**3,
-        "t": 1024**4,
-        "p": 1024**5,
-    }
-    match = re.search(r"^\s*([0-9\.]+)\s*([kmgtp])?", insize, re.IGNORECASE)
-
-    if match is None:
-        raise ValueError("match not found")
-
-    size, unit = match.groups()
-
-    if size:
-        size = float(size)
-
-    if unit:
-        size = size * units[unit.lower().strip()]
-
-    return int(size)
+_default_opts = _parse_patched_options([]).ydl_opts
 
 
-def parse_header(content_disposition: Optional[str]) -> Dict[str, str]:
-    if not content_disposition:
-        return {}
-    message = email.message.Message()
-    message["content-type"] = content_disposition
-    return dict(message.get_params({}))
+def cli_to_api(opts):
+    opts = yt_dlp.parse_options(opts).ydl_opts
+
+    diff = {k: v for k, v in opts.items() if _default_opts[k] != v}
+    if "postprocessors" in diff:
+        diff["postprocessors"] = [pp for pp in diff["postprocessors"] if pp not in _default_opts["postprocessors"]]
+    return diff
+
+
+class YTLogger(Logger):
+    def debug(self, msg: object, *args, **kwargs):
+        # For compatibility with youtube-dl, both debug and info are passed into debug
+        # You can distinguish them by the prefix '[debug] '
+        if isinstance(msg, str) and msg.startswith("[debug] "):
+            super().debug(msg, *args, **kwargs)
+        else:
+            self.info(msg, *args, **kwargs)

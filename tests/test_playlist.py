@@ -51,22 +51,6 @@ def test_playlist(tmp_path: Path) -> None:
     assert_track_playlist_2(tmp_path)
 
 
-def test_n(tmp_path: Path) -> None:
-    os.chdir(tmp_path)
-    r = call_scdl_with_auth(
-        "-l",
-        "https://soundcloud.com/one-thousand-and-one/sets/test-playlist/s-ZSLfNrbPoXR",
-        "--playlist-name-format",
-        "{playlist[tracknumber]}_{title}",
-        "--onlymp3",
-        "-n",
-        "1",
-    )
-    assert r.returncode == 0
-    assert_track(tmp_path / "test playlist", "1_test track 2.mp3", check_metadata=False)
-    assert_not_track(tmp_path / "test playlist", "2_testing - test track.mp3")
-
-
 def test_offset(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(
@@ -111,7 +95,7 @@ def test_no_strict_playlist(tmp_path: Path) -> None:
         "--playlist-name-format",
         "{playlist[tracknumber]}_{title}",
         "--onlymp3",
-        "--max-size=10kb",
+        "--max-size=10k",
     )
     assert r.returncode == 0
     assert_not_track(tmp_path / "test playlist", "1_testing - test track.mp3")
@@ -142,18 +126,18 @@ def test_sync(tmp_path: Path) -> None:
         "https://soundcloud.com/7x11x13/wan-bushi-eurodance-vibes-part-123",
         "--onlymp3",
         "--name-format",
-        "{title}",
+        "remove_this",
         "--path",
         "test playlist",
     )
     assert r.returncode == 0
     assert_track(
         tmp_path / "test playlist",
-        "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3",
+        "remove_this.mp3",
         check_metadata=False,
     )
     with open("archive.txt", "w", encoding="utf-8") as f:
-        f.writelines(["1032303631"])
+        f.writelines(["soundcloud 1032303631 ./test playlist/remove_this.mp3"])
     r = call_scdl_with_auth(
         "-l",
         "https://soundcloud.com/one-thousand-and-one/sets/test-playlist/s-ZSLfNrbPoXR",
@@ -163,6 +147,9 @@ def test_sync(tmp_path: Path) -> None:
         "archive.txt",
     )
     assert r.returncode == 0
-    assert_not_track(tmp_path / "test playlist", "Wan Bushi - Eurodance Vibes (part 1+2+3).mp3")
+    assert_not_track(tmp_path / "test playlist", "remove_this.mp3")
     with open("archive.txt") as f:
-        assert f.read().split() == ["1855267053", "1855318536"]
+        assert [line.split()[1] for line in f.read().splitlines()] == [
+            "1855267053",
+            "1855318536",
+        ]
