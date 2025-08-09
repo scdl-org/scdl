@@ -1,9 +1,15 @@
 # Soundcloud Music Downloader
+
+## Status of the project
+
+As of version 3, this script is a wrapper around `yt-dlp` with some defaults/patches for backwards compatibility.
+Development is not active and new features will likely not be merged, especially if they can be covered with the
+use of `--yt-dlp-args`. Bug reports/fixes are welcome.
+
 ## Description
 
 This script is able to download music from SoundCloud and set id3tag to the downloaded music.
 Compatible with Windows, OS X, Linux.
-
 
 ## System requirements
 
