@@ -71,7 +71,7 @@ Options:
     --no-playlist                   Skip downloading playlists
     --add-description               Adds the description to a separate txt file
     --opus                          Prefer downloading opus streams over mp3 streams
-    --yt-dlp-args                   String with custom args to forward to yt-dlp
+    --yt-dlp-args [argstring]       String with custom args to forward to yt-dlp
 """
 
 from __future__ import annotations
