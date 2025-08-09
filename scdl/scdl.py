@@ -535,8 +535,9 @@ def download_url(url: str, **scdl_args: Unpack[SCDLArgs]) -> None:
         pp for pp in params["postprocessors"] if pp["key"] not in ("EmbedThumbnail", "FFmpegMetadata")
     ]
 
-    if scdl_args.get("yt_dlp_args"):
-        argv = shlex.split(scdl_args.get("yt_dlp_args"))
+    yt_dlp_args = scdl_args.get("yt_dlp_args")
+    if yt_dlp_args:
+        argv = shlex.split(yt_dlp_args)
         overrides = utils.cli_to_api(argv)
         params = {**params, **overrides}
 
