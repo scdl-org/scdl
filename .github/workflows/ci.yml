@@ -42,8 +42,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
-      run: |
-        pytest -vv --exitfirst
+      run: uv run pytest -vv --exitfirst
   publish:
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
