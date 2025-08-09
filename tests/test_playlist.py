@@ -51,22 +51,6 @@ def test_playlist(tmp_path: Path) -> None:
     assert_track_playlist_2(tmp_path)
 
 
-def test_n(tmp_path: Path) -> None:
-    os.chdir(tmp_path)
-    r = call_scdl_with_auth(
-        "-l",
-        "https://soundcloud.com/one-thousand-and-one/sets/test-playlist/s-ZSLfNrbPoXR",
-        "--playlist-name-format",
-        "{playlist[tracknumber]}_{title}",
-        "--onlymp3",
-        "-n",
-        "1",
-    )
-    assert r.returncode == 0
-    assert_track(tmp_path / "test playlist", "1_test track 2.mp3", check_metadata=False)
-    assert_not_track(tmp_path / "test playlist", "2_testing - test track.mp3")
-
-
 def test_offset(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     r = call_scdl_with_auth(

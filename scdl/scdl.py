@@ -2,7 +2,7 @@
 
 Usage:
     scdl (-l <track_url> | -s <search_query> | me) [-a | -f | -C | -t | -p | -r]
-    [-c | --force-metadata][-n <maxtracks>][-o <offset>][--hidewarnings][--debug | --error]
+    [-c | --force-metadata][-o <offset>][--hidewarnings][--debug | --error]
     [--path <path>][--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
     [--max-size <size>][--no-album-tag][--no-playlist-folder]
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
@@ -417,10 +417,6 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
             "pre_process",
         )
     ]
-
-    if scdl_args.get("n"):
-        # TODO
-        raise NotImplementedError
 
     if scdl_args.get("strict_playlist"):
         params["--abort-on-error"] = True

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **Breaking:** Remove `--remove`
+- **Breaking:** Remove `-n`
 - **Breaking:** Drop support for Python 3.7 and 3.8
 - **Breaking:** When writing to stdout, files no longer contain metadata
 
