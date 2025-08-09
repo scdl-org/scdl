@@ -18,9 +18,7 @@ class OriginalFilenamePP(PostProcessor):
     def run(self, info):
         for format in info.get("formats", ()):
             if format.get("format_id") == "download":
-                res: Response = self._downloader.urlopen(
-                    Request(format["url"], headers=format["http_headers"])
-                )
+                res: Response = self._downloader.urlopen(Request(format["url"], headers=format["http_headers"]))
                 params = _parse_header(res.get_header("content-disposition"))
                 if "filename" not in params:
                     break

@@ -32,9 +32,7 @@ old_create_parser = options.create_parser
 def create_parser_patched():
     parser = old_create_parser()
     thumbnail = parser.get_option_group("--write-thumbnail")
-    thumbnail.add_option(
-        "--thumbnail-id", metavar="ID", dest="thumbnail_id", help="ID of thumbnail to write to disk"
-    )
+    thumbnail.add_option("--thumbnail-id", metavar="ID", dest="thumbnail_id", help="ID of thumbnail to write to disk")
     return parser
 
 

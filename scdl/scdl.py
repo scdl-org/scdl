@@ -335,9 +335,7 @@ def _convert_v2_name_format(s: str) -> str:
     return s
 
 
-def _build_ytdl_output_filename(
-    scdl_args: SCDLArgs, in_playlist: bool, force_suffix: str | None = None
-) -> str:
+def _build_ytdl_output_filename(scdl_args: SCDLArgs, in_playlist: bool, force_suffix: str | None = None) -> str:
     if scdl_args.get("name_format") == "-":
         return "-"
 
@@ -421,11 +419,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     if scdl_args.get("strict_playlist"):
         params["--abort-on-error"] = True
 
-    if (
-        not scdl_args.get("c")
-        and not scdl_args.get("download_archive")
-        and not scdl_args.get("sync")
-    ):
+    if not scdl_args.get("c") and not scdl_args.get("download_archive") and not scdl_args.get("sync"):
         params["--break-on-existing"] = True
 
     # if not scdl_args.get("force_metadata"):
@@ -535,9 +529,7 @@ def download_url(url: str, **scdl_args: Unpack[SCDLArgs]) -> None:
 
     # we handle this with custom MutagenPP for now
     params["postprocessors"] = [
-        pp
-        for pp in params["postprocessors"]
-        if pp["key"] not in ("EmbedThumbnail", "FFmpegMetadata")
+        pp for pp in params["postprocessors"] if pp["key"] not in ("EmbedThumbnail", "FFmpegMetadata")
     ]
 
     with YoutubeDL(params) as ydl:

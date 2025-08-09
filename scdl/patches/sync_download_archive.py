@@ -60,9 +60,7 @@ class SyncDownloadHelper:
             return
 
         # remove extra files
-        to_remove = {
-            self._all_files[key] for key in (set(self._all_files.keys()) - self._downloaded)
-        }
+        to_remove = {self._all_files[key] for key in (set(self._all_files.keys()) - self._downloaded)}
         self._ydl._delete_downloaded_files(*to_remove)
 
         with locked_file(self._sync_file, "w", encoding="utf-8") as archive_file:

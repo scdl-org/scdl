@@ -54,9 +54,7 @@ def evaluate_outtmpl(self, outtmpl, info_dict, *args, trim_filename=False, **kwa
 def _prepare_filename(self, info_dict, *, outtmpl=None, tmpl_type=None):
     assert None in (outtmpl, tmpl_type), "outtmpl and tmpl_type are mutually exclusive"
     if outtmpl is None:
-        outtmpl = self.params["outtmpl"].get(
-            tmpl_type or "default", self.params["outtmpl"]["default"]
-        )
+        outtmpl = self.params["outtmpl"].get(tmpl_type or "default", self.params["outtmpl"]["default"])
     try:
         outtmpl = self._outtmpl_expandpath(outtmpl)
         filename = self.evaluate_outtmpl(outtmpl, info_dict, True, trim_filename=True)
@@ -73,13 +71,7 @@ def _prepare_filename(self, info_dict, *, outtmpl=None, tmpl_type=None):
                 filename = replace_extension(filename, force_ext, info_dict.get("ext"))
         return filename
     except ValueError as err:
-        self.report_error(
-            "Error in output template: "
-            + str(err)
-            + " (encoding: "
-            + repr(preferredencoding())
-            + ")"
-        )
+        self.report_error("Error in output template: " + str(err) + " (encoding: " + repr(preferredencoding()) + ")")
         return None
 
 

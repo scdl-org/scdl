@@ -134,9 +134,7 @@ class MutagenPP(PostProcessor):
 
     @functools.singledispatchmethod
     def _assemble_metadata(self, file: FileType, meta: dict) -> None:  # noqa: ARG002
-        raise MutagenPostProcessorError(
-            f"Filetype {file.__class__.__name__} is not currently supported"
-        )
+        raise MutagenPostProcessorError(f"Filetype {file.__class__.__name__} is not currently supported")
 
     @_assemble_metadata.register(flac.FLAC)
     def _(self, file: flac.FLAC, meta: dict) -> None:
@@ -228,9 +226,7 @@ class MutagenPP(PostProcessor):
             self.to_screen("There aren't any thumbnails to embed")
             return None
 
-        idx = next(
-            (-i for i, t in enumerate(info["thumbnails"][::-1], 1) if t.get("filepath")), None
-        )
+        idx = next((-i for i, t in enumerate(info["thumbnails"][::-1], 1) if t.get("filepath")), None)
         if idx is None:
             self.to_screen("There are no thumbnails on disk")
             return None
