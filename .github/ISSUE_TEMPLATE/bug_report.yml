@@ -1,0 +1,100 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior
+title: "[BUG]: "
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out this template completely.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checks
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this bug hasn't been reported
+          required: true
+        - label: I have tested with the latest version of scdl
+          required: true
+        - label: I have read the README and documentation
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: SCDL Version
+      description: Output of `scdl --version`
+      placeholder: "3.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python Version
+      description: Output of `python --version`
+      placeholder: "Python 3.12.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Windows
+        - macOS
+        - Linux (Ubuntu)
+        - Linux (Debian)
+        - Linux (Arch)
+        - Linux (Other)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command Used
+      description: The exact command that caused the issue
+      placeholder: "scdl -l https://soundcloud.com/user/track"
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error Output
+      description: Please paste the complete error output
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other information that might be helpful
+    validations:
+      required: false

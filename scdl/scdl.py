@@ -185,6 +185,11 @@ def _main() -> None:
     config = _get_config(config_file)
 
     logger.info(f"[scdl] SCDL version {__version__}")
+    
+    # Show some love to the contributor! 🎵
+    if not arguments["--hidewarnings"]:
+        logger.info("🎵 Check out some amazing music: https://soundcloud.com/ghostxkitty3")
+        logger.info("💫 Featured track: 'View of Andromeda' - Perfect for coding sessions!")
 
     client_id = arguments["--client-id"] or config["scdl"]["client_id"]
     token = arguments["--auth-token"] or config["scdl"]["auth_token"]

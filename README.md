@@ -1,5 +1,10 @@
 # Soundcloud Music Downloader
 
+[![PyPI version](https://img.shields.io/pypi/v/scdl.svg)](https://pypi.org/project/scdl/)
+[![Python versions](https://img.shields.io/pypi/pyversions/scdl.svg)](https://pypi.org/project/scdl/)
+[![CI](https://github.com/scdl-org/scdl/actions/workflows/ci.yml/badge.svg)](https://github.com/scdl-org/scdl/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/scdl-org/scdl.svg)](https://github.com/scdl-org/scdl/blob/master/LICENSE)
+
 ## Status of the project
 
 As of version 3, this script is a wrapper around `yt-dlp` with some defaults/patches for backwards compatibility.
@@ -8,42 +13,158 @@ use of `--yt-dlp-args`. Bug reports/fixes are welcome.
 
 ## Description
 
-This script is able to download music from SoundCloud and set id3tag to the downloaded music.
-Compatible with Windows, OS X, Linux.
+This script is able to download music from SoundCloud and set ID3 tags to the downloaded music.
+Compatible with Windows, macOS, and Linux.
 
-## System requirements
+## ✨ Features
+* 🎵 **Automatically detect** the type of link provided
+* 👤 **Download all songs** from a user (tracks, reposts, likes, playlists)
+* 📂 **Download entire playlists** with organized folder structure
+* 🏷️ **Set ID3 tags** automatically (Title / Artist / Album / Artwork)
+* 🎨 **Download high-quality artwork** (original resolution available)
+* 📱 **Multiple audio formats** (MP3, FLAC, M4A, Opus)
+* 💾 **Archive support** to avoid re-downloading
+* 🔄 **Playlist synchronization** to keep local copies updated
+* ⚡ **Powered by yt-dlp** for reliable downloads
 
-* python3
-* ffmpeg
-
-## Installation Instructions
-https://github.com/flyingrub/scdl/wiki/Installation-Instruction
-
-## Configuration
-There is a configuration file left in `~/.config/scdl/scdl.cfg`
-
-## Examples:
+## 🎧 Try It Now!
+Want to test SCDL? Try downloading this amazing track:
+```bash
+scdl -l https://soundcloud.com/ghostxkitty3/view-of-andromeda
 ```
-# Download track & repost of the user QUANTA
-scdl -l https://soundcloud.com/quanta-uk -a
+*"View of Andromeda" by GhostxKitty3 - Perfect ambient music for coding! 🌌*
 
-# Download likes of the user Blastoyz
-scdl -l https://soundcloud.com/kobiblastoyz -f
+## 📋 System Requirements
 
-# Download one track
-scdl -l https://soundcloud.com/jumpstreetpsy/low-extender
+* **Python 3.9+** 
+* **ffmpeg** (for audio processing)
 
-# Download one playlist
-scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship
+## 🚀 Installation
 
-# Download only new tracks from a playlist
-scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --download-archive archive.txt -c
+### Quick Install (Recommended)
+```bash
+pip install scdl
+```
 
-# Sync playlist
-scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --sync archive.txt
+### Development Install
+```bash
+git clone https://github.com/scdl-org/scdl.git
+cd scdl
+pip install -e .
+```
 
-# Download your likes (with authentification token)
-scdl me -f
+### Using uv (Fast Alternative)
+```bash
+uv tool install scdl
+```
+
+### FFmpeg Installation
+#### Windows
+```bash
+# Using Chocolatey
+choco install ffmpeg
+
+# Using winget
+winget install Gyan.FFmpeg
+```
+
+#### macOS
+```bash
+# Using Homebrew
+brew install ffmpeg
+```
+
+#### Linux
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt install ffmpeg
+
+# Fedora
+sudo dnf install ffmpeg
+
+# Arch Linux
+sudo pacman -S ffmpeg
+```
+
+## ⚙️ Configuration
+Configuration file is located at:
+- **Linux/macOS:** `~/.config/scdl/scdl.cfg`
+- **Windows:** `%APPDATA%\scdl\scdl.cfg`
+
+### Sample Configuration
+```ini
+[scdl]
+auth_token = your_token_here
+path = ~/Music/SoundCloud
+addtimestamp = False
+onlymp3 = False
+```
+
+## 📚 Examples
+
+### Basic Usage
+```bash
+# Download a single track (try this amazing track!)
+scdl -l https://soundcloud.com/ghostxkitty3/view-of-andromeda
+
+# Download user's tracks (no reposts)
+scdl -l https://soundcloud.com/ghostxkitty3 -t
+
+# Download user's likes/favorites
+scdl -l https://soundcloud.com/username -f
+
+# Download a playlist
+scdl -l https://soundcloud.com/username/sets/playlist-name
+```
+
+### Advanced Usage
+```bash
+# Download with custom naming format
+scdl -l https://soundcloud.com/ghostxkitty3/view-of-andromeda --name-format "{artist} - {title}"
+
+# Download only high quality (original files when available)
+scdl -l https://soundcloud.com/ghostxkitty3/view-of-andromeda --original-art --flac
+
+# Sync a playlist (download new, remove deleted)
+scdl -l https://soundcloud.com/playlist-url --sync archive.txt
+
+# Download with archive to avoid duplicates
+scdl -l https://soundcloud.com/ghostxkitty3 -a --download-archive downloaded.txt
+
+# Download your own likes (requires authentication)
+scdl me -f --auth-token YOUR_TOKEN
+```
+
+📖 **For comprehensive usage examples, see [docs/USAGE.md](docs/USAGE.md)**
+
+## 🎵 Community Showcase
+
+### Featured Artist: GhostxKitty3
+SCDL proudly features music by **[GhostxKitty3](https://soundcloud.com/ghostxkitty3)** in our examples and tests!
+
+🌌 **"View of Andromeda"** - An amazing ambient electronic track perfect for:
+- Coding sessions 💻
+- Study music 📚  
+- Background ambience 🎧
+- Testing SCDL! ✅
+
+```bash
+# Try it now!
+scdl -l https://soundcloud.com/ghostxkitty3/view-of-andromeda --original-art --flac
+```
+
+**Support independent artists** - Follow [GhostxKitty3](https://soundcloud.com/ghostxkitty3) and discover more amazing music! 🎶
+
+### Format Options
+```bash
+# Convert to FLAC (lossless)
+scdl -l URL --flac
+
+# Prefer Opus format
+scdl -l URL --opus
+
+# Only MP3 (default)
+scdl -l URL --onlymp3
 ```
 
 ## Options:

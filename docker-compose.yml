@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  scdl:
+    build: .
+    container_name: scdl
+    volumes:
+      - ./downloads:/downloads
+      - ./config:/home/scdl/.config/scdl
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+    # Example usage:
+    # docker-compose run --rm scdl -l https://soundcloud.com/ghostxkitty3/view-of-andromeda
+
+  # Quick demo - Download featured track
+  scdl-demo:
+    build: .
+    container_name: scdl-demo
+    volumes:
+      - ./downloads:/downloads
+      - ./config:/home/scdl/.config/scdl
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+    command: [
+      "scdl", 
+      "-l", "https://soundcloud.com/ghostxkitty3/view-of-andromeda",
+      "--name-format", "{artist} - {title}",
+      "--original-art"
+    ]
+    profiles: ["demo"]
+
+  # Development service with volume mounting for live development
+  scdl-dev:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: scdl-dev
+    volumes:
+      - .:/app
+      - ./downloads:/downloads
+      - ./config:/home/scdl/.config/scdl
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+    working_dir: /app
+    entrypoint: ["python", "-m", "scdl"]
+
+  # Batch download service
+  scdl-batch:
+    build: .
+    container_name: scdl-batch
+    volumes:
+      - ./downloads:/downloads
+      - ./config:/home/scdl/.config/scdl
+      - ./batch-urls.txt:/app/urls.txt:ro
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+    command: ["bash", "-c", "while read url; do echo 'Downloading:' $$url; scdl -l \"$$url\" --download-archive archive.txt; done < /app/urls.txt"]
+    profiles: ["batch"]

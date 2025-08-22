@@ -1,0 +1,57 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  schedule:
+    # Run weekly security scans
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit semgrep
+    
+    - name: Run Safety check
+      run: |
+        pip freeze | safety check --stdin
+    
+    - name: Run Bandit security linter
+      run: |
+        bandit -r scdl/ -f json -o bandit-report.json || true
+    
+    - name: Upload Bandit scan results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: bandit-report
+        path: bandit-report.json
+
+  dependency-review:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: moderate

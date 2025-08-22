@@ -1,30 +1,44 @@
 name: ci
 on:
   push:
-    branches: [ master ]
+    branches: [ master, main ]
     tags:
       - 'v*'
   pull_request:
-    branches: [ master ]
+    branches: [ master, main ]
+  schedule:
+    # Run tests weekly to catch dependency issues
+    - cron: '0 0 * * 0'
+
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
-        version: ['3.9', '3.13']
-    runs-on: ubuntu-latest
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        exclude:
+          # Skip some combinations to reduce CI load
+          - os: windows-latest
+            python-version: '3.10'
+          - os: macos-latest
+            python-version: '3.10'
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.version }}
+        python-version: ${{ matrix.python-version }}
     - name: Install uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: ${{ matrix.version }}
         version: '0.8.8'
     - name: Install dependencies
-      run: uv sync
+      run: uv sync --dev
     - name: Lint
       if: '!cancelled()'
       run: uv run ruff check --output-format=github
@@ -35,14 +49,32 @@ jobs:
       if: '!cancelled()'
       run: uv run mypy
     - name: Install ffmpeg
+      shell: bash
       run: |
-        sudo apt update
-        sudo apt install -yq --no-install-recommends ffmpeg
-    - name: Test
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          sudo apt update
+          sudo apt install -yq --no-install-recommends ffmpeg
+        elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          brew install ffmpeg
+        elif [[ "${{ runner.os }}" == "Windows" ]]; then
+          choco install ffmpeg
+        fi
+    
+    - name: Test with pytest
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
-      run: uv run pytest -vv --exitfirst
+      run: |
+        uv run pytest -xvs --cov=scdl --cov-report=xml --cov-report=term-missing
+    
+    - name: Upload coverage to Codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
   publish:
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')

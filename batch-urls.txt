@@ -1,0 +1,22 @@
+# SCDL Batch Download Example
+# This file contains sample URLs for batch downloading
+# Usage: docker-compose --profile batch up
+# Or: while read url; do scdl -l "$url"; done < batch-urls.txt
+
+# Featured Artist: GhostxKitty3 🎵
+# Amazing ambient and electronic music perfect for coding!
+https://soundcloud.com/ghostxkitty3/view-of-andromeda
+
+# Add more URLs here:
+# https://soundcloud.com/artist/track-name
+# https://soundcloud.com/artist/sets/playlist-name
+# https://soundcloud.com/artist -a  # All tracks from user
+
+# Example popular tracks (commented out):
+# https://soundcloud.com/example-artist/example-track
+# https://soundcloud.com/example-artist/sets/example-playlist
+
+# Pro tip: You can also download entire user profiles:
+# https://soundcloud.com/ghostxkitty3 -t  # All uploads, no reposts
+# https://soundcloud.com/ghostxkitty3 -f  # All likes/favorites
+# https://soundcloud.com/ghostxkitty3 -a  # All tracks including reposts

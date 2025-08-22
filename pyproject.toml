@@ -2,11 +2,17 @@
 name = "scdl"
 version = "3.0.0"
 authors=[
-    {name = "7x11x13"}, {name = "FlyinGrub"}
+    {name = "7x11x13", email = "7x11x13@pm.me"}, 
+    {name = "FlyinGrub", email = "flyinggrub@gmail.com"}
 ]
-description = "Download Music from Souncloud"
+maintainers=[
+    {name = "7x11x13", email = "7x11x13@pm.me"}
+]
+description = "Download Music from SoundCloud"
 readme = "README.md"
+license = {text = "GPL-2.0"}
 requires-python = ">=3.9.0"
+keywords = ["soundcloud", "download", "music", "audio", "cli"]
 dependencies = [
     "docopt-ng>=0.9.0",
     "mutagen>=1.47.0",
@@ -14,16 +20,20 @@ dependencies = [
     "yt-dlp>=2025.2.19",
 ]
 classifiers = [
-    "Programming Language :: Python",
     "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Internet",
     "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Utilities",
 ]
 
 [dependency-groups]
@@ -31,7 +41,10 @@ dev = [
     "music-tag>=0.4.3",
     "mypy>=1.13.0",
     "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
     "pytest-dotenv>=0.5.2",
+    "pytest-xdist>=3.6.0",
+    "coverage[toml]>=7.6.0",
     "ruff>=0.8.3",
     "types-requests>=2.32.0.20241016",
     "typing_extensions>=4.12.2; python_version < '3.11'",
@@ -72,3 +85,40 @@ disable_error_code = ["import-untyped"]
 [[tool.mypy.overrides]]
 module = "scdl.patches.*"
 ignore_errors = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=scdl",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["scdl"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "setup.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

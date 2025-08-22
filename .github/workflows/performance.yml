@@ -1,0 +1,162 @@
+name: Performance Monitoring
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  schedule:
+    # Run performance tests weekly
+    - cron: '0 2 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  performance-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+    
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        uv pip install psutil
+    
+    - name: Install ffmpeg
+      run: |
+        sudo apt update
+        sudo apt install -yq --no-install-recommends ffmpeg
+    
+    - name: Run benchmark tests
+      env:
+        AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
+      run: |
+        uv run pytest tests/test_benchmarks.py -v -m benchmark --tb=short
+    
+    - name: Run performance monitoring script
+      run: |
+        # Test with the featured track first
+        uv run python scripts/performance_monitor.py \
+          "https://soundcloud.com/ghostxkitty3/view-of-andromeda" \
+          "https://soundcloud.com/7x11x13-testing/testing-test-track" \
+          --results-file performance_results.json
+    
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results-${{ github.sha }}
+        path: performance_results.json
+    
+    - name: Check for performance regression
+      run: |
+        # Simple regression check - this could be enhanced with historical comparison
+        python -c "
+        import json
+        with open('performance_results.json') as f:
+            results = json.load(f)
+        
+        for result in results:
+            if result['success']:
+                duration = result['duration']
+                speed = result.get('download_speed', 0)
+                
+                # Basic thresholds - adjust as needed
+                if duration > 120:  # 2 minutes max for single track
+                    print(f'❌ Performance regression: {duration:.1f}s > 120s')
+                    exit(1)
+                if speed > 0 and speed < 0.1:  # Minimum 0.1 MB/s
+                    print(f'❌ Speed regression: {speed:.2f} MB/s < 0.1 MB/s')
+                    exit(1)
+                    
+                print(f'✅ Performance OK: {duration:.1f}s, {speed:.2f} MB/s')
+            else:
+                print(f'❌ Download failed: {result[\"error_message\"]}')
+                exit(1)
+        "
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Install ffmpeg
+      run: |
+        sudo apt update
+        sudo apt install -yq --no-install-recommends ffmpeg
+    
+    - name: Run integration tests
+      env:
+        AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
+      run: |
+        uv run pytest tests/test_integration.py -v -m integration --tb=short
+    
+    - name: Test Docker build
+      run: |
+        docker build -t scdl-test .
+        docker run --rm scdl-test --version
+    
+    - name: Test Docker compose
+      run: |
+        echo "AUTH_TOKEN=${{ secrets.AUTH_TOKEN }}" > .env
+        docker-compose run --rm scdl --help
+
+  cross-platform-tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Install ffmpeg
+      shell: bash
+      run: |
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          sudo apt update && sudo apt install -yq ffmpeg
+        elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          brew install ffmpeg
+        elif [[ "${{ runner.os }}" == "Windows" ]]; then
+          choco install ffmpeg
+        fi
+    
+    - name: Quick functionality test
+      run: |
+        uv run scdl --version
+        uv run scdl --help
+    
+    - name: Test basic download
+      run: |
+        uv run scdl -l "https://soundcloud.com/7x11x13-testing/testing-test-track" --onlymp3

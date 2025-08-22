@@ -1,0 +1,68 @@
+name: 💡 Feature Request
+description: Suggest a new feature or enhancement
+title: "[FEATURE]: "
+labels: ["enhancement", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please note that development is not very active, 
+        and features that can be achieved with `--yt-dlp-args` are unlikely to be merged.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checks
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues to ensure this feature hasn't been requested
+          required: true
+        - label: I have checked if this can be achieved with `--yt-dlp-args`
+          required: true
+        - label: This feature would benefit the broader community
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      description: What problem does this feature solve?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: What would you like to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other solutions have you considered?
+    validations:
+      required: false
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Provide specific examples of how this feature would be used
+      placeholder: |
+        1. When downloading playlists...
+        2. For users who want to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other information about the feature request
+    validations:
+      required: false

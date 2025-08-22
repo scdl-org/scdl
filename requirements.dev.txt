@@ -1,6 +1,28 @@
-pytest
-music-tag
-ruff
-mypy
-types-requests
-types-tqdm
+# Development dependencies for SCDL
+# Install with: pip install -r requirements.dev.txt
+
+# Testing
+pytest>=8.3.4
+pytest-cov>=6.0.0
+pytest-dotenv>=0.5.2
+pytest-xdist>=3.6.0
+music-tag>=0.4.3
+
+# Code Quality
+ruff>=0.8.3
+mypy>=1.13.0
+pre-commit>=4.0.0
+bandit[toml]>=1.8.0
+
+# Type Stubs
+types-requests>=2.32.0.20241016
+types-tqdm>=4.66.0
+
+# Coverage Reporting
+coverage[toml]>=7.6.0
+
+# Security
+safety>=3.2.0
+
+# Utilities (for Python < 3.11)
+typing_extensions>=4.12.2; python_version < '3.11'
