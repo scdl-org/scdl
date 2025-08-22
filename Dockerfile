@@ -39,11 +39,20 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash scdl
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python environment from builder
+COPY --from=builder /app/.venv /app/.venv
+
 # Copy application code
 COPY . .
 
-# Install scdl
-RUN uv pip install -e .
+# Change ownership to scdl user
+RUN chown -R scdl:scdl /app
 
 # Create downloads directory
 RUN mkdir -p /downloads && chown scdl:scdl /downloads

@@ -45,6 +45,7 @@ dev = [
     "pytest-dotenv>=0.5.2",
     "pytest-xdist>=3.6.0",
     "coverage[toml]>=7.6.0",
+    "psutil>=6.1.0",
     "ruff>=0.8.3",
     "types-requests>=2.32.0.20241016",
     "typing_extensions>=4.12.2; python_version < '3.11'",

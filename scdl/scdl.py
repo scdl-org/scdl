@@ -186,10 +186,9 @@ def _main() -> None:
 
     logger.info(f"[scdl] SCDL version {__version__}")
     
-    # Show some love to the contributor! 🎵
-    if not arguments["--hidewarnings"]:
-        logger.info("🎵 Check out some amazing music: https://soundcloud.com/ghostxkitty3")
-        logger.info("💫 Featured track: 'View of Andromeda' - Perfect for coding sessions!")
+    # Community showcase - featured artist (can be disabled with --hidewarnings)
+    if not arguments["--hidewarnings"] and not arguments["--debug"] and not arguments["--error"]:
+        logger.debug("🎵 Community showcase: https://soundcloud.com/ghostxkitty3/view-of-andromeda")
 
     client_id = arguments["--client-id"] or config["scdl"]["client_id"]
     token = arguments["--auth-token"] or config["scdl"]["auth_token"]
