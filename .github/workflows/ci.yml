@@ -2,10 +2,6 @@ name: ci
 on:
   push:
     branches: [ master ]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [ master ]
 jobs:
   test:
     strategy:
@@ -43,27 +39,3 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
       run: uv run pytest -vv --exitfirst
-  publish:
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.9
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
-      with:
-        python-version: 3.9
-        version: '0.8.8'
-    - name: Install dependencies
-      run: uv sync
-    - name: Build package
-      run: uv build
-    - name: Publish package
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}

@@ -1,0 +1,30 @@
+name: publish
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        python-version: '3.9'
+        version: '0.8.8'
+    - name: Install dependencies
+      run: uv sync
+    - name: Build package
+      run: uv build
+    - name: Publish package
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
+
