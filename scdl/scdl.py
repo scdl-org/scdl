@@ -20,8 +20,6 @@ Options:
     --version                       Show version
     -l [url]                        URL can be track/playlist/user
     -s [search_query]               Search for a track/playlist/user and use the first result
-    -n [maxtracks]                  Download the n last tracks of a playlist according to the
-                                    creation date
     -a                              Download all tracks of user (including reposts)
     -t                              Download all uploads of a user (no reposts)
     -f                              Download all favorites (likes) of a user
@@ -136,7 +134,6 @@ class SCDLArgs(TypedDict):
     max_size: str | None
     me: bool
     min_size: str | None
-    n: str | None
     name_format: str
     no_album_tag: bool
     no_original: bool
@@ -258,6 +255,8 @@ def _main() -> None:
         key = key.strip("-").replace("-", "_")
         python_args[key] = value
 
+    python_args["client_id"] = client.client_id
+    python_args["auth_token"] = client.auth_token
     url = python_args.pop("l")
 
     assert url is not None
