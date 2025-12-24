@@ -134,7 +134,6 @@ class SCDLArgs(TypedDict):
     max_size: str | None
     me: bool
     min_size: str | None
-    n: str | None
     name_format: str
     no_album_tag: bool
     no_original: bool
