@@ -1,6 +1,7 @@
 # https://github.com/yt-dlp/yt-dlp/pull/11817
 import base64
 import collections
+import contextlib
 import functools
 import os
 import re
@@ -215,11 +216,12 @@ class MutagenPP(PostProcessor):
             file["purl"] = meta["purl"]
 
         if meta.get("track"):
-            file["trkn"] = [(meta["track"], 0)]
+            with contextlib.suppress(ValueError):
+                file["trkn"] = [(int(meta["track"]), 0)]
 
-        if meta.get("covr"):
+        if meta.get("thumbnail"):
             f = {"jpeg": mp4.MP4Cover.FORMAT_JPEG, "png": mp4.MP4Cover.FORMAT_PNG}
-            file["covr"] = [mp4.MP4Cover(meta["covr"]["data"], f[meta["covr"]["type"]])]
+            file["covr"] = [mp4.MP4Cover(meta["thumbnail"]["data"], f[meta["thumbnail"]["type"]])]
 
     def _get_thumbnail(self, info: dict):
         if not info.get("thumbnails"):

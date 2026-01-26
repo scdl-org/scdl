@@ -1,6 +1,6 @@
 [project]
 name = "scdl"
-version = "3.0.2"
+version = "3.0.3"
 authors=[
     {name = "7x11x13"}, {name = "FlyinGrub"}
 ]
