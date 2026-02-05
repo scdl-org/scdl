@@ -44,6 +44,10 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --sync archive.txt
 
 # Download your likes (with authentification token)
 scdl me -f
+
+# Use yt-dlp impersonation (requires curl_cffi)
+scdl -l https://soundcloud.com/ihatemyselfbeats/t-1 --impersonate chrome
+# See yt-dlp --list-impersonate-targets for a list of targets
 ```
 
 ## Options:
@@ -96,6 +100,7 @@ scdl me -f
 --add-description               Adds the description to a seperate txt file (can be read by some players)
 --no-playlist                   Skip downloading playlists
 --opus                          Prefer downloading opus streams over mp3 streams
+--impersonate [target]          Forward yt-dlp's --impersonate (requires curl_cffi)
 --yt-dlp-args                   String with custom args to forward to yt-dlp
 ```
 

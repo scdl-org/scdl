@@ -9,7 +9,7 @@ Usage:
     [--original-name][--original-metadata][--no-original][--only-original]
     [--name-format <format>][--strict-playlist][--playlist-name-format <format>]
     [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
-    [--add-description][--yt-dlp-args <argstring>]
+    [--add-description][--impersonate <target>][--yt-dlp-args <argstring>]
 
     scdl -h | --help
     scdl --version
@@ -69,6 +69,7 @@ Options:
     --no-playlist                   Skip downloading playlists
     --add-description               Adds the description to a separate txt file
     --opus                          Prefer downloading opus streams over mp3 streams
+    --impersonate [target]          Forward yt-dlp's --impersonate (requires curl_cffi)
     --yt-dlp-args [argstring]       String with custom args to forward to yt-dlp
 """
 
@@ -155,6 +156,7 @@ class SCDLArgs(TypedDict):
     sync: str | None
     s: str | None
     t: bool
+    impersonate: str | None
     yt_dlp_args: str
 
 
@@ -395,7 +397,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     elif scdl_args.get("p"):
         url = posixpath.join(url, "sets")
     elif scdl_args.get("r"):
-        url = posixpath.join(url, "reposts")
+        url = ensure_suffix(base, "reposts")
 
     params: dict = {}
 
@@ -501,6 +503,11 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
 
     if scdl_args.get("opus"):
         params["--extractor-args"] = "soundcloud:formats=*_aac,*_opus,*_mp3"
+
+    if scdl_args.get("impersonate"):
+        params["--impersonate"] = scdl_args.get("impersonate")
+    elif scdl_args.get("t"):
+        params["--impersonate"] = "chrome"
 
     argv = []
     for param, value in params.items():
