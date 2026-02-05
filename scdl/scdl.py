@@ -397,7 +397,7 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     elif scdl_args.get("p"):
         url = posixpath.join(url, "sets")
     elif scdl_args.get("r"):
-        url = ensure_suffix(base, "reposts")
+        url = posixpath.join(url, "reposts")
 
     params: dict = {}
 
