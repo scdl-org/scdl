@@ -8,6 +8,7 @@ description = "Download Music from Souncloud"
 readme = "README.md"
 requires-python = ">=3.9.0"
 dependencies = [
+    "curl_cffi>=0.14.0",
     "docopt-ng>=0.9.0",
     "mutagen>=1.47.0",
     "soundcloud-v2>=1.6.1",
