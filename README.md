@@ -99,6 +99,16 @@ scdl me -f
 --yt-dlp-args                   String with custom args to forward to yt-dlp
 ```
 
+### Using yt-dlp's --impersonate feature
+
+scdl passes arguments to yt-dlp via `--yt-dlp-args`. If you want to use yt-dlp's 
+`--impersonate` feature (to mimic browser fingerprints), you'll need to install 
+scdl with `curl-cffi` included, using:
+
+```bash
+pip install scdl[impersonate]
+# or pip install scdl[impersonate-compat], if you're on macOS < 15.0
+```
 
 ## Features
 * Automatically detect the type of link provided

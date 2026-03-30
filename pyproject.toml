@@ -8,7 +8,6 @@ description = "Download Music from Souncloud"
 readme = "README.md"
 requires-python = ">=3.10.0"
 dependencies = [
-    "curl-cffi>=0.14.0",
     "docopt-ng>=0.9.0",
     "mutagen>=1.47.0",
     "soundcloud-v2>=1.6.1",
@@ -19,12 +18,20 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Internet",
     "Topic :: Multimedia :: Sound/Audio",
+]
+
+[project.optional-dependencies]
+impersonate = [
+    "curl-cffi>=0.5.10,!=0.6.*,!=0.7.*,!=0.8.*,!=0.9.*,<0.15; implementation_name=='cpython'",
+]
+
+impersonate-compat = [
+    "curl-cffi==0.13.0",
 ]
 
 [dependency-groups]

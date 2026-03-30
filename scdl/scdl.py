@@ -380,6 +380,18 @@ def _build_ytdl_format_specifier(scdl_args: SCDLArgs) -> str:
         fmt += "[format_id*=mp3]"
     return fmt
 
+def _check_impersonate_support(yt_dlp_args: list[str]) -> None:
+    """Error if --impersonate is used but curl-cffi is not installed."""
+    if "--impersonate" in yt_dlp_args or any(arg.startswith("--impersonate") for arg in yt_dlp_args):
+        try:
+            import curl_cffi  # noqa: F401
+        except ImportError:
+            raise ImportError(
+                "The --impersonate flag requires curl-cffi.\n\n"
+                "Install scdl with the impersonate extra to use this feature:"
+                "\npip install scdl[impersonate]"
+                "\n\nor if you're on macOS < 15.0, pip install scdl[impersonate-compat]"
+            ) from None
 
 def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     # return download url, ytdl params, and postprocessors
@@ -537,6 +549,7 @@ def download_url(url: str, **scdl_args: Unpack[SCDLArgs]) -> None:
     yt_dlp_args = scdl_args.get("yt_dlp_args")
     if yt_dlp_args:
         argv = shlex.split(yt_dlp_args)
+        _check_impersonate_support(argv)
         overrides = utils.cli_to_api(argv)
         params = {**params, **overrides}
 
