@@ -639,9 +639,9 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
             logger.info(f"Downloaded all tracks & reposts of user {user.username}!")
         elif kwargs.get("p"):
             logger.info(f"Retrieving all playlists of user {user.username}...")
-            playlists = client.get_user_playlists(user.id, limit=1000)
+            playlists = list(client.get_user_playlists(user.id, limit=1000))
             for i, playlist in itertools.islice(enumerate(playlists, 1), offset, None):
-                logger.info(f"playlist n°{i} of {user.playlist_count}")
+                logger.info(f"playlist n°{i} of {len(playlists)}: {playlist.title}")
                 download_playlist(client, playlist, kwargs)
             logger.info(f"Downloaded all playlists of user {user.username}!")
         elif kwargs.get("r"):
@@ -699,17 +699,15 @@ def sync(
                 logger.debug(ioe)
                 sys.exit(1)
             except ValueError as verr:
-                logger.error("Error trying to convert track ids. Verify archive file is not empty.")
-                logger.debug(verr)
-                sys.exit(1)
+                old = []
 
         new = [track.id for track in playlist.tracks]
         add = set(new).difference(old)  # find tracks to download
         rem = set(old).difference(new)  # find tracks to remove
 
         if not (add or rem):
-            logger.info("No changes found. Exiting...")
-            sys.exit(0)
+            logger.info("No changes found. Skipping...")
+            return
 
         if rem:
             for track_id in rem:
@@ -740,8 +738,6 @@ def sync(
 
         if add:
             return tuple(track for track in playlist.tracks if track.id in add)
-        logger.info("No tracks to download. Exiting...")
-        sys.exit(0)
 
 
 def download_playlist(
@@ -768,6 +764,14 @@ def download_playlist(
         if not os.path.exists(playlist_name):
             os.makedirs(playlist_name)
         os.chdir(playlist_name)
+        if kwargs["download_archive"]:
+            kwargs["download_archive"] = pathlib.Path(
+                kwargs["download_archive"].parts[-1]
+            ).resolve()
+        if kwargs["sync"]:
+            kwargs["sync"] = pathlib.Path(
+                kwargs["sync"].parts[-1]
+            ).resolve()
 
     try:
         n = kwargs.get("n")
@@ -778,11 +782,12 @@ def download_playlist(
             kwargs["playlist_offset"] = 0
         s = kwargs.get("sync")
         if s:
-            if os.path.isfile(s):
-                playlist.tracks = sync(client, playlist, playlist_info, kwargs)
-            else:
-                logger.error(f"Invalid sync archive file {kwargs.get('sync')}")
-                sys.exit(1)
+            if not os.path.isfile(s):
+                pathlib.Path(s).touch()
+            res = sync(client, playlist, playlist_info, kwargs)
+            if res is None:
+                return
+            playlist.tracks = res
 
         tracknumber_digits = len(str(len(playlist.tracks)))
         for counter, track in itertools.islice(
