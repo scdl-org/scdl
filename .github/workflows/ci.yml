@@ -2,15 +2,11 @@ name: ci
 on:
   push:
     branches: [ master ]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [ master ]
 jobs:
   test:
     strategy:
       matrix:
-        version: ['3.8', '3.12']
+        version: ['3.10', '3.13']
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -18,18 +14,22 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.version }}
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        python-version: ${{ matrix.version }}
+        version: '0.8.8'
     - name: Install dependencies
-      run: |
-        pip install -e .[dev]
+      run: uv sync
     - name: Lint
       if: '!cancelled()'
-      run: ruff check --output-format=github
+      run: uv run ruff check --output-format=github
     - name: Format check
       if: '!cancelled()'
-      run: ruff format --check
+      run: uv run ruff format --check
     - name: Type check
       if: '!cancelled()'
-      run: mypy
+      run: uv run mypy
     - name: Install ffmpeg
       run: |
         sudo apt update
@@ -38,27 +38,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
-      run: |
-        pytest -vv --exitfirst
-  publish:
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
-    - name: Install dependencies
-      run: |
-        pip install -e .
-    - name: Build package
-      run: |
-        pip install --upgrade build
-        python -m build
-    - name: Publish package
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      run: uv run pytest -vv --exitfirst

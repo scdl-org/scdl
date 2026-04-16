@@ -1,10 +1,9 @@
-import math
 import os
 from pathlib import Path
 
 import pytest
 
-from tests.utils import assert_not_track, assert_track, call_scdl_with_auth
+from tests.utils import assert_track, call_scdl_with_auth
 
 
 @pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
@@ -33,7 +32,8 @@ def test_original_to_stdout(tmp_path: Path) -> None:
     with open("track.wav", "wb") as f:
         assert isinstance(r.stdout, bytes)
         f.write(r.stdout)
-    assert_track(tmp_path, "track.wav", "copy", "saves", None)
+    # https://github.com/yt-dlp/yt-dlp/issues/8815
+    assert_track(tmp_path, "track.wav", "copy", "saves", None, check_metadata=False)
 
 
 def test_mp3_to_stdout(tmp_path: Path) -> None:
@@ -52,7 +52,8 @@ def test_mp3_to_stdout(tmp_path: Path) -> None:
         assert isinstance(r.stdout, bytes)
         f.write(r.stdout)
 
-    assert_track(tmp_path, "track.mp3")
+    # https://github.com/yt-dlp/yt-dlp/issues/8815
+    assert_track(tmp_path, "track.mp3", check_metadata=False)
 
 
 @pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
@@ -72,7 +73,8 @@ def test_flac_to_stdout(tmp_path: Path) -> None:
         f.write(r.stdout)
 
     assert r.returncode == 0
-    assert_track(tmp_path, "track.flac", "copy", "saves", None)
+    # https://github.com/yt-dlp/yt-dlp/issues/8815
+    assert_track(tmp_path, "track.flac", "copy", "saves", None, check_metadata=False)
 
 
 @pytest.mark.skipif(not os.getenv("AUTH_TOKEN"), reason="No auth token specified")
@@ -107,7 +109,7 @@ def test_m4a(tmp_path: Path) -> None:
         tmp_path,
         "track.m4a",
         "Wan Bushi - Eurodance Vibes (part 1+2+3)",
-        "7x11x13",
+        "Wan Bushi",
         "Electronic",
         None,
     )
@@ -213,6 +215,14 @@ def test_force_metadata(tmp_path: Path) -> None:
         "https://soundcloud.com/violinbutterflynet/original",
         "--name-format",
         "track",
+    )
+    assert_track(tmp_path, "track.wav", "og title", "og artist", "og genre", 0)
+
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/violinbutterflynet/original",
+        "--name-format",
+        "track",
         "--force-metadata",
     )
     assert r.returncode == 0
@@ -263,10 +273,10 @@ def test_maxsize(tmp_path: Path) -> None:
         "-l",
         "https://soundcloud.com/one-thousand-and-one/test-track",
         "--onlymp3",
-        "--max-size=10kb",
+        "--max-size=10k",
     )
-    assert r.returncode == 1
-    assert "not within --min-size=0 and --max-size=10240" in r.stderr
+    assert r.returncode == 0
+    assert "format is not available" in r.stderr
 
 
 def test_minsize(tmp_path: Path) -> None:
@@ -275,10 +285,10 @@ def test_minsize(tmp_path: Path) -> None:
         "-l",
         "https://soundcloud.com/one-thousand-and-one/test-track",
         "--onlymp3",
-        "--min-size=1mb",
+        "--min-size=1m",
     )
-    assert r.returncode == 1
-    assert f"not within --min-size={1024**2} and --max-size={math.inf}" in r.stderr
+    assert r.returncode == 0
+    assert "format is not available" in r.stderr
 
 
 def test_only_original(tmp_path: Path) -> None:
@@ -288,8 +298,8 @@ def test_only_original(tmp_path: Path) -> None:
         "https://soundcloud.com/one-thousand-and-one/test-track-2/s-fgLQFAzNIMP",
         "--only-original",
     )
-    assert r.returncode == 1
-    assert "does not have original file available" in r.stderr
+    assert r.returncode == 0
+    assert "Requested format is not available" in r.stderr
 
 
 def test_overwrite(tmp_path: Path) -> None:
@@ -310,8 +320,8 @@ def test_overwrite(tmp_path: Path) -> None:
         "track",
         "--onlymp3",
     )
-    assert r.returncode == 1
-    assert "already exists" in r.stderr
+    assert r.returncode == 0
+    assert "has already been downloaded" in r.stderr
 
     r = call_scdl_with_auth(
         "-l",
@@ -322,6 +332,7 @@ def test_overwrite(tmp_path: Path) -> None:
         "--overwrite",
     )
     assert r.returncode == 0
+    assert "Deleting existing file" in r.stderr
 
 
 def test_path(tmp_path: Path) -> None:
@@ -336,30 +347,6 @@ def test_path(tmp_path: Path) -> None:
     )
     assert r.returncode == 0
     assert_track(tmp_path, "track.mp3", check_metadata=False)
-
-
-def test_remove(tmp_path: Path) -> None:
-    os.chdir(tmp_path)
-    r = call_scdl_with_auth(
-        "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track",
-        "--name-format",
-        "track",
-        "--onlymp3",
-    )
-    assert r.returncode == 0
-    assert_track(tmp_path, "track.mp3", check_metadata=False)
-    r = call_scdl_with_auth(
-        "-l",
-        "https://soundcloud.com/one-thousand-and-one/test-track-2/s-fgLQFAzNIMP",
-        "--name-format",
-        "track2",
-        "--remove",
-        "--onlymp3",
-    )
-    assert r.returncode == 0
-    assert_track(tmp_path, "track2.mp3", check_metadata=False)
-    assert_not_track(tmp_path, "track.mp3")
 
 
 def test_download_archive(tmp_path: Path) -> None:
@@ -383,8 +370,8 @@ def test_download_archive(tmp_path: Path) -> None:
         "--onlymp3",
         "--download-archive=archive.txt",
     )
-    assert r.returncode == 1
-    assert "already exists" in r.stderr
+    assert r.returncode == 0
+    assert "already been recorded in the archive" in r.stderr
 
 
 def test_description_file(tmp_path: Path) -> None:
@@ -402,3 +389,16 @@ def test_description_file(tmp_path: Path) -> None:
     assert desc_file.exists()
     with open(desc_file, encoding="utf-8") as f:
         assert f.read().splitlines() == ["test description:", "9439290883"]
+
+
+def test_trim_filenames(tmp_path: Path) -> None:
+    os.chdir(tmp_path)
+    r = call_scdl_with_auth(
+        "-l",
+        "https://soundcloud.com/one-thousand-and-one/test-track",
+        "--name-format",
+        "a" * 500,
+        "--onlymp3",
+    )
+    assert r.returncode == 0
+    assert_track(tmp_path, "a" * 240 + ".mp3")
