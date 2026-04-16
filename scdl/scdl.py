@@ -279,18 +279,6 @@ def _search_soundcloud(client: SoundCloud, query: str) -> str | None:
     except Exception as e:
         logger.error(f"Error searching SoundCloud: {e}")
         return None
-
-
-def _get_config(config_file: Path) -> configparser.RawConfigParser:
-    """Gets config from scdl.cfg"""
-    config = configparser.RawConfigParser()
-
-    default_config_file = Path(__file__).with_name("scdl.cfg")
-
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-
-<<<<<<< HEAD
-
 def truncate_str(s: str, length: int) -> str:
     """Truncate string to a certain number of bytes using the file system encoding"""
     encoding = sys.getfilesystemencoding()
@@ -595,7 +583,14 @@ def download_playlist(
         if not kwargs.get("no_playlist_folder"):
             os.chdir("..")
 
-=======
+
+def _get_config(config_file: Path) -> configparser.RawConfigParser:
+    """Gets config from scdl.cfg"""
+    config = configparser.RawConfigParser()
+
+    default_config_file = Path(__file__).with_name("scdl.cfg")
+
+    config_file.parent.mkdir(parents=True, exist_ok=True)
     # load default config first
     with open(default_config_file, encoding="utf-8") as f:
         config.read_file(f)
@@ -605,7 +600,6 @@ def download_playlist(
             config.read_file(f)
     except Exception as err:
         logger.warning(f"Error while reading config file: {err}")
->>>>>>> eed992d47eb7ed20ccc933436e15806aee20ca91
 
     try:
         with locked_file(config_file, "w", encoding="utf-8") as f:
