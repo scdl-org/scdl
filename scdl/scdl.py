@@ -644,6 +644,16 @@ def download_url(client: SoundCloud, kwargs: SCDLArgs) -> None:
                 logger.info(f"playlist n°{i} of {len(playlists)}: {playlist.title}")
                 download_playlist(client, playlist, kwargs)
             logger.info(f"Downloaded all playlists of user {user.username}!")
+            if kwargs.get("sync"):
+                logger.info(f"Cleaning up deleted playlists")
+                user_playlists = set([
+                    playlist.title.encode("utf-8", "ignore").decode("utf-8")
+                    for playlist in playlists
+                ])
+                local_playlists = set(os.listdir("."))
+                deleted_playlists = user_playlists.difference(local_playlists)
+                for p in deleted_playlists:
+                    shutil.rmtree(p)
         elif kwargs.get("r"):
             logger.info(f"Retrieving all reposts of user {user.username}...")
             reposts = client.get_user_reposts(user.id, limit=1000)
