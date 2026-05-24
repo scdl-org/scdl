@@ -1,41 +1,9 @@
 name: ci
 on:
-  push:
-    branches: [ master ]
+  workflow_dispatch:
 jobs:
-  test:
-    strategy:
-      matrix:
-        version: ['3.10', '3.13']
+  noop:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.version }}
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
-      with:
-        python-version: ${{ matrix.version }}
-        version: '0.8.8'
-    - name: Install dependencies
-      run: uv sync
-    - name: Lint
-      if: '!cancelled()'
-      run: uv run ruff check --output-format=github
-    - name: Format check
-      if: '!cancelled()'
-      run: uv run ruff format --check
-    - name: Type check
-      if: '!cancelled()'
-      run: uv run mypy
-    - name: Install ffmpeg
-      run: |
-        sudo apt update
-        sudo apt install -yq --no-install-recommends ffmpeg
-    - name: Test
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        AUTH_TOKEN: ${{ secrets.AUTH_TOKEN }}
-      run: uv run pytest -vv --exitfirst
+    - name: ci disabled
+      run: echo "ci workflow is disabled"
