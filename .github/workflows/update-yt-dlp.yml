@@ -27,7 +27,7 @@ jobs:
       run: |
         sed -i -E 's/("yt-dlp>=)[^"]+(")/\1${{ steps.latest.outputs.version }}\2/' pyproject.toml
         CURRENT_SCDL=$(grep -E '^version = ' pyproject.toml | head -n1 | sed -E 's/version = "([^"]+)"/\1/')
-        NEW_SCDL=$(python3 -c "v='$CURRENT_SCDL'.split('.'); v[1]=str(int(v[1])+1); v[2]='0'; print('.'.join(v))")
+        NEW_SCDL=$(python3 -c "v='$CURRENT_SCDL'.split('.'); v[2]=str(int(v[2])+1); print('.'.join(v))")
         sed -i -E "s/^version = \"$CURRENT_SCDL\"\$/version = \"$NEW_SCDL\"/" pyproject.toml
         echo "new_scdl=$NEW_SCDL" >> "$GITHUB_OUTPUT"
     - name: Create Pull Request
@@ -40,6 +40,6 @@ jobs:
           Automated bump.
 
           - `yt-dlp`: `${{ steps.current.outputs.version }}` → `${{ steps.latest.outputs.version }}`
-          - `scdl`: minor version bumped to `${{ steps.bump.outputs.new_scdl }}`
+          - `scdl`: patch version bumped to `${{ steps.bump.outputs.new_scdl }}`
         branch: automated/yt-dlp-${{ steps.latest.outputs.version }}
         delete-branch: true
