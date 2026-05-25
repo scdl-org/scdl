@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
+      actions: write
     steps:
     - uses: actions/checkout@v4
     - name: Get latest yt-dlp version from PyPI
@@ -30,16 +30,18 @@ jobs:
         NEW_SCDL=$(python3 -c "v='$CURRENT_SCDL'.split('.'); v[2]=str(int(v[2])+1); print('.'.join(v))")
         sed -i -E "s/^version = \"$CURRENT_SCDL\"\$/version = \"$NEW_SCDL\"/" pyproject.toml
         echo "new_scdl=$NEW_SCDL" >> "$GITHUB_OUTPUT"
-    - name: Create Pull Request
+    - name: Commit, tag, and push
       if: steps.latest.outputs.version != steps.current.outputs.version
-      uses: peter-evans/create-pull-request@v7
-      with:
-        commit-message: "yt-dlp version ${{ steps.latest.outputs.version }}"
-        title: "yt-dlp version ${{ steps.latest.outputs.version }}"
-        body: |
-          Automated bump.
-
-          - `yt-dlp`: `${{ steps.current.outputs.version }}` → `${{ steps.latest.outputs.version }}`
-          - `scdl`: patch version bumped to `${{ steps.bump.outputs.new_scdl }}`
-        branch: automated/yt-dlp-${{ steps.latest.outputs.version }}
-        delete-branch: true
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add pyproject.toml
+        git commit -m "yt-dlp version ${{ steps.latest.outputs.version }}"
+        git tag "v${{ steps.bump.outputs.new_scdl }}"
+        git push origin HEAD:master
+        git push origin "v${{ steps.bump.outputs.new_scdl }}"
+    - name: Trigger publish workflow
+      if: steps.latest.outputs.version != steps.current.outputs.version
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh workflow run publish.yml --ref master
