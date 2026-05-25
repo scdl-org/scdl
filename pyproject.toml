@@ -1,6 +1,6 @@
 [project]
 name = "scdl"
-version = "3.0.4"
+version = "3.0.5"
 authors=[
     {name = "7x11x13"}, {name = "FlyinGrub"}
 ]
@@ -11,7 +11,7 @@ dependencies = [
     "docopt-ng>=0.9.0",
     "mutagen>=1.47.0",
     "soundcloud-v2>=1.6.1",
-    "yt-dlp[curl-cffi]>=2026.2.21",
+    "yt-dlp[curl-cffi]>=2026.3.17",
 ]
 classifiers = [
     "Programming Language :: Python",
