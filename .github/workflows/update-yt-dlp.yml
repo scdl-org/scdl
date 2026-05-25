@@ -1,0 +1,44 @@
+name: update-yt-dlp
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+    - uses: actions/checkout@v4
+    - name: Get latest yt-dlp version from PyPI
+      id: latest
+      run: |
+        VERSION=$(curl -fsS https://pypi.org/pypi/yt-dlp/json | python3 -c 'import json,sys; print(json.load(sys.stdin)["info"]["version"])')
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+    - name: Get current yt-dlp version
+      id: current
+      run: |
+        VERSION=$(grep -E '"yt-dlp>=' pyproject.toml | sed -E 's/.*yt-dlp>=([^"]+)".*/\1/')
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+    - name: Bump versions
+      id: bump
+      if: steps.latest.outputs.version != steps.current.outputs.version
+      run: |
+        sed -i -E 's/("yt-dlp>=)[^"]+(")/\1${{ steps.latest.outputs.version }}\2/' pyproject.toml
+        CURRENT_SCDL=$(grep -E '^version = ' pyproject.toml | head -n1 | sed -E 's/version = "([^"]+)"/\1/')
+        NEW_SCDL=$(python3 -c "v='$CURRENT_SCDL'.split('.'); v[2]=str(int(v[2])+1); print('.'.join(v))")
+        sed -i -E "s/^version = \"$CURRENT_SCDL\"\$/version = \"$NEW_SCDL\"/" pyproject.toml
+        echo "new_scdl=$NEW_SCDL" >> "$GITHUB_OUTPUT"
+    - name: Commit, tag, and push
+      if: steps.latest.outputs.version != steps.current.outputs.version
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "yt-dlp version ${{ steps.latest.outputs.version }}"
+        tagging_message: "v${{ steps.bump.outputs.new_scdl }}"
+        file_pattern: pyproject.toml
+    - name: Trigger publish workflow
+      if: steps.latest.outputs.version != steps.current.outputs.version
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: gh workflow run publish.yml --ref master

@@ -2,8 +2,8 @@ name: publish
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - master
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -27,4 +27,4 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
-
+        skip-existing: true
