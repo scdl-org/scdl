@@ -424,11 +424,10 @@ name = "scdl"
 version = "3.0.4"
 source = { editable = "." }
 dependencies = [
-    { name = "curl-cffi" },
     { name = "docopt-ng" },
     { name = "mutagen" },
     { name = "soundcloud-v2" },
-    { name = "yt-dlp" },
+    { name = "yt-dlp", extra = ["curl-cffi"] },
 ]
 
 [package.dev-dependencies]
@@ -444,11 +443,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "curl-cffi", specifier = ">=0.14.0" },
     { name = "docopt-ng", specifier = ">=0.9.0" },
     { name = "mutagen", specifier = ">=1.47.0" },
     { name = "soundcloud-v2", specifier = ">=1.6.1" },
-    { name = "yt-dlp", specifier = ">=2026.2.21" },
+    { name = "yt-dlp", extras = ["curl-cffi"], specifier = ">=2026.2.21" },
 ]
 
 [package.metadata.requires-dev]
@@ -561,4 +559,9 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/58/d9/55ffff25204733e94a507552ad984d5a8a8e4f9d1f0d91763e6b1a41c79b/yt_dlp-2026.2.21.tar.gz", hash = "sha256:4407dfc1a71fec0dee5ef916a8d4b66057812939b509ae45451fa8fb4376b539", size = 3116630 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/40/664c99ee36d80d84ce7a96cd98aebcb3d16c19e6c3ad3461d2cf5424040e/yt_dlp-2026.2.21-py3-none-any.whl", hash = "sha256:0d8408f5b6d20487f5caeb946dfd04f9bcd2f1a3a125b744a0a982b590e449f7", size = 3313392 },
+]
+
+[package.optional-dependencies]
+curl-cffi = [
+    { name = "curl-cffi", marker = "implementation_name == 'cpython'" },
 ]
