@@ -129,13 +129,44 @@ function Field({ opts, set, name, label, placeholder, wide, type = "text" }) {
   </div>`;
 }
 
+function FolderField({ opts, set, config }) {
+  const [picking, setPicking] = useState(false);
+  const [error, setError] = useState("");
+  const fallback = config ? config.download_dir : "";
+
+  const browse = async () => {
+    setPicking(true); setError("");
+    try {
+      const { path } = await api("/api/pick-folder", { initial: opts.path || fallback });
+      if (path) set({ path });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  return html`<div class="field wide">
+    <label>Carpeta de destino</label>
+    <div class="row">
+      <input type="text" value=${opts.path} placeholder=${fallback}
+        onInput=${(e) => set({ path: e.target.value })} />
+      <button type="button" class="btn" onClick=${browse} disabled=${picking}>
+        ${picking ? html`<span class="spinner"></span> Eligiendo…` : "Examinar…"}
+      </button>
+    </div>
+    ${picking && html`<div class="muted small" style="margin-top:4px">
+      Se abrió el selector de carpetas de Windows (puede estar detrás de esta ventana).</div>`}
+    ${error && html`<div class="error-msg">${error}</div>`}
+  </div>`;
+}
+
 function Options({ opts, set, config, isCollection }) {
   const qualities = QUALITIES[opts.audio_format];
   return html`<div class="panel">
     <h2>Opciones</h2>
     <div class="options">
-      <${Field} opts=${opts} set=${set} name="path" label="Carpeta de destino" wide
-        placeholder=${config ? config.download_dir : ""} />
+      <${FolderField} opts=${opts} set=${set} config=${config} />
       <div class="field wide">
         <span class="lbl">Formato</span>
         <${Seg} value=${opts.audio_format} options=${FORMATS}

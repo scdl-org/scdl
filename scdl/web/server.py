@@ -461,6 +461,11 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/jobs/clear":
             self.manager.clear_finished()
             return self._json({"ok": True})
+        if path == "/api/pick-folder":
+            try:
+                return self._json({"path": pick_folder(data.get("initial") or "")})
+            except ImportError:
+                return self._error("tkinter no está disponible en este Python", HTTPStatus.NOT_IMPLEMENTED)
         m = re.fullmatch(r"/api/jobs/([0-9a-f]+)/(cancel|open)", path)
         if m:
             job = self.manager.jobs.get(m.group(1))
@@ -471,6 +476,28 @@ class Handler(SimpleHTTPRequestHandler):
             open_folder(job.path)
             return self._json({"ok": True})
         return self._error("not found", HTTPStatus.NOT_FOUND)
+
+
+_dialog_lock = threading.Lock()
+
+
+def pick_folder(initial: str) -> str | None:
+    """Show the native folder picker (blocks the request thread until it is closed)"""
+    import tkinter as tk  # noqa: PLC0415 (optional: not every Python ships tkinter)
+    from tkinter import filedialog  # noqa: PLC0415
+
+    start = Path(os.path.expanduser(initial or default_download_dir()))
+    while not start.exists() and start.parent != start:
+        start = start.parent
+    with _dialog_lock:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)  # otherwise it can open behind the app window
+        try:
+            chosen = filedialog.askdirectory(parent=root, initialdir=str(start), title="Carpeta de destino")
+        finally:
+            root.destroy()
+    return str(Path(chosen)) if chosen else None
 
 
 def open_folder(path: str) -> None:
