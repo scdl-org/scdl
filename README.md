@@ -20,7 +20,21 @@ Compatible with Windows, OS X, Linux.
 https://github.com/flyingrub/scdl/wiki/Installation-Instruction
 
 ## Configuration
-There is a configuration file left in `~/.config/scdl/scdl.cfg`
+There is a configuration file left in `~/.config/scdl/scdl.cfg` (or `$XDG_CONFIG_HOME/scdl/scdl.cfg`)
+
+## Interfaz local (scdl-web)
+
+Este fork incluye una interfaz web local y ligera (Python estándar + Preact, sin compilación):
+
+* **Windows:** doble clic en `scdl-web.bat`. La primera vez crea `.venv` e instala scdl; después solo arranca.
+  `scdl-web.bat --update` reinstala dependencias.
+* **Cualquier sistema:** `pip install -e .` y luego `scdl-web` (o `python -m scdl.web`).
+
+Se abre en una ventana de Edge/Chrome en modo app (o en el navegador por defecto) en `http://127.0.0.1:8770` (o el siguiente puerto libre).
+Permite buscar o pegar URLs (incluidos los enlaces `on.soundcloud.com`), elegir qué bajar de un usuario
+(subidas, likes, reposts, playlists…), ajustar formato/calidad y filtros, y ver la cola con el progreso.
+Las descargas se hacen de una en una para evitar bloqueos por exceso de peticiones (HTTP 429).
+Opciones: `--port <n>`, `--no-window`.
 
 ## Examples:
 ```
@@ -44,6 +58,15 @@ scdl -l https://soundcloud.com/pandadub/sets/the-lost-ship --sync archive.txt
 
 # Download your likes (with authentification token)
 scdl me -f
+
+# Download the 20 most recent uploads of a user, skipping tracks longer than 10 minutes
+scdl -l https://soundcloud.com/quanta-uk -t -n 20 --max-duration 10:00
+
+# Convert to 320kbps mp3 (mp3 sources are kept as-is) and keep the cover as a separate file
+scdl -l https://soundcloud.com/jumpstreetpsy/low-extender --audio-format mp3 --audio-quality 320K --write-cover
+
+# Share links from the mobile app work too
+scdl -l https://on.soundcloud.com/jSPcrMemAGzRcU4M6
 ```
 
 ## Options:
@@ -61,6 +84,7 @@ scdl me -f
 -c                              Continue if a downloaded file already exists
 --force-metadata                This will set metadata on already downloaded track
 -o [offset]                     Start downloading a playlist from the [offset]th track (starting with 1)
+-n [maxtracks]                  Download at most [maxtracks] tracks (counted from the offset)
 --addtimestamp                  Add track creation timestamp to filename,
                                 which allows for chronological sorting
                                 (Deprecated. Use --name-format instead.)
@@ -96,6 +120,15 @@ scdl me -f
 --add-description               Adds the description to a seperate txt file (can be read by some players)
 --no-playlist                   Skip downloading playlists
 --opus                          Prefer downloading opus streams over mp3 streams
+--min-duration [time]           Skip tracks shorter than [time] (SS, MM:SS or HH:MM:SS)
+--max-duration [time]           Skip tracks longer than [time] (SS, MM:SS or HH:MM:SS)
+--skip-known-drm                Skip tracks with no downloadable formats (DRM/geo-restricted)
+                                and remember them so later runs skip them without requests
+--audio-format [format]         Convert audio with ffmpeg (mp3, m4a, opus, flac, wav, ...).
+                                Files already in that format are kept as-is
+--audio-quality [quality]       Quality for --audio-format: 0 (best VBR) to 10, or a bitrate such as 320K
+--sleep [seconds]               Wait [seconds] between requests and downloads (helps against HTTP 429)
+--write-cover                   Also keep the cover art as a separate image file
 --yt-dlp-args                   String with custom args to forward to yt-dlp
 ```
 
