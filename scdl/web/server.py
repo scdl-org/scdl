@@ -28,6 +28,7 @@ from typing import ClassVar
 from urllib.parse import parse_qs, urlparse
 
 from soundcloud import AlbumPlaylist, SoundCloud, Track, User
+from yt_dlp.utils import locked_file
 
 from scdl import scdl as cli
 
@@ -58,6 +59,7 @@ FLAG_OPTIONS = {
     "only_original": "--only-original",
     "opus": "--opus",
     "flac": "--flac",
+    "clean_tags": "--clean-tags",
 }
 VALUE_OPTIONS = {
     "offset": "-o",
@@ -67,6 +69,7 @@ VALUE_OPTIONS = {
     "audio_format": "--audio-format",
     "audio_quality": "--audio-quality",
     "sleep": "--sleep",
+    "parallel": "--parallel",
 }
 ITEM_RE = re.compile(r"\[download\] Downloading item (\d+) of (\d+)")
 
@@ -89,7 +92,6 @@ class Job:
         self.finished: float | None = None
         self.position: tuple[int, int] | None = None
         self.items: dict[str, dict] = {}
-        self.current: str | None = None
         self.files: list[str] = []
         self.log: collections.deque[str] = collections.deque(maxlen=400)
         self.cancel_requested = False
@@ -122,13 +124,12 @@ class Job:
                 "id": key,
                 "title": info.get("title") or key,
                 "uploader": info.get("uploader"),
-                "status": "downloading",
+                "status": "preparing",
                 "percent": 0.0,
                 "speed": None,
                 "eta": None,
                 "file": None,
             }
-        self.current = key
         return item
 
     def progress_hook(self, d: dict) -> None:
@@ -152,13 +153,25 @@ class Job:
     def postprocessor_hook(self, d: dict) -> None:
         if self.cancel_requested:
             raise JobCancelled
-        if d.get("status") == "started" and self.current in self.items:
-            self.items[self.current]["status"] = "processing"
+        info = d.get("info_dict") or {}
+        if d.get("status") == "started" and info.get("_type") != "playlist":
+            item = self._item(info)
+            if item["percent"] >= 100 and item["status"] == "downloading":  # pre_process PPs run before
+                item["status"] = "processing"
 
-    def post_hook(self, filename: str) -> None:
-        self.files.append(filename)
-        if self.current in self.items:
-            self.items[self.current].update(status="done", file=filename, percent=100.0)
+    def on_file(self, info: dict) -> None:
+        """Called by scdl for every finished file (also for files that already existed)"""
+        self.files.append(info["filepath"])
+        item = self._item(info)
+        if info.get("meta_title"):  # --clean-tags
+            item["title"] = f"{info.get('meta_artist') or info.get('uploader')} - {info['meta_title']}"
+        item.update(
+            status="done" if info.get("__real_download") else "exists",
+            file=info["filepath"],
+            percent=100.0,
+            speed=None,
+            eta=None,
+        )
 
 
 class JobLogHandler(logging.Handler):
@@ -223,14 +236,14 @@ class JobManager:
         logger.addHandler(handler)
         try:
             Path(job.path).mkdir(parents=True, exist_ok=True)
-            url, scdl_args = cli.parse_args(job.argv)
+            url, scdl_args = cli.parse_args(job.argv, client=get_client())
             cli.download_url(
                 url,
                 ydl_opts={
                     "progress_hooks": [job.progress_hook],
                     "postprocessor_hooks": [job.postprocessor_hook],
-                    "post_hooks": [job.post_hook],
                 },
+                on_file=job.on_file,
                 **scdl_args,
             )
             job.status = "done"
@@ -246,7 +259,9 @@ class JobManager:
             logger.removeHandler(handler)
             job.finished = time.time()
             for item in job.items.values():
-                if item["status"] in ("downloading", "processing"):
+                if item["status"] == "preparing" and job.status == "done":
+                    item["status"] = "skipped"  # rejected by a filter after being resolved
+                elif item["status"] in ("preparing", "downloading", "processing"):
                     item["status"] = "error" if job.status == "error" else job.status
 
 
@@ -283,19 +298,29 @@ def build_argv(url: str, mode: str, options: dict, path: str) -> list[str]:
 # SoundCloud API (search / preview) ---------------------------------------------------
 
 _client: SoundCloud | None = None
+_client_checked = 0.0
 _client_lock = threading.Lock()
+CLIENT_RECHECK_SECONDS = 30 * 60
 
 
 def get_client() -> SoundCloud:
-    global _client  # noqa: PLW0603
+    """SoundCloud client validated once and shared by search, preview and downloads (re-checked every 30 min)"""
+    global _client, _client_checked  # noqa: PLW0603
     with _client_lock:
-        if _client is None:
-            config = cli._get_config(cli.get_config_dir() / "scdl.cfg")
-            token = config["scdl"]["auth_token"] or None
-            client = SoundCloud(config["scdl"]["client_id"] or None, token)
-            if not client.is_client_id_valid():
-                client = SoundCloud(None, token)
-            _client = client
+        if _client is None or time.monotonic() - _client_checked > CLIENT_RECHECK_SECONDS:
+            if _client is None or not _client.is_client_id_valid():
+                config_file = cli.get_config_dir() / "scdl.cfg"
+                config = cli._get_config(config_file)
+                token = config["scdl"]["auth_token"] or None
+                client = SoundCloud(config["scdl"]["client_id"] or None, token)
+                if not client.is_client_id_valid():
+                    client = SoundCloud(None, token)
+                    # remember the new client_id like the CLI does
+                    config["scdl"]["client_id"] = client.client_id
+                    with locked_file(config_file, "w", encoding="utf-8") as f:
+                        config.write(f)
+                _client = client
+            _client_checked = time.monotonic()
         return _client
 
 

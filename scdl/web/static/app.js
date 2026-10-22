@@ -42,7 +42,8 @@ const store = {
 const KIND_LABEL = { track: "Pista", playlist: "Playlist", album: "Álbum", user: "Usuario" };
 const STATUS_LABEL = {
   queued: "En cola", running: "Descargando", done: "Listo", error: "Error", cancelled: "Cancelado",
-  downloading: "Descargando", processing: "Procesando",
+  downloading: "Descargando", processing: "Procesando", exists: "Ya existía",
+  preparing: "Preparando", skipped: "Omitida",
 };
 
 const DEFAULT_OPTIONS = {
@@ -54,7 +55,9 @@ const DEFAULT_OPTIONS = {
   min_duration: "",
   max_duration: "",
   sleep: "",
+  parallel: "3",
   continue: true,
+  clean_tags: true,
   only_new: false,
   skip_known_drm: true,
   write_cover: false,
@@ -186,8 +189,14 @@ function Options({ opts, set, config, isCollection }) {
       <${Field} opts=${opts} set=${set} name="min_duration" label="Duración mínima" placeholder="ej. 1:00" />
       <${Field} opts=${opts} set=${set} name="max_duration" label="Duración máxima" placeholder="ej. 10:00" />
       <${Field} opts=${opts} set=${set} name="sleep" label="Pausa entre peticiones (s)" type="number" placeholder="0" />
+      ${isCollection && html`<div class="field">
+        <span class="lbl">Pistas a la vez</span>
+        <${Seg} value=${String(opts.parallel || "1")} options=${[["1", "1"], ["2", "2"], ["3", "3"]]}
+          onChange=${(v) => set({ parallel: v })} />
+      </div>`}
     </div>
     <div class="checks">
+      <${Check} opts=${opts} set=${set} name="clean_tags" label="Limpiar artista/título" hint="«Artista - Título», feat., sin [Free Download]…" />
       <${Check} opts=${opts} set=${set} name="continue" label="Saltar archivos existentes" hint="Continúa si el archivo ya existe (-c)" />
       <${Check} opts=${opts} set=${set} name="only_new" label="Solo nuevas" hint="Historial scdl-archive.txt en la carpeta" />
       <${Check} opts=${opts} set=${set} name="skip_known_drm" label="Saltar pistas con DRM" hint="Y recordarlas para no reintentar" />
@@ -214,10 +223,15 @@ function Job({ job, onCancel, onOpen }) {
   const [showItems, setShowItems] = useState(true);
   const active = job.status === "running" || job.status === "queued";
   const items = job.items;
-  const current = items.length ? items[items.length - 1] : null;
   const pos = job.position;
-  const overall = pos ? ((pos[0] - 1 + (current ? current.percent / 100 : 0)) / pos[1]) * 100 : current ? current.percent : 0;
+  const total = pos ? pos[1] : items.length;
+  // several tracks can be in progress at once: sum their progress
+  const overall = total ? Math.min(100, items.reduce((sum, it) => sum + it.percent, 0) / total) : 0;
+  const working = items.filter((i) => i.status === "downloading" || i.status === "processing");
+  const speed = working.reduce((sum, it) => sum + (it.speed || 0), 0);
   const done = items.filter((i) => i.status === "done").length;
+  const existed = items.filter((i) => i.status === "exists").length;
+  const finished = done + existed;
 
   return html`<div class="job">
     <div class="job-head">
@@ -225,18 +239,20 @@ function Job({ job, onCancel, onOpen }) {
       <span class="status ${job.status}">${STATUS_LABEL[job.status]}</span>
     </div>
     ${job.status === "running" && html`
-      <div class="bar ${!current && !pos ? "indet" : ""}"><i style=${`width:${overall}%`}></i></div>
+      <div class="bar ${!items.length ? "indet" : ""}"><i style=${`width:${overall}%`}></i></div>
       <div class="meta" style="margin-top:6px">
-        ${pos ? html`<span>${pos[0]} de ${pos[1]}</span>` : html`<span>Preparando…</span>`}
-        ${current && current.status === "downloading" && html`<span>${Math.round(current.percent)}%</span>`}
-        ${current && current.speed ? html`<span>${fmtSpeed(current.speed)}</span>` : null}
-        ${current && current.status === "processing" ? html`<span>convirtiendo / etiquetando…</span>` : null}
+        ${items.length
+          ? html`<span>${finished} de ${total} listas</span>`
+          : html`<span>Preparando…</span>`}
+        ${working.length > 1 ? html`<span>${working.length} a la vez</span>` : null}
+        ${speed ? html`<span>${fmtSpeed(speed)}</span>` : null}
       </div>`}
     ${job.status !== "running" && job.status !== "queued" && html`
       <div class="meta" style="margin-top:6px">
-        <span>${done || job.status !== "done"
+        <span>${done || existed || job.status !== "done"
           ? `${done} archivo${done === 1 ? "" : "s"} descargado${done === 1 ? "" : "s"}`
           : "Nada nuevo: ya descargado o filtrado (ver log)"}</span>
+        ${existed ? html`<span>${existed} ya existía${existed === 1 ? "" : "n"}</span>` : null}
         <span>${job.path}</span>
       </div>`}
     ${job.error && html`<div class="error-msg">${job.error}</div>`}
@@ -245,11 +261,12 @@ function Job({ job, onCancel, onOpen }) {
       ${items.map((it) => html`<div>
         <div class="item-row">
           <span class="t" title=${it.file || it.title}>${it.title}</span>
-          <span class="status ${it.status === "done" ? "done" : it.status === "error" ? "error" : "running"}">
+          <span class="status ${it.status === "done" ? "done" : it.status === "error" ? "error"
+            : ["exists", "cancelled", "skipped", "preparing"].includes(it.status) ? "queued" : "running"}">
             ${it.status === "downloading" ? Math.round(it.percent) + "%" : STATUS_LABEL[it.status] || it.status}
           </span>
         </div>
-        ${it.status !== "done" && it.status !== "cancelled" && it.status !== "error" &&
+        ${(it.status === "downloading" || it.status === "processing") &&
           html`<div class="bar"><i style=${`width:${it.percent}%`}></i></div>`}
       </div>`)}
     </div>`}
