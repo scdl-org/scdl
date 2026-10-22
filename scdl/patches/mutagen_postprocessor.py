@@ -73,9 +73,10 @@ class MutagenPP(PostProcessor):
         "tven": "episode_sort",
     }
 
-    def __init__(self, post_overwrites: bool, downloader=None):
+    def __init__(self, post_overwrites: bool, downloader=None, keep_thumbnail: bool = False):
         super().__init__(downloader)
         self._post_overwrites = post_overwrites
+        self._keep_thumbnail = keep_thumbnail
 
     def _get_flac_pic(self, thumbnail: dict) -> flac.Picture:
         pic = flac.Picture()
@@ -240,10 +241,11 @@ class MutagenPP(PostProcessor):
         with open(thumbnail_filename, "rb") as thumbfile:
             thumb_data = thumbfile.read()
 
-        self._delete_downloaded_files(
-            thumbnail_filename,
-            info=info,
-        )
+        if not self._keep_thumbnail:
+            self._delete_downloaded_files(
+                thumbnail_filename,
+                info=info,
+            )
 
         type_ = imghdr.what(h=thumb_data)
         if not type_:

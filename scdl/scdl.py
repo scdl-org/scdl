@@ -2,14 +2,16 @@
 
 Usage:
     scdl (-l <track_url> | -s <search_query> | me) [-a | -f | -C | -t | -p | -r]
-    [-c | --force-metadata][-o <offset>][--hidewarnings][--debug | --error]
+    [-c | --force-metadata][-o <offset>][-n <maxtracks>][--hidewarnings][--debug | --error]
     [--path <path>][--addtofile][--addtimestamp][--onlymp3][--hide-progress][--min-size <size>]
     [--max-size <size>][--no-album-tag][--no-playlist-folder]
     [--download-archive <file>][--sync <file>][--extract-artist][--flac][--original-art]
     [--original-name][--original-metadata][--no-original][--only-original]
     [--name-format <format>][--strict-playlist][--playlist-name-format <format>]
     [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
-    [--add-description][--yt-dlp-args <argstring>]
+    [--add-description][--min-duration <time>][--max-duration <time>][--skip-known-drm]
+    [--audio-format <format>][--audio-quality <quality>][--sleep <seconds>][--write-cover]
+    [--yt-dlp-args <argstring>]
 
     scdl -h | --help
     scdl --version
@@ -30,6 +32,7 @@ Options:
     --force-metadata                This will set metadata on already downloaded track
     -o [offset]                     Start downloading a playlist from the [offset]th track
                                     Indexing starts with 1.
+    -n [maxtracks]                  Download at most [maxtracks] tracks (counted from the offset)
     --addtimestamp                  Add track creation timestamp to filename,
                                     which allows for chronological sorting
                                     (Deprecated. Use --name-format instead.)
@@ -69,6 +72,17 @@ Options:
     --no-playlist                   Skip downloading playlists
     --add-description               Adds the description to a separate txt file
     --opus                          Prefer downloading opus streams over mp3 streams
+    --min-duration [time]           Skip tracks shorter than [time] (SS, MM:SS or HH:MM:SS)
+    --max-duration [time]           Skip tracks longer than [time] (SS, MM:SS or HH:MM:SS)
+    --skip-known-drm                Skip tracks with no downloadable formats (DRM/geo-restricted)
+                                    and remember them so later runs skip them without requests
+    --audio-format [format]         Convert audio with ffmpeg (mp3, m4a, opus, flac, wav, ...).
+                                    Files already in that format are kept as-is
+    --audio-quality [quality]       Quality for --audio-format: 0 (best VBR) to 10, or a
+                                    bitrate such as 320K [default: 0]
+    --sleep [seconds]               Wait [seconds] between requests and downloads
+                                    (helps against HTTP 429 rate limiting)
+    --write-cover                   Also keep the cover art as a separate image file
     --yt-dlp-args [argstring]       String with custom args to forward to yt-dlp
 """
 
@@ -82,6 +96,9 @@ import os
 import posixpath
 import shlex
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
@@ -116,6 +133,8 @@ class SCDLArgs(TypedDict):
     C: bool
     a: bool
     add_description: bool
+    audio_format: str | None
+    audio_quality: str | None
     addtimestamp: bool
     addtofile: bool
     auth_token: str | None
@@ -133,6 +152,9 @@ class SCDLArgs(TypedDict):
     l: str  # noqa: E741
     max_size: str | None
     me: bool
+    n: int | None
+    max_duration: str | None
+    min_duration: str | None
     min_size: str | None
     name_format: str
     no_album_tag: bool
@@ -154,7 +176,10 @@ class SCDLArgs(TypedDict):
     strict_playlist: bool
     sync: str | None
     s: str | None
+    skip_known_drm: bool
+    sleep: str | None
     t: bool
+    write_cover: bool
     yt_dlp_args: str
 
 
@@ -164,19 +189,28 @@ __version__ = importlib.metadata.version("scdl")
 def _main() -> None:
     """Main function, parses the URL from command line arguments"""
     logger.addHandler(logging.StreamHandler())
+    url, python_args = parse_args()
+    download_url(url, **python_args)
 
-    # Parse arguments
-    arguments = docopt(__doc__, version=__version__)
 
+def get_config_dir() -> Path:
+    if os.environ.get("XDG_CONFIG_HOME"):
+        # expand "~" in case the variable was set without shell expansion (#578)
+        return Path(os.path.expanduser(os.environ["XDG_CONFIG_HOME"]), "scdl")
+    return Path.home().joinpath(".config", "scdl")
+
+
+def parse_args(argv: list[str] | None = None) -> tuple[str, SCDLArgs]:
+    """Parse CLI arguments (sys.argv if argv is None) into a url and kwargs for download_url"""
+    arguments = docopt(__doc__, argv=argv, version=__version__)
+
+    logger.setLevel(logging.INFO)
     if arguments["--debug"]:
         logger.level = logging.DEBUG
     elif arguments["--error"]:
         logger.level = logging.ERROR
 
-    if "XDG_CONFIG_HOME" in os.environ:
-        config_file = Path(os.environ["XDG_CONFIG_HOME"], "scdl", "scdl.cfg")
-    else:
-        config_file = Path.home().joinpath(".config", "scdl", "scdl.cfg")
+    config_file = get_config_dir() / "scdl.cfg"
 
     # import conf file
     config = _get_config(config_file)
@@ -227,6 +261,23 @@ def _main() -> None:
             logger.error("[scdl] Offset should be a positive integer")
             sys.exit(1)
 
+    if arguments["-n"] is not None:
+        try:
+            arguments["-n"] = int(arguments["-n"])
+            if arguments["-n"] < 1:
+                raise ValueError
+        except Exception:
+            logger.error("[scdl] Max tracks should be a positive integer")
+            sys.exit(1)
+
+    for opt in ("--min-duration", "--max-duration"):
+        if arguments[opt] is not None:
+            try:
+                _parse_duration(arguments[opt])
+            except ValueError:
+                logger.error(f"[scdl] {opt} should be SS, MM:SS or HH:MM:SS")
+                sys.exit(1)
+
     if not arguments["--name-format"]:
         arguments["--name-format"] = config["scdl"]["name_format"]
 
@@ -247,7 +298,7 @@ def _main() -> None:
             logger.error("[scdl] Search failed")
             sys.exit(1)
 
-    arguments["--path"] = Path(arguments["--path"] or config["scdl"]["path"] or ".").resolve()
+    arguments["--path"] = Path(os.path.expanduser(arguments["--path"] or config["scdl"]["path"] or ".")).resolve()
 
     # convert arguments dict to python-friendly kwarg names (no hyphens)
     python_args = {}
@@ -261,7 +312,52 @@ def _main() -> None:
 
     assert url is not None
 
-    download_url(url, **python_args)
+    return _resolve_short_url(url), python_args
+
+
+def _resolve_short_url(url: str) -> str:
+    """Expand share links from the mobile app (on.soundcloud.com/...), which yt-dlp does not support (#546)"""
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):  # noqa: ARG002
+            return None
+
+    if urllib.parse.urlparse(url).netloc != "on.soundcloud.com":
+        return url
+    short_url = url
+    opener = urllib.request.build_opener(_NoRedirect)
+    for _ in range(5):
+        parsed = urllib.parse.urlparse(url)
+        if parsed.netloc != "on.soundcloud.com":
+            break
+        try:
+            opener.open(urllib.request.Request(url, method="HEAD"), timeout=15)
+            break
+        except urllib.error.HTTPError as err:
+            location = err.headers.get("Location")
+            if err.code not in (301, 302, 303, 307, 308) or not location:
+                logger.warning(f"[scdl] Could not resolve short link {url}: HTTP {err.code}")
+                return url
+            url = urllib.parse.urljoin(url, location)
+        except OSError as err:
+            logger.warning(f"[scdl] Could not resolve short link {url}: {err}")
+            return url
+    else:
+        return url
+    parsed = urllib.parse.urlparse(url)
+    if parsed.netloc.endswith("soundcloud.com") and parsed.netloc != "on.soundcloud.com":
+        # drop tracking parameters (?ref=clipboard&utm_source=...) added to share links
+        url = urllib.parse.urlunparse(parsed._replace(query="", fragment=""))
+    logger.info(f"[scdl] Resolved {short_url} to {url}")
+    return url
+
+
+def _parse_duration(value: str) -> int:
+    """Convert SS, MM:SS or HH:MM:SS into seconds"""
+    parts = value.strip().split(":")
+    if not 1 <= len(parts) <= 3 or not all(p.isdigit() for p in parts):
+        raise ValueError(value)
+    return sum(int(x) * 60**i for i, x in enumerate(reversed(parts)))
 
 
 def _search_soundcloud(client: SoundCloud, query: str) -> str | None:
@@ -428,8 +524,11 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     #     https://github.com/yt-dlp/yt-dlp/issues/1467
     #     params["--no-post-overwrites"] = True  # noqa: ERA001
 
-    if scdl_args.get("o"):
-        params["--playlist-items"] = f"{scdl_args.get('o')}:"
+    offset, max_tracks = scdl_args.get("o"), scdl_args.get("n")
+    if offset or max_tracks:
+        start = offset or 1
+        end = start + max_tracks - 1 if max_tracks else ""
+        params["--playlist-items"] = f"{start}:{end}"
 
     if scdl_args.get("extract_artist"):
         params["--parse-metadata"] += [
@@ -481,7 +580,9 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
         params["--embed-metadata"] = False
         params["--embed-thumbnail"] = False
     else:
-        postprocessors.append((MutagenPP(scdl_args["force_metadata"]), "post_process"))
+        postprocessors.append(
+            (MutagenPP(scdl_args["force_metadata"], keep_thumbnail=bool(scdl_args.get("write_cover"))), "post_process")
+        )
 
     if scdl_args.get("auth_token"):
         params["--username"] = "oauth"
@@ -490,8 +591,27 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     if scdl_args.get("overwrite"):
         params["--force-overwrites"] = True
 
+    match_filters = []
+    if scdl_args.get("min_duration"):
+        match_filters.append(f"duration >=? {_parse_duration(scdl_args['min_duration'])}")
+    if scdl_args.get("max_duration"):
+        match_filters.append(f"duration <=? {_parse_duration(scdl_args['max_duration'])}")
     if scdl_args.get("no_playlist"):
-        params["--match-filters"] = "!playlist_uploader"
+        match_filters.append("!playlist_uploader")
+    if match_filters:
+        params["--match-filters"] = " & ".join(match_filters)
+
+    if scdl_args.get("sleep"):
+        params["--sleep-requests"] = scdl_args["sleep"]
+        params["--sleep-interval"] = scdl_args["sleep"]
+
+    if scdl_args.get("audio_format"):
+        params["--extract-audio"] = True
+        params["--audio-format"] = scdl_args["audio_format"]
+        params["--audio-quality"] = scdl_args.get("audio_quality") or "0"
+
+    if scdl_args.get("write_cover"):
+        params["--write-thumbnail"] = True
 
     if scdl_args.get("add_description"):
         params["--print-to-file"] = (
@@ -524,7 +644,36 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     return url, utils.cli_to_api(argv), postprocessors
 
 
-def download_url(url: str, **scdl_args: Unpack[SCDLArgs]) -> None:
+def _skip_known_drm_filter(base_filter, cache_file: Path):
+    """Wrap a yt-dlp match_filter to skip (and remember) tracks without downloadable formats"""
+    known: set[str] = set()
+    if cache_file.exists():
+        with locked_file(cache_file, "r", encoding="utf-8") as f:
+            known = {line.strip() for line in f if line.strip()}
+
+    def match_filter(info_dict: dict, incomplete: bool = False):
+        if info_dict.get("_type") != "playlist" and info_dict.get("id") is not None:
+            track_id = str(info_dict["id"])
+            title = info_dict.get("title") or track_id
+            if track_id in known:
+                return f"{title} is known to have no downloadable formats, skipping"
+            if "formats" in info_dict and not info_dict["formats"]:
+                known.add(track_id)
+                with locked_file(cache_file, "a", encoding="utf-8") as f:
+                    f.write(track_id + "\n")
+                return f"{title} has no downloadable formats (DRM or geo-restricted), skipping"
+        if base_filter is None:
+            return None
+        return base_filter(info_dict, incomplete=incomplete)
+
+    return match_filter
+
+
+def download_url(url: str, ydl_opts: dict | None = None, **scdl_args: Unpack[SCDLArgs]) -> list[str]:
+    """Download url with scdl options. Extra yt-dlp params (e.g. progress_hooks) can be passed in ydl_opts.
+
+    Returns the paths of the files that were downloaded.
+    """
     url, params, postprocessors = _build_ytdl_params(url, scdl_args)
 
     params["logger"] = logger
@@ -540,6 +689,22 @@ def download_url(url: str, **scdl_args: Unpack[SCDLArgs]) -> None:
         overrides = utils.cli_to_api(argv)
         params = {**params, **overrides}
 
+    if scdl_args.get("skip_known_drm"):
+        # report tracks without formats as a normal result so the match filter can reject them
+        params["ignore_no_formats_error"] = True
+        cache_file = get_config_dir() / "no_formats.txt"
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        params["match_filter"] = _skip_known_drm_filter(params.get("match_filter"), cache_file)
+
+    for key, value in (ydl_opts or {}).items():
+        if isinstance(value, list) and isinstance(params.get(key), list):
+            params[key] = [*params[key], *value]
+        else:
+            params[key] = value
+
+    downloaded: list[str] = []
+    params["post_hooks"] = [*params.get("post_hooks", []), downloaded.append]
+
     with YoutubeDL(params) as ydl:
         if scdl_args["client_id"]:
             ydl.cache.store("soundcloud", "client_id", scdl_args["client_id"])
@@ -549,6 +714,8 @@ def download_url(url: str, **scdl_args: Unpack[SCDLArgs]) -> None:
         sync = SyncDownloadHelper(scdl_args, ydl)
         ydl.download(url)
         sync.post_download()
+
+    return downloaded
 
 
 if __name__ == "__main__":
