@@ -33,7 +33,8 @@ Este fork incluye una interfaz web local y ligera (Python estándar + Preact, si
 Se abre en una ventana de Edge/Chrome en modo app (o en el navegador por defecto) en `http://127.0.0.1:8770` (o el siguiente puerto libre).
 Permite buscar o pegar URLs (incluidos los enlaces `on.soundcloud.com`), elegir qué bajar de un usuario
 (subidas, likes, reposts, playlists…), ajustar formato/calidad y filtros, y ver la cola con el progreso.
-Las descargas se hacen de una en una para evitar bloqueos por exceso de peticiones (HTTP 429).
+Cada descarga baja hasta 3 pistas a la vez (configurable). Las peticiones a la API de SoundCloud se espacian
+entre todos los hilos y, si SoundCloud responde HTTP 429, todas las descargas se pausan y se reintenta.
 Opciones: `--port <n>`, `--no-window`.
 
 ## Examples:
@@ -64,6 +65,9 @@ scdl -l https://soundcloud.com/quanta-uk -t -n 20 --max-duration 10:00
 
 # Convert to 320kbps mp3 (mp3 sources are kept as-is) and keep the cover as a separate file
 scdl -l https://soundcloud.com/jumpstreetpsy/low-extender --audio-format mp3 --audio-quality 320K --write-cover
+
+# Download 3 tracks at a time and clean up "Artist - Title [Free Download]" style titles
+scdl -l https://soundcloud.com/kobiblastoyz -f --parallel 3 --clean-tags
 
 # Share links from the mobile app work too
 scdl -l https://on.soundcloud.com/jSPcrMemAGzRcU4M6
@@ -129,6 +133,10 @@ scdl -l https://on.soundcloud.com/jSPcrMemAGzRcU4M6
 --audio-quality [quality]       Quality for --audio-format: 0 (best VBR) to 10, or a bitrate such as 320K
 --sleep [seconds]               Wait [seconds] between requests and downloads (helps against HTTP 429)
 --write-cover                   Also keep the cover art as a separate image file
+--clean-tags                    Clean up artist/title: split "Artist - Title", move "feat. X" to the artist,
+                                drop promo text such as [Free Download], and name the files after the cleaned tags
+--parallel [n]                  Download up to [n] tracks at once (1-3, default 1)
+--concurrent-fragments [n]      Download up to [n] fragments of each track at once (default 8)
 --yt-dlp-args                   String with custom args to forward to yt-dlp
 ```
 

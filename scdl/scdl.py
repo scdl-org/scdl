@@ -11,6 +11,7 @@ Usage:
     [--client-id <id>][--auth-token <token>][--overwrite][--no-playlist][--opus]
     [--add-description][--min-duration <time>][--max-duration <time>][--skip-known-drm]
     [--audio-format <format>][--audio-quality <quality>][--sleep <seconds>][--write-cover]
+    [--clean-tags][--parallel <n>][--concurrent-fragments <n>]
     [--yt-dlp-args <argstring>]
 
     scdl -h | --help
@@ -83,19 +84,28 @@ Options:
     --sleep [seconds]               Wait [seconds] between requests and downloads
                                     (helps against HTTP 429 rate limiting)
     --write-cover                   Also keep the cover art as a separate image file
+    --clean-tags                    Clean up artist/title: split "Artist - Title", move "feat. X"
+                                    to the artist, drop promo text such as [Free Download], and
+                                    name the files after the cleaned tags
+    --parallel [n]                  Download up to [n] tracks at once (1-3) [default: 1]
+    --concurrent-fragments [n]      Download up to [n] fragments of each track at once [default: 8]
     --yt-dlp-args [argstring]       String with custom args to forward to yt-dlp
 """
 
 from __future__ import annotations
 
+import concurrent.futures
 import configparser
 import importlib
 import importlib.metadata
 import logging
 import os
 import posixpath
+import queue
 import shlex
 import sys
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -110,9 +120,13 @@ from soundcloud import (
     User,
 )
 from yt_dlp import YoutubeDL
-from yt_dlp.utils import locked_file
+from yt_dlp.extractor.soundcloud import SoundcloudIE
+from yt_dlp.networking.exceptions import HTTPError
+from yt_dlp.postprocessor.common import PostProcessor
+from yt_dlp.utils import DownloadCancelled, DownloadError, locked_file
 
 from scdl import utils
+from scdl.patches.clean_tags_preprocessor import CleanTagsPP
 from scdl.patches.mutagen_postprocessor import MutagenPP
 from scdl.patches.original_filename_preprocessor import OriginalFilenamePP
 from scdl.patches.switch_outtmpl_preprocessor import OuttmplPP
@@ -139,6 +153,8 @@ class SCDLArgs(TypedDict):
     addtofile: bool
     auth_token: str | None
     c: bool
+    clean_tags: bool
+    concurrent_fragments: int
     client_id: str | None
     debug: bool
     download_archive: str | None
@@ -170,6 +186,7 @@ class SCDLArgs(TypedDict):
     original_name: bool
     overwrite: bool
     p: bool
+    parallel: int
     path: Path
     playlist_name_format: str
     r: bool
@@ -200,8 +217,11 @@ def get_config_dir() -> Path:
     return Path.home().joinpath(".config", "scdl")
 
 
-def parse_args(argv: list[str] | None = None) -> tuple[str, SCDLArgs]:
-    """Parse CLI arguments (sys.argv if argv is None) into a url and kwargs for download_url"""
+def parse_args(argv: list[str] | None = None, client: SoundCloud | None = None) -> tuple[str, SCDLArgs]:
+    """Parse CLI arguments (sys.argv if argv is None) into a url and kwargs for download_url.
+
+    An already validated SoundCloud client can be passed to skip the client_id/token checks.
+    """
     arguments = docopt(__doc__, argv=argv, version=__version__)
 
     logger.setLevel(logging.INFO)
@@ -220,6 +240,28 @@ def parse_args(argv: list[str] | None = None) -> tuple[str, SCDLArgs]:
     client_id = arguments["--client-id"] or config["scdl"]["client_id"]
     token = arguments["--auth-token"] or config["scdl"]["auth_token"]
 
+    if client is None:
+        client = _validated_client(arguments, config, config_file, client_id, token)
+    elif arguments["me"] and not client.is_auth_token_valid():
+        logger.error("[scdl] Invalid auth_token")
+        sys.exit(1)
+
+    for opt, low, high in (("--parallel", 1, 3), ("--concurrent-fragments", 1, 32)):
+        try:
+            arguments[opt] = int(arguments[opt])
+            if not low <= arguments[opt] <= high:
+                raise ValueError
+        except ValueError:  # noqa: PERF203
+            logger.error(f"[scdl] {opt} should be an integer between {low} and {high}")
+            sys.exit(1)
+
+    python_args = _finish_args(arguments, config, client)
+    url = python_args.pop("l")
+    assert url is not None
+    return _resolve_short_url(url), python_args
+
+
+def _validated_client(arguments: dict, config, config_file: Path, client_id: str, token: str) -> SoundCloud:
     client = SoundCloud(client_id, token if token else None)
 
     if not client.is_client_id_valid():
@@ -251,7 +293,11 @@ def parse_args(argv: list[str] | None = None) -> tuple[str, SCDLArgs]:
         else:
             logger.error(f"[scdl] Invalid auth_token in {config_file}")
         sys.exit(1)
+    return client
 
+
+def _finish_args(arguments: dict, config, client: SoundCloud) -> dict:
+    """Validate/complete the remaining arguments and convert them to download_url kwargs"""
     if arguments["-o"] is not None:
         try:
             arguments["-o"] = int(arguments["-o"])
@@ -308,11 +354,7 @@ def parse_args(argv: list[str] | None = None) -> tuple[str, SCDLArgs]:
 
     python_args["client_id"] = client.client_id
     python_args["auth_token"] = client.auth_token
-    url = python_args.pop("l")
-
-    assert url is not None
-
-    return _resolve_short_url(url), python_args
+    return python_args
 
 
 def _resolve_short_url(url: str) -> str:
@@ -450,6 +492,10 @@ def _build_ytdl_output_filename(scdl_args: SCDLArgs, in_playlist: bool, force_su
         if scdl_args.get("addtimestamp"):
             track_format = "%(timestamp)s_" + track_format
 
+    if scdl_args.get("clean_tags"):
+        track_format = track_format.replace("%(uploader)s", "%(meta_artist,uploader)s")
+        track_format = track_format.replace("%(title)s", "%(meta_title,title)s")
+
     base = scdl_args["path"]
     if scdl_args.get("no_playlist_folder") or not in_playlist:
         ret = base / track_format
@@ -504,6 +550,8 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
     params["--output-na-placeholder"] = ""
     params["--parse-metadata"] = []
     params["--trim-filenames"] = "240b"
+    # playlist-level files (e.g. the playlist cover) were written to the working directory as "..jpg"
+    params["--no-write-playlist-metafiles"] = True
     postprocessors = [
         (
             OuttmplPP(
@@ -516,6 +564,9 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
 
     if scdl_args.get("strict_playlist"):
         params["--abort-on-error"] = True
+
+    if scdl_args.get("concurrent_fragments") and scdl_args.get("name_format") != "-":
+        params["--concurrent-fragments"] = str(scdl_args["concurrent_fragments"])
 
     if not scdl_args.get("c") and not scdl_args.get("download_archive") and not scdl_args.get("sync"):
         params["--break-on-existing"] = True
@@ -566,6 +617,9 @@ def _build_ytdl_params(url: str, scdl_args: SCDLArgs) -> tuple[str, dict, list]:
 
     if scdl_args.get("original_name") and not scdl_args.get("no_original"):
         postprocessors.append((OriginalFilenamePP(), "pre_process"))
+
+    if scdl_args.get("clean_tags"):
+        postprocessors.append((CleanTagsPP(), "pre_process"))
 
     if not scdl_args.get("original_art"):
         params["--thumbnail-id"] = "t500x500"
@@ -669,12 +723,155 @@ def _skip_known_drm_filter(base_filter, cache_file: Path):
     return match_filter
 
 
-def download_url(url: str, ydl_opts: dict | None = None, **scdl_args: Unpack[SCDLArgs]) -> list[str]:
-    """Download url with scdl options. Extra yt-dlp params (e.g. progress_hooks) can be passed in ydl_opts.
+class _ApiRateLimiter:
+    """Spaces out requests to the SoundCloud API across all download threads"""
+
+    def __init__(self, min_interval: float) -> None:
+        self._lock = threading.Lock()
+        self._min_interval = min_interval
+        self._next_at = 0.0
+
+    def wait(self) -> None:
+        with self._lock:
+            now = time.monotonic()
+            at = max(now, self._next_at)
+            self._next_at = at + self._min_interval
+        if at > now:
+            time.sleep(at - now)
+
+    def pause(self, seconds: float) -> None:
+        with self._lock:
+            self._next_at = max(self._next_at, time.monotonic() + seconds)
+
+
+_SOUNDCLOUD_API_HOSTS = {
+    "soundcloud.com",
+    "www.soundcloud.com",
+    "m.soundcloud.com",
+    "api.soundcloud.com",
+    "api-v2.soundcloud.com",
+    "api-auth.soundcloud.com",
+}
+_api_limiter = _ApiRateLimiter(0.25)
+
+
+class _ScdlYoutubeDL(YoutubeDL):
+    def urlopen(self, req):
+        url = req if isinstance(req, str) else req.url
+        if urllib.parse.urlparse(url).netloc not in _SOUNDCLOUD_API_HOSTS:
+            # media files/fragments come from the CDN and are not rate limited
+            return super().urlopen(req)
+        retries = 3
+        for attempt in range(retries + 1):
+            _api_limiter.wait()
+            try:
+                return super().urlopen(req)
+            except HTTPError as err:
+                if err.status != 429 or attempt == retries:
+                    raise
+                retry_after = err.response.headers.get("Retry-After") or ""
+                delay = int(retry_after) if retry_after.isdigit() else 30 * 2**attempt
+                self.report_warning(f"SoundCloud rate limit (HTTP 429), pausing {delay}s before retrying")
+                # pause every download thread, not just this one
+                _api_limiter.pause(delay)
+        raise AssertionError  # unreachable
+
+
+class _ListingLogger:
+    """Logger for the playlist listing pass: hides the per-item lines, which belong to the download pass"""
+
+    def debug(self, msg: str) -> None:
+        if not msg.startswith("[download] Downloading item"):
+            logger.debug(msg)
+
+    def warning(self, msg: str) -> None:
+        logger.warning(msg)
+
+    def error(self, msg: str) -> None:
+        logger.error(msg)
+
+
+class _RecordPP(PostProcessor):
+    def __init__(self, callback) -> None:
+        super().__init__()
+        self._callback = callback
+
+    def run(self, info):
+        self._callback(info)
+        return [], info
+
+
+def _playlist_entries(ydl: YoutubeDL, url: str) -> list[tuple[dict, dict]] | None:
+    """List the (filtered, sliced) entries of a playlist without resolving them; None if url is a track.
+
+    Each entry comes with the playlist fields yt-dlp would add during a normal playlist download,
+    so names, folders and album tags stay the same.
+    """
+    if SoundcloudIE.suitable(url):
+        return None
+    info = ydl.extract_info(url, download=False)
+    if not info or info.get("_type") != "playlist":
+        return None
+    entries = info.get("entries") or []
+    indices = info.get("requested_entries") or range(1, len(entries) + 1)
+    common = YoutubeDL._playlist_infodict(info, n_entries=len(entries))
+    return [
+        (entry, {**common, "playlist_index": index, "playlist_autonumber": i})
+        for i, (index, entry) in enumerate(zip(indices, entries), 1)
+        if entry
+    ]
+
+
+def _download_parallel(entries: list[tuple[dict, dict]], workers: int, new_ydl) -> None:
+    total = len(entries)
+    logger.info(f"[scdl] Downloading {total} items, {workers} at a time")
+    pending: queue.SimpleQueue[tuple[int, tuple[dict, dict]]] = queue.SimpleQueue()
+    for item in enumerate(entries, 1):
+        pending.put(item)
+    stop = threading.Event()
+
+    def worker() -> None:
+        with new_ydl() as ydl:
+            while not stop.is_set():
+                try:
+                    i, (entry, extra) = pending.get_nowait()
+                except queue.Empty:
+                    return
+                logger.info(f"[download] Downloading item {i} of {total}")
+                try:
+                    ydl.extract_info(entry["url"], ie_key=entry.get("ie_key"), extra_info=extra)
+                except DownloadCancelled:  # --break-on-existing and friends
+                    stop.set()
+                except DownloadError:
+                    pass  # already reported by yt-dlp
+                except Exception as err:
+                    logger.error(f"[scdl] {entry.get('title') or entry['url']}: {err}")
+                except BaseException:
+                    stop.set()
+                    raise
+
+    with concurrent.futures.ThreadPoolExecutor(workers, thread_name_prefix="scdl") as pool:
+        futures = [pool.submit(worker) for _ in range(min(workers, total))]
+        try:
+            for future in futures:
+                future.result()
+        except BaseException:
+            stop.set()
+            raise
+
+
+def download_url(
+    url: str,
+    ydl_opts: dict | None = None,
+    on_file=None,
+    **scdl_args: Unpack[SCDLArgs],
+) -> list[str]:
+    """Download url with scdl options. Extra yt-dlp params (e.g. progress_hooks) can be passed in ydl_opts
+    and on_file is called with the info dict of every finished file (path in info["filepath"]).
 
     Returns the paths of the files that were downloaded.
     """
-    url, params, postprocessors = _build_ytdl_params(url, scdl_args)
+    url, params, _ = _build_ytdl_params(url, scdl_args)
 
     params["logger"] = logger
 
@@ -703,17 +900,65 @@ def download_url(url: str, ydl_opts: dict | None = None, **scdl_args: Unpack[SCD
             params[key] = value
 
     downloaded: list[str] = []
-    params["post_hooks"] = [*params.get("post_hooks", []), downloaded.append]
+    lock = threading.Lock()
 
-    with YoutubeDL(params) as ydl:
-        if scdl_args["client_id"]:
+    def record(info: dict) -> None:
+        with lock:
+            downloaded.append(info["filepath"])
+        if on_file:
+            on_file(info)
+
+    cache_stored = False
+
+    def new_ydl(extra_params: dict | None = None, listing: bool = False) -> YoutubeDL:
+        nonlocal cache_stored
+        ydl = _ScdlYoutubeDL({**params, **(extra_params or {})})
+        if scdl_args["client_id"] and not cache_stored:
+            # once, from the main thread: concurrent writes to the yt-dlp cache fail on Windows
             ydl.cache.store("soundcloud", "client_id", scdl_args["client_id"])
-        for pp, when in postprocessors:
+            cache_stored = True
+        if listing:
+            return ydl
+        # postprocessors keep per-downloader state, so every downloader gets its own
+        for pp, when in _build_ytdl_params(url, scdl_args)[2]:
             ydl.add_post_processor(pp, when)
+        ydl.add_post_processor(_RecordPP(record), "after_move")
+        return ydl
 
-        sync = SyncDownloadHelper(scdl_args, ydl)
-        ydl.download(url)
-        sync.post_download()
+    workers = scdl_args.get("parallel") or 1
+    if workers > 1 and (
+        scdl_args.get("sync") or scdl_args.get("strict_playlist") or scdl_args.get("name_format") == "-"
+    ):
+        logger.warning("[scdl] --parallel is ignored with --sync, --strict-playlist and stdout output")
+        workers = 1
+
+    entries = None
+    if workers > 1:
+        listing_params = {
+            "extract_flat": "in_playlist",
+            "logger": _ListingLogger(),
+            # yt-dlp runs pre-processors and hooks on flat entries too; they belong to the download pass
+            "postprocessors": [],
+            "progress_hooks": [],
+            "postprocessor_hooks": [],
+            # the listing pass must not write anything (e.g. the playlist cover as "..jpg")
+            "writethumbnail": False,
+            "write_all_thumbnails": False,
+            "writedescription": False,
+            "writeinfojson": False,
+        }
+        with new_ydl(listing_params, listing=True) as ydl:
+            entries = _playlist_entries(ydl, url)
+
+    if entries is None:
+        with new_ydl() as ydl:
+            sync = SyncDownloadHelper(scdl_args, ydl)
+            ydl.download(url)
+            sync.post_download()
+    elif entries:
+        # interleaved progress bars from several threads are unreadable
+        params["noprogress"] = True
+        _download_parallel(entries, workers, new_ydl)
 
     return downloaded
 
