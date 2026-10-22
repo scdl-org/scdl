@@ -514,7 +514,7 @@ def _bind(ports: list[int]) -> Server:
     for port in ports:
         try:
             return Server(("127.0.0.1", port), Handler)
-        except OSError:
+        except OSError:  # noqa: PERF203
             continue
     raise OSError("no free port")
 
