@@ -44,6 +44,10 @@ Changelog = "https://github.com/scdl-org/scdl/blob/master/CHANGELOG.md"
 
 [project.scripts]
 scdl = "scdl.scdl:_main"
+scdl-web = "scdl.web.server:main"
+
+[tool.setuptools.package-data]
+scdl = ["scdl.cfg", "web/static/*", "web/static/vendor/*"]
 
 [tool.uv]
 package = true

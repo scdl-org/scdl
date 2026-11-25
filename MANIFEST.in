@@ -1,3 +1,4 @@
 include *.md
 include LICENSE
 include scdl/scdl.cfg
+recursive-include scdl/web/static *
